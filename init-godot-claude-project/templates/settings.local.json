@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pgrep -fl:*)",
+      "Bash(lsof -nP -iTCP:6550*)",
+      "Bash(mkdir -p:*)",
+      "Bash(chmod +x:*)",
+      "Bash(godot-mcp-clean)",
+      "mcp__godot__get_diagnostics",
+      "mcp__godot__clear_console_output",
+      "mcp__godot__get_console_output",
+      "mcp__godot__scan_workspace_diagnostics",
+      "mcp__godot-mcp__scene",
+      "mcp__godot-mcp__node",
+      "mcp__godot-mcp__scene3d",
+      "mcp__godot-mcp__editor",
+      "mcp__godot-mcp__project",
+      "mcp__godot-mcp__resource",
+      "mcp__godot-mcp__godot_docs",
+      "mcp__godot-mcp__input"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "godot-mcp",
+    "godot"
+  ]
+}
