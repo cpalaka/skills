@@ -1,2 +1,7 @@
 .DS_Store
 docs/
+
+# Claude Code workspace plumbing — never publish
+.claude/
+CLAUDE.md
+.superpowers/
