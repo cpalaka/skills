@@ -48,6 +48,14 @@ A personal index of workflow preferences for Godot 4.x projects — how to handl
 
 [`SKILL.md`](./godot-personal-preferences/SKILL.md)
 
+### skill-updater
+
+A manually-invoked meta-skill that checks every installed Claude skill for upstream updates and installs them. Auto-applies updates from trusted sources (Anthropic, Vercel, the official marketplace) and confirms community sources first. Covers both skill ecosystems on the machine — Claude Code plugins (`claude plugin` CLI) and `npx skills` agent-skills (`~/.agents`). Hand-authored personal skills are never touched.
+
+**When to use:** The user says "check my skills for updates" / "update my skills" / "any skill updates?", or invokes `/skill-updater`.
+
+[`SKILL.md`](./skill-updater/SKILL.md)
+
 ## 3rd-party skills I use
 
 Skills I have installed locally and use as part of my workflow. Grouped by upstream source.
@@ -87,6 +95,7 @@ Skills I have installed locally and use as part of my workflow. Grouped by upstr
 - `diagnose` — Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
 - `grill-me` — Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions "grill me".
 - `grill-with-docs` — Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+- `handoff` — Compact the current conversation into a handoff document for another agent to pick up.
 - `improve-codebase-architecture` — Find deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the decisions in docs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.
 - `prototype` — Build a throwaway prototype to flesh out a design before committing to it. Routes between two branches — a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route.
 - `setup-matt-pocock-skills` — Sets up an `## Agent skills` block in AGENTS.md/CLAUDE.md and `docs/agents/` so the engineering skills know this repo's issue tracker (GitHub or local markdown), triage label vocabulary, and domain doc layout.
@@ -107,6 +116,10 @@ Skills I have installed locally and use as part of my workflow. Grouped by upstr
 ### From [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser)
 
 - `agent-browser` — Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task.
+
+### From [vercel-labs/skills](https://github.com/vercel-labs/skills)
+
+- `find-skills` — Helps users discover and install agent skills when they ask "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. Use when the user is looking for functionality that might exist as an installable skill.
 
 ### From [anthropics/skills](https://github.com/anthropics/skills)
 

@@ -1,0 +1,4 @@
+{
+  "marketplaces": ["claude-plugins-official"],
+  "repos": ["anthropics/*", "vercel-labs/*"]
+}
