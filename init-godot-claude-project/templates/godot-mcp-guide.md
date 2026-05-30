@@ -40,6 +40,7 @@ Proactively reach for `get_errors` when the user reports failure — don't wait 
 - Resource refs (`mesh`, `material_override`, `environment`, ...): plain path string `"res://..."` — auto-loaded
 - Enums: integers (Camera3D `projection`: 0=perspective, 1=orthographic)
 - `rotation_degrees` as Vector3; default Euler order is YXZ (rotation_order=2)
+- **Struct-valued props (`Transform2D`, `Rect2`, `Transform3D`) are NOT serializable through the bridge — the write silently no-ops or drops fields** (e.g. `Bone2D.rest` keeps only the basis, dropping origin; `Sprite2D.region_rect` ignores string/dict/array forms entirely). Hand-edit these into the `.tscn`, then force a close+reopen+save resync before further `node.*` calls — `node.get_properties` reports the stale in-memory copy, and an editor save clobbers the hand-edit. See `godot-gotchas.md` § "godot-mcp can't write `Transform2D` / `Rect2` (struct-valued) properties".
 
 ## Read-only MCP tools (use file Write/Edit instead)
 

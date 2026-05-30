@@ -69,6 +69,6 @@ For unclear cases, INCLUDE the entry in your report and ASK before propagating.
 
 ## Out of scope
 
-- `init-godot-claude-project/templates/mcp.json` and `settings.local.json` — configs, not docs/learnings.
+- Don't auto-sync exact version numbers, server lists, or per-project allow-list entries between `.mcp.json` / `settings.local.json` and their templates — those drift per-project and noisy-diff. DO sync **structural learnings** about these files (pin-vs-unpinned policy, integrity-hash expectations, command-shape conventions, default permission classes). When a `feedback_*.md` memory documents a config-shape decision (e.g. "pin exact versions in `.mcp.json`"), propagate the pattern into the template even though the artifact is config.
 - `godot-gdscript-patterns` and `godot-animation-tree-mastery` skills — authored upstream, not edited by this project.
 - Project-side improvements — flag in report, don't apply.

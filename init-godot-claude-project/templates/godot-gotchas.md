@@ -185,6 +185,140 @@ Every transition that has an `advance_condition` or `advance_expression` line sh
 
 ---
 
+## Stale advance-condition boolean flickers the parent StateMachine and resets a nested sub-StateMachine to Start every frame
+
+**Symptom:** An AnimationTree character looks stuck on its Idle clip — animations never progress past idle even when the player is clearly moving and the gameplay conditions are correct. A nested sub-StateMachine's `playback.get_current_node()` keeps reading its Start/Idle node. While standing still, the *top-level* StateMachine visibly oscillates between two states every few frames (e.g. `Grounded` ↔ `Fall`). No errors, no warnings. If the Idle clip happens to have no tracks for some bones (e.g. legs), those bones look frozen during movement, masking that the StateMachine — not the expressions — is the real problem.
+
+**Cause:** A boolean `advance_condition` (or a boolean referenced by an `advance_expression`) is written in only ONE branch of the per-frame update — e.g. `is_falling` set only inside `if state == AIRBORNE`. When that branch stops running (player lands → grounded), the boolean is never cleared, so it **latches stale-true**. The top-level StateMachine evaluates that condition EVERY frame while in the neighbouring state, so a transition like `Grounded→Fall` (on stale `is_falling`) keeps firing, paired with `Fall→Grounded` (on `is_grounded`) → perpetual parent-state flicker. Critically, each time the top-level SM **re-enters** a state containing a nested sub-StateMachine, that sub-SM is **re-initialised to its Start node** — so the nested locomotion SM can never advance past Idle, regardless of speed/expressions.
+
+This is a sibling to the `advance_mode = 2` gotcha above (transitions that need AUTO advance mode), but it is about condition *freshness*, not advance_mode — there advance_mode was already correct (2/AUTO); the bug was the stale boolean.
+
+**Fix:** Maintain advance conditions EVERY frame, not only in the state that sets them. Add an `else` branch that clears them:
+
+```gdscript
+if st == PlayerState.AIRBORNE:
+    is_falling = velocity.y > 0.0
+    # ... set is_jumping / is_fastfalling ...
+else:
+    is_jumping = false
+    is_falling = false
+    is_fastfalling = false
+```
+
+General rule: any boolean a StateMachine reads as an advance condition/expression must have a defined value on every frame of every state, or it will latch and cause spurious transitions.
+
+**Detect proactively:** If an AnimationTree character is "stuck on idle," log the top-level `playback.get_current_node()` for a few seconds while idle — if it oscillates between two states, suspect a stale advance condition before suspecting the nested SM's expressions. Audit every condition boolean: is it assigned on every code path each frame, or only inside one state's branch?
+
+---
+
+## GDScript 4 lambdas silently no-op on captured local scalar reassignment
+
+**Symptom:** Inside an inline `func(...)` lambda, assigning to a captured local `bool` / `int` / `float` / `String` from the enclosing function's scope silently does nothing. The lambda parses and runs without error, but the outer-scope variable is never updated. Asserts that check the outer value fail. Most painful in GUT unit tests written in the obvious style — the lambda body looks correct but the test fails because the captured flag never flips.
+
+**Cause:** GDScript 4 lambda closures capture outer scalars **by value, not by reference**. Reassignments inside the lambda mutate a captured copy; the outer binding is never updated. The compiler emits no warning. Mutating `self.*` members through a lambda works fine (those go through `self`). Mutating Dictionary entries also works because Dictionaries are reference types. Only captured **local scalars** are affected.
+
+**Fix:** Wrap the captured value in a reference-type container — an `Array[T]` of length 1 is the canonical workaround. Read/write via `arr[0]`.
+
+```gdscript
+var fired: Array[bool] = [false]
+some_callable(func(_ctx): fired[0] = true)
+assert_true(fired[0])
+```
+
+Same pattern for `Array[int]`, `Array[float]`, etc. A `Dictionary` like `{value = false}` is an equivalent workaround.
+
+**Detect proactively:** Compiler does NOT warn and `mcp__godot__get_diagnostics` does NOT flag. The bug only surfaces at runtime when an assertion or behaviour check on the outer variable fails. If a lambda "doesn't seem to do anything," first check whether its body reassigns a captured local scalar. Heuristic grep: `grep -nE 'func\([^)]*\):.*=[^=]' scripts/ test/`.
+
+---
+
+## Explicit Euler spring instability above ~6 Hz at 60fps
+
+**Symptom:** A semi-implicit Euler spring driving a node's `scale` (e.g. squash-stretch on a Skeleton2D or sprite) blows up within ~10 frames of the first impulse. Scale oscillates with widening swing, then crosses zero and flips negative, then grows past camera view. Underlying physics keeps working (player can still move, collisions still register), but the affected node is **invisible** because its scale has rocketed past ±10. No error in console, no crash.
+
+**Cause:** Semi-implicit (symplectic) Euler integration of a damped harmonic oscillator has two stability bounds:
+- `omega · dt < 2` (oscillation frequency vs step size)
+- `2 · zeta · omega · dt < 1` (damping vs step size)
+
+The damping bound is tighter — it's violated *before* the frequency bound. At 60fps (`dt ≈ 0.0167s`), `freq > ~6-7 Hz` typically pushes `2 · zeta · omega · dt` past 1, making amplitudes **grow** each cycle instead of decay. Skeleton2D scale is a single multiplier on the whole rig, so even small instability becomes catastrophic.
+
+**Fix:**
+- **Quick**: cap `freq` at ~6 Hz for spring tuning fields when running explicit Euler at 60fps. Damping helps but isn't the right lever.
+- **Robust**: replace explicit Euler with one of: (a) sub-stepping (`tick(delta/N)` × N), (b) the analytical critically-damped spring closed form, (c) exponential decay (`current = lerp(current, rest, 1.0 - exp(-rate * dt))`).
+
+**Detect proactively:** Before bumping any spring `freq` value, mentally check `omega · dt` (omega = freq · TAU) against the bounds. For scale-driven springs, treat `~6-7 Hz` as the effective ceiling unless the integrator is sub-stepped or analytical. If a node's scale "becomes invisible after a few frames" and physics still works, prime suspect is unstable spring on a Skeleton2D / sprite scale.
+
+---
+
+## Skeleton2D modification `bone_index` auto-derives from `bone2d_node` (don't set both)
+
+**Symptom:** Walkthroughs for `SkeletonModification2DLookAt` / `SkeletonModification2DTwoBoneIK` say "set `bone_index` to N, then set `bone2d_node` to the Bone2D path" — implying two independent steps. In Godot 4.6.2's Inspector, `bone_index` **auto-populates the moment you pick the Bone2D from the `bone2d_node` dropdown**. No manual integer entry needed. The field looks editable but is computed.
+
+**Cause:** The Skeleton2D modification UI in 4.6.x resolves the picked Bone2D's index in the Skeleton2D's bone array and writes it to `bone_index`. The integer ends up in the serialized `.tscn` but is populated by the UI, not user-entered.
+
+**Fix:**
+- Walkthroughs and docs should say: "Set `bone2d_node` to the Bone2D path. `bone_index` will auto-populate."
+- If hand-writing `.tscn`: both fields are present in the serialized form (`bone_index = 9`, `bone2d_node = NodePath("Hip/Torso/Head")`), so both still need to be written. Just be aware the index is derivable from the node path, not arbitrary — keep them consistent.
+
+**Detect proactively:** When reviewing AI-generated or older-docs walkthroughs that describe `bone_index` as a manual step, flag it as stale.
+
+---
+
+## Godot 4 ships typed `*f`/`*i` variants only for a narrow whitelist
+
+**Symptom:** GDScript fails to parse with `Identifier "expf" not declared in the current scope.` (or `sqrtf`, `sinf`, `cosf`, `powf`, `logf`, ...). Not a "wrong return type" warning — the identifier simply does not exist. Especially insidious when the failing script is not covered by GUT — the parse error only surfaces at F5 (or via `mcp__godot-mcp__editor get_log_messages`).
+
+**Cause:** Godot 4 provides typed `*f` / `*i` variants only for a small comparison/rounding family. Most numeric globals — including all transcendentals and most trig — exist **only** as Variant-returning globals. The pattern does NOT generalize from `clampf` to anything else.
+
+| Has typed variants | Variant-only — no `*f` |
+|---|---|
+| `clamp`, `min`, `max`, `abs`, `sign`, `floor`, `ceil`, `round` | `exp`, `log`, `sqrt`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `pow`, `lerp`, `inverse_lerp`, `remap`, `smoothstep`, `move_toward`, `ease`, `snapped`, `posmod`, `fposmod`, ... |
+
+Note the rare exception: `wrap` is Variant, `wrapf` exists — so don't blanket-assume the lack of typed variants either.
+
+**Fix:**
+- Use the bare global: `exp(x)`, `sqrt(x)`, `sin(x)`, `pow(x, y)`, `lerp(a, b, t)`.
+- If you need a typed float result, annotate the receiver: `var k: float = exp(-rate * dt)`. The Variant return coerces.
+- Do NOT invent `expf`, `sqrtf`, `sinf`, `cosf`, `powf`, `logf`, `lerpf`, etc. — none exist.
+
+**Detect proactively:** Before writing any `<math>f(` form, mentally check the whitelist above. Grep heuristic for review: `grep -nE '\b(expf|sqrtf|sinf|cosf|tanf|powf|logf|asinf|acosf|atanf|atan2f|lerpf|smoothstepf|move_towardf|easef)\(' scripts/` — any hit is a parse error waiting at F5. Sibling-but-inverse to the `clamp`/`clampf` entry above: that one says "the typed variant DOES exist, prefer it"; this one says "the typed variant does NOT exist, don't write it by analogy."
+
+---
+
+## `class_name` cache stale when new script is created outside the editor
+
+**Symptom:** Headless Godot invocations (`godot --headless ... -s addons/gut/gut_cmdln.gd`, `godot --check-only --quit`, custom CLI scripts) fail with `SCRIPT ERROR: Parse Error: Could not find type "X" in the current scope.` for a `class_name X` type that demonstrably exists — the `.gd` file is on disk, the editor is open with the project loaded, and `mcp__godot__get_diagnostics` returns clean diagnostics for both the new file and any file referencing the type. GUT reports `Failed to load script ... with error "Parse error"` followed by `WARNING: Ignoring script ... because it does not extend GutTest`. The error message points at the *consumer* of the new type, not the missing cache entry, which makes the diagnosis indirect.
+
+**Cause:** When a new `.gd` file declaring `class_name X` is created **externally to the editor** (Claude's Write tool, `cat > file.gd`, copy via Finder, scaffolding scripts, MCP file-creation patterns), the on-disk `.godot/global_script_class_cache.cfg` is NOT updated immediately. The editor's LSP can parse files on demand (so per-file diagnostics succeed and give a false-positive green), but the cache file — which **separate headless Godot processes consult to resolve `class_name` references** — only refreshes when the editor's FileSystem dock actually rescans. Rescan triggers: editor-window focus, FileSystem dock interaction, scene save. Files created via the editor's "New Script…" dialog do NOT hit this (the dialog writes the cache as part of its action); edits to existing `class_name` files do NOT hit this either.
+
+**Fix:**
+- Focus the editor window (or click anywhere in the FileSystem dock) to trigger a scan. This rewrites `.godot/global_script_class_cache.cfg` with the new `class_name` entries.
+- Verify before retrying headless: `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` must return `> 0`.
+- Then re-run the headless command.
+
+**Detect proactively:**
+- Any time a new `class_name`-declaring script is created via tooling (not the editor's New Script dialog), assume the cache is stale until proven otherwise.
+- Before any headless GUT / `--check-only` / CLI invocation that exercises a freshly-added `class_name`, grep the cache: `grep -c "<NewClassName>" .godot/global_script_class_cache.cfg`. Zero hits → focus the editor first.
+- Do NOT trust `mcp__godot__get_diagnostics` clean output as evidence the headless run will pass — the LSP parses on demand and does not consult the cache.
+
+---
+
+## godot-mcp can't write `Transform2D` / `Rect2` (struct-valued) properties — and the open editor then holds a STALE copy of the hand-edit until a close+reopen+save resync
+
+**Symptom:** Setting a struct-valued property via the godot-mcp `node.update` / property-write call silently fails to take the full value, with no error — the call returns "success."
+
+- **`Transform2D`** (e.g. `Bone2D.rest`): only the basis columns land; the **origin is dropped** (the dict format's `origin` key is ignored). A freshly-created bone can end up with a degenerate all-zeros `Transform2D` (det == 0).
+- **`Rect2`** (e.g. `Sprite2D.region_rect`): **all** tried formats no-op — string-expression `"Rect2(0,0,6,6)"`, dict `{"position":..,"size":..}`, and array `[0,0,6,6]`. The property stays at its default `Rect2(0,0,0,0)`.
+
+Because the write silently fails, the value must be **hand-edited into the `.tscn`**. But then a second failure mode kicks in: the editor that has the scene open keeps serializing its **stale in-memory copy**. `node.get_properties` reports the stale value (NOT the on-disk one — so it can't be trusted as confirmation), and a subsequent editor save (Cmd+S or MCP `scene.save`) **clobbers the hand-edit**, reverting disk to the stale value. Re-opening an already-open scene does NOT force a disk re-read.
+
+**Cause:** The godot-mcp bridge's property-set path doesn't serialize compound struct types (`Transform2D` origin, `Rect2`, likely `Transform3D`/`Basis`) — those formats aren't implemented (the property-formats section of `godot-mcp-guide.md` covers Vector2/Vector3/Color/enum but not these). Separately, the editor doesn't reload an externally-modified open scene without an explicit close+reopen.
+
+**Fix:** Hand-edit the struct property into the `.tscn`, then force a **close-tab → reopen-scene → save** resync before any further MCP `node.*` calls or editor saves. If other MCP-settable props were also changed, `scene.save` them to disk **first**, **then** hand-edit the struct props, **then** resync — so the resync preserves everything. Don't trust `node.get_properties` until after the resync; verify against the on-disk `.tscn` (grep/read).
+
+**Detect proactively:** Before writing any `Transform2D` / `Rect2` / `Transform3D` property via `node.update`, assume the write will silently no-op or drop fields — plan to hand-edit the `.tscn`. After any such hand-edit on an open scene, treat `node.get_properties` as suspect until a close+reopen+save resync; grep the on-disk `.tscn` to confirm (e.g. `grep -n 'rest = Transform2D' scenes/...` / `grep -n 'region_rect = Rect2' scenes/...`). See `godot-mcp-guide.md` § "Property formats".
+
+---
+
 ## (Existing project-level gotchas)
 
 These also exist but live in their own dedicated docs — listed here for discoverability:

@@ -127,14 +127,14 @@ def diff_dirs(upstream_dir, local_dir):
     Raises RuntimeError on exit code 2.
     """
     brief = subprocess.run(
-        ["diff", "-rq", str(local_dir), str(upstream_dir)],
+        ["diff", "-rq", "--exclude=.git", str(local_dir), str(upstream_dir)],
         capture_output=True, text=True)
     if brief.returncode == 2:
         raise RuntimeError(brief.stderr.strip() or "diff failed")
     changed = brief.returncode == 1
     changed_files = len([ln for ln in brief.stdout.splitlines() if ln.strip()])
     full = subprocess.run(
-        ["diff", "-ruN", str(local_dir), str(upstream_dir)],
+        ["diff", "-ruN", "--exclude=.git", str(local_dir), str(upstream_dir)],
         capture_output=True, text=True)
     added = sum(1 for ln in full.stdout.splitlines()
                 if ln.startswith("+") and not ln.startswith("+++"))
@@ -163,10 +163,15 @@ def clone_skill_folders(source_url, folders, ref, dest):
         cmd += ["--branch", ref]
     cmd += ["--", source_url, str(dest)]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
-    subprocess.run(["git", "-C", str(dest), "sparse-checkout", "init", "--cone"],
-                   check=True, capture_output=True, text=True)
-    subprocess.run(["git", "-C", str(dest), "sparse-checkout", "set", "--", *folders],
-                   check=True, capture_output=True, text=True)
+    # An empty folder ("") means the skill IS the whole repo (skillPath == "SKILL.md").
+    # Sparse-checkout can't express "repo root" in cone mode, so fall back to a full
+    # checkout whenever any folder is the root; otherwise sparse-checkout just the subfolders.
+    sparse_folders = [f for f in folders if f]
+    if len(sparse_folders) == len(folders):
+        subprocess.run(["git", "-C", str(dest), "sparse-checkout", "init", "--cone"],
+                       check=True, capture_output=True, text=True)
+        subprocess.run(["git", "-C", str(dest), "sparse-checkout", "set", "--", *sparse_folders],
+                       check=True, capture_output=True, text=True)
     subprocess.run(["git", "-C", str(dest), "checkout"],
                    check=True, capture_output=True, text=True)
 

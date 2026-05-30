@@ -157,6 +157,57 @@ def test_clone_skill_folders_rejects_flag_smuggling(tmp_path):
     assert not dest.exists()  # nothing was cloned
 
 
+def _make_root_skill_repo(root):
+    """Create a git repo whose skill IS the whole repo (SKILL.md at root + a subdir)."""
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "SKILL.md").write_text("root skill v1\n")
+    (root / "references").mkdir()
+    (root / "references/guide.md").write_text("guide body\n")
+    env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "PATH": os.environ["PATH"]}
+    _sp.run(["git", "init", "-q"], cwd=root, check=True, env=env)
+    _sp.run(["git", "add", "-A"], cwd=root, check=True, env=env)
+    _sp.run(["git", "commit", "-qm", "init"], cwd=root, check=True, env=env)
+    return root
+
+
+def test_diff_dirs_ignores_git_metadata(tmp_path):
+    # A fresh clone carries a .git/ dir the local install lacks; it must not count as a diff.
+    up = tmp_path / "up"; local = tmp_path / "local"
+    up.mkdir(); local.mkdir()
+    (up / "SKILL.md").write_text("same\n")
+    (local / "SKILL.md").write_text("same\n")
+    (up / ".git").mkdir()
+    (up / ".git/HEAD").write_text("ref: refs/heads/main\n")
+    changed, _stat, full = skillsync.diff_dirs(up, local)
+    assert changed is False
+    assert full == ""
+
+
+def test_clone_root_skill_materializes_subtree(tmp_path):
+    # skillPath "SKILL.md" -> folder "" (whole repo is the skill): the full subtree must check out.
+    remote = _make_root_skill_repo(tmp_path / "remote")
+    dest = tmp_path / "dest"
+    skillsync.clone_skill_folders(str(remote), [""], None, dest)
+    assert (dest / "SKILL.md").read_text() == "root skill v1\n"
+    assert (dest / "references/guide.md").read_text() == "guide body\n"
+
+
+def test_root_skill_no_false_positive(tmp_path):
+    # End-to-end regression for the design-doc-mermaid bug: an up-to-date root skill
+    # (local byte-identical to upstream HEAD) must report no change.
+    remote = _make_root_skill_repo(tmp_path / "remote")
+    dest = tmp_path / "dest"
+    skillsync.clone_skill_folders(str(remote), [""], None, dest)
+    local = tmp_path / "local"
+    local.mkdir()
+    (local / "SKILL.md").write_text("root skill v1\n")
+    (local / "references").mkdir()
+    (local / "references/guide.md").write_text("guide body\n")
+    changed, _stat, full = skillsync.diff_dirs(dest, local)
+    assert changed is False, full
+
+
 def test_detect_plugins_version_and_sha(tmp_path, monkeypatch):
     # Fixture installed_plugins.json
     installed = {"version": 2, "plugins": {

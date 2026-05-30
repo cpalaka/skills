@@ -19,10 +19,12 @@ If a preference's "How to apply" conflicts with what the user just asked for, fo
 
 | # | Situation | Preferred behavior |
 |---|---|---|
-| 1 | Asked to edit a `.tscn` (or `.tres`) file | Hand-edit inline + read-back if the change is atomic (single property, single-node delete, single resource ref). Defer to user (editor-side) only for structural restructures (multi-node moves, tree reorg, hand-authoring Transform3D basis) |
+| 1 | Asked to edit a `.tscn` (or `.tres`) file | Hand-edit inline + read-back for atomic changes (single property, single-node delete, single resource ref, sub-resource setup with no scene-view spatial feedback). Defer to user (editor-side) only for structural restructures (multi-node moves, tree reorg, hand-authoring Transform3D basis). Template-extract one slot in editor if property names uncertain |
 | 2 | Executing a multi-task plan via `subagent-driven-development` in a Godot project | Skip per-task F5/USER-ACTION verification scaffolds. Batch all manual verification at end-of-plan. Add prints/instrumentation working-tree-only; revert on user confirmation |
 | 3 | Working on a Godot project (any session) | Invoke `godot-personal-gotchas` skill explicitly via the Skill tool — don't rely on its auto-activation. The skill description is too generic to fire on intent contexts |
 | 4 | Godot project is or is about to become public (open-source, demo deployment, portfolio piece) | Audit `.gitignore` for AI-workflow plumbing + process-scratch before pushing publicly. Hide: `CLAUDE.md`, `.claude/`, `docs/superpowers/`, plan/spec scratch, frozen handoffs. Keep: `.mcp.json`, MCP guides, gotchas catalog, vendored addons |
+| 5 | Before instructing on Godot 4.x class API specifics, Inspector workflow, or sub-resource property names | Fetch current docs via `mcp__godot-mcp__godot_docs fetch_class <ClassName>` before composing the response. Training-data drift to older 4.x and Godot 3.x conventions is the failure mode; fresh docs ground the response |
+| 6 | About to claim "all scripts compile" or "compile clean" from a green GUT run | Don't. GUT only compiles scripts its tests/targets touch. Run `--headless --check-only --quit` for exhaustive parse (when editor closed), OR `mcp__godot-mcp__editor get_log_messages` (when editor open). Skipping this on the basis of GUT green is the trap |
 
 ## Preferences
 
@@ -42,6 +44,7 @@ Classify the change before acting:
   - Single resource path swap
   - Single-line script reference change
   - Removing a `property = null` orphan (the null-override gotcha)
+  - Sub-resource property setup with **no scene-view spatial feedback** — dropdowns, typed numeric/text fields, NodePath pickers. Even when adding a new sub-resource block, the lack of visual feedback makes inline editing equivalent to (and faster than) walking the user through the Inspector
 
 - **Structural → defer to user (editor-side)**
   - Multi-node moves or scene-tree reorganization
@@ -59,6 +62,8 @@ Inline edits with read-back are fast and reliable for atomic changes. Structural
 Don't ask "should I do this inline or in the editor?" — just classify and act. If borderline, surface the classification ("I'll do this inline since it's a single property; if you'd rather I open the editor, say so").
 
 After any inline `.tscn` edit, immediately Read the file back and verify the change landed as intended — Godot's tscn format has subtle quoting rules that can silently misformat.
+
+**Empirical fallback for unfamiliar sub-resource shapes:** if uncertain about the exact property surface in the current Godot version (training-data drift — see preference #5 on fetching current docs), have the user author **one** instance in the editor as a template-extraction step. Read the serialized form, then propagate inline for any remaining slots. This is the bridge between "structural / defer" and "simple / inline" when you don't know the property surface ahead of time.
 
 ---
 
@@ -151,6 +156,63 @@ Going public raises the bar. The framing: "showcase the project, not the workflo
 When the user signals a public push is imminent ("let's publish this", "I'm pushing to a public repo", "set up the demo deploy") — proactively audit `.gitignore` and surface a punch list before they push. Don't wait for them to ask.
 
 When adding a new top-level doc to an already-public Godot project, ask "should this be public?" before committing — default to private unless there's a clear community-value argument.
+
+---
+
+### 5. Fetch current Godot docs before version-dependent instructions
+
+**When this applies**
+
+Before instructing on Godot 4.x class API specifics (property names, method signatures, sub-resource shapes), Inspector workflow, or version-sensitive editor affordances.
+
+**Preferred behavior**
+
+Run `mcp__godot-mcp__godot_docs fetch_class <ClassName>` (with `--section properties` / `--section description` as needed) to ground the response on the current engine version's docs rather than memory. Especially relevant for:
+
+- AnimationTree dock UI (reworked in 4.6.x — see personal-gotchas #4)
+- Skeleton2D modifications (Inspector behavior shifted — see personal-gotchas #11)
+- Tween API, EditorPlugin hooks, FileSystem dock affordances
+- Anywhere a walkthrough mentions specific button positions, right-click menu entries, or property names by hand
+
+**Why**
+
+Training data skews to older 4.x and Godot 3.x. Subtle API surface shifts in 4.6.x (and beyond) silently change Inspector workflows. Recommending an outdated step burns user trust and often surfaces as "I think you're using outdated info from a past version's docs" — the user calling out the stale answer mid-task. Catching this BEFORE composing the response is cheaper than fixing it after.
+
+**How to apply**
+
+Make the docs fetch proactive, not reactive — before composing the instructions, not after the user pushes back. The MCP tool auto-detects the editor's connected version; even when patch-level detail is unavailable, "stable" returns reasonable answers (minor patches rarely shift property names).
+
+If the public class doc is incomplete (some classes have editor-internal properties that don't appear in the public API surface — e.g. `SkeletonModification2DTwoBoneIK`'s joint fields), use the template-extraction pattern from preference #1: have the user author one instance in the editor, read the serialized form, propagate inline from there. The two preferences compose.
+
+---
+
+### 6. GUT green does NOT mean "all scripts compile"
+
+**When this applies**
+
+About to claim "all scripts compile" or "compile clean" from a green GUT run in a Godot project.
+
+**Preferred behavior**
+
+Don't. GUT only compiles scripts that its tests (or their tested scenes/targets) directly reference. Untested support scripts — camera controllers, overlays, helpers, debug-only autoloads — can carry parse errors invisible to GUT and surface only when F5 instantiates a scene that loads them.
+
+The strongest verification chain pre-F5:
+
+1. **GUT** — unit-tested logic
+2. **`godot --headless --path . --check-only --quit`** — exhaustive parse coverage; works when the editor is closed
+3. **F5 with `mcp__godot-mcp__editor get_log_messages`** — runtime errors AND parse errors when scenes load scripts
+
+Layers (1) and (2) overlap with (3) but catch failures earlier and cheaper. Skipping (2) on the basis of (1) is the trap.
+
+**Why**
+
+This is a strict superset of the warnings-as-errors gates that GUT covers. The failure mode: a script authored in an earlier session, never exercised by tests, carries `expf(-rate)` or cross-script-without-`class_name` (personal-gotchas #6 and #12) — invisible until F5 instantiates a scene that loads it. The cost of saying "compile clean" when it isn't is a fresh-session F5 that explodes immediately.
+
+**How to apply**
+
+When the editor is open, prefer `mcp__godot-mcp__editor get_log_messages` over `--check-only --quit` — the headless command tries to bind the godot-mcp WebSocket port (6550) and hangs if the editor's already on it, leaving orphan Godot processes. Always `ps aux | grep godot` before re-running headless when the editor is open.
+
+When the editor is closed, `--check-only --quit` is the right tool. When in doubt or under time pressure, spot-read any `.gd` script that's about to be loaded by a scene the user is about to F5 — fastest manual verification.
 
 ---
 
