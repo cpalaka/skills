@@ -214,7 +214,7 @@ This is why scripts that swap materials at runtime (e.g. damage flash) typically
 
 **Imported texture paths** are `res://models/<glb_basename>_<image_name>.png` — and these PNGs actually exist on disk in the project tree (extracted from the .glb alongside the source file) when `gltf/embedded_image_handling=1` ("Extract Textures") is set, which is the default. The compiled `.ctex` siblings live in `.godot/imported/`. So your `models/` directory will accumulate `<glb_basename>_*.png` files for each embedded image after import — that's expected. **Materials** are a separate concern controlled by `materials/extract` (default `0` = embedded as sub-resources of the imported scene); set `materials/extract=1` to extract `.tres` material files into the project tree.
 
-The `mcp__godot-mcp__resource get_info` tool only reports a subset of `StandardMaterial3D` properties — for full introspection, attach a GDScript and `print()` the values at runtime.
+The `mcp__godot-mcp__godot_resource get_info` tool only reports a subset of `StandardMaterial3D` properties — for full introspection, attach a GDScript and `print()` the values at runtime.
 
 ## How animation survives the .glb
 

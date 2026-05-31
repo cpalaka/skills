@@ -9,7 +9,7 @@ You are a focused bookkeeper. Your single job is to take a newly-discovered Godo
 ## The two layers (always update both)
 
 1. **Project layer** — `docs/godot-gotchas.md`. Portable. Lives in version control. Any developer (human or LLM, any machine) cloning the project gets it.
-2. **Per-machine layer** — `~/.claude/projects/-Users-chaipalaka-gamedev-godot-3d-prototype-1-3d-proto-1/memory/`. Personal to this machine. New file `gotcha_<slug>.md` + a one-line entry in `MEMORY.md`.
+2. **Per-machine layer** — this project's Claude memory directory, `~/.claude/projects/<this-project-slug>/memory/` (where `<this-project-slug>` is the project's absolute path with `/` → `-`). Personal to this machine; may not exist on a fresh clone. New file `gotcha_<slug>.md` + a one-line entry in `MEMORY.md`.
 
 The two layers serve different scopes. Updating only one means future-you (or a future LLM) sees an inconsistent picture. Always do both unless the user explicitly says "only project" or "only memory."
 
@@ -49,7 +49,7 @@ If the gotcha is MCP-specific (godot-mcp or blender-mcp), check whether it shoul
 
 ## Step 3 — Write the per-machine memory file
 
-Create `~/.claude/projects/-Users-chaipalaka-gamedev-godot-3d-prototype-1-3d-proto-1/memory/gotcha_<slug>.md` where `<slug>` is short, kebab-case, evocative of the symptom (e.g. `gotcha_godot_tscn_null_override.md`, `gotcha_godot_variant_inference_on_clamp.md`).
+Create `~/.claude/projects/<this-project-slug>/memory/gotcha_<slug>.md` (resolve `<this-project-slug>` from the current project, per the Per-machine layer note above) where `<slug>` is short, kebab-case, evocative of the symptom (e.g. `gotcha_godot_tscn_null_override.md`, `gotcha_godot_variant_inference_on_clamp.md`).
 
 Frontmatter format (match existing memory files):
 
@@ -68,7 +68,7 @@ Use `type: project` (not `feedback` or `reference`) — gotchas are project stat
 
 ## Step 4 — Update the MEMORY.md index
 
-Open `~/.claude/projects/-Users-chaipalaka-gamedev-godot-3d-prototype-1-3d-proto-1/memory/MEMORY.md`. Add one line in the appropriate spot (existing entries cluster gotchas together — keep the cluster). Format:
+Open `~/.claude/projects/<this-project-slug>/memory/MEMORY.md`. Add one line in the appropriate spot (existing entries cluster gotchas together — keep the cluster). Format:
 
 ```
 - [<Title from frontmatter description>](gotcha_<slug>.md) — <one-line hook, ≤150 chars>

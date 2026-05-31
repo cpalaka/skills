@@ -183,7 +183,7 @@ bpy.ops.export_scene.gltf(
 - **Always drop a `.gdignore` (empty file) into the Blender working dir** if the Blender tree lives inside the Godot project. Otherwise the .blend, intermediates, and any rendered PNGs all get imported (PNGs → CompressedTexture2D), polluting `.godot/imported/`. The parallel layout (see `asset-pipeline.md`) avoids this entirely.
 - **Mesh datablock name ≠ object name.** The imported MeshInstance3D and `.mesh` resource use the *mesh-data* name (often auto-generated like `Cube.001`). Set `obj.data.name = "X"` before export for clean Godot names.
 - **Z-up → Y-up axis conversion** is applied on import (Blender's `+Z` becomes Godot's `+Y`). Account for it when scripting target positions on the Godot side.
-- **No MCP-exposed "rescan filesystem" action.** After exporting a new `.glb`, if the editor doesn't pick it up automatically (Godot's FS watcher usually does, but not always — esp. after focus loss), the options are: focus the Godot editor window (cheapest), run `EditorInterface.get_resource_filesystem().scan()` from a one-shot in the Script editor, or reopen the project. The `mcp__godot-mcp__editor` action set doesn't include scan.
+- **No MCP-exposed "rescan filesystem" action.** After exporting a new `.glb`, if the editor doesn't pick it up automatically (Godot's FS watcher usually does, but not always — esp. after focus loss), the options are: focus the Godot editor window (cheapest), run `EditorInterface.get_resource_filesystem().scan()` from a one-shot in the Script editor, or reopen the project. The `mcp__godot-mcp__godot_editor` action set doesn't include scan.
 
 ## Engine notes (Blender 5.x)
 

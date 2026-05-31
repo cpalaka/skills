@@ -33,9 +33,11 @@ Run sequentially (parallel risks template-cache contention). Use the same comman
 
 ```sh
 "$GODOT_BIN" --headless --export-release "Web" builds/web/index.html
-"$GODOT_BIN" --headless --export-release "macOS" builds/macos/3d-proto-1.zip
-"$GODOT_BIN" --headless --export-release "Windows Desktop" builds/windows/3d-proto-1.exe
+"$GODOT_BIN" --headless --export-release "macOS" builds/macos/<project-name>.zip
+"$GODOT_BIN" --headless --export-release "Windows Desktop" builds/windows/<project-name>.exe
 ```
+
+Replace `<project-name>` with your export preset's `export_path` basename — typically the project's `config/name` from `project.godot`.
 
 Capture each command's exit code AND its stderr. A zero exit code is NOT sufficient — Godot's CLI can return 0 while logging `ERROR:` lines that indicate a partial export. Grep the captured output for `^ERROR:` and `^WARNING:` lines and surface them.
 
@@ -52,15 +54,15 @@ For each platform that returned a zero exit code, verify the artifacts:
 - Report total `builds/web/` size
 
 ### macOS
-- `builds/macos/3d-proto-1.zip` exists and is > 100 KB
+- `builds/macos/<project-name>.zip` exists and is > 100 KB
 - Unzip to `builds/macos/_smoke/` (a scratch dir; create if missing). Verify:
-  - `builds/macos/_smoke/3d-proto-1.app/Contents/MacOS/<binary>` exists and is executable
-  - `builds/macos/_smoke/3d-proto-1.app/Contents/Resources/` is non-empty
+  - `builds/macos/_smoke/<project-name>.app/Contents/MacOS/<binary>` exists and is executable
+  - `builds/macos/_smoke/<project-name>.app/Contents/Resources/` is non-empty
 - Report the `.app` size and the binary's filename.
 
 ### Windows
-- `builds/windows/3d-proto-1.exe` exists and is > 100 KB
-- `builds/windows/3d-proto-1.pck` exists and is non-empty
+- `builds/windows/<project-name>.exe` exists and is > 100 KB
+- `builds/windows/<project-name>.pck` exists and is non-empty
 - Report sizes.
 - DO NOT attempt to launch (no Wine assumed on the macOS host).
 
@@ -76,7 +78,7 @@ cd builds/web && python3 -m http.server 8000
 # then visit http://localhost:8000
 
 # macOS — launch the unzipped app:
-open builds/macos/_smoke/3d-proto-1.app
+open builds/macos/_smoke/<project-name>.app
 
 # Windows — no local smoke test on macOS host (would need Wine or a Windows machine).
 ```
@@ -107,7 +109,7 @@ Templates: ok
 ### Interactive verification (user actions)
 
 Web:    cd builds/web && python3 -m http.server 8000  → http://localhost:8000
-macOS:  open builds/macos/_smoke/3d-proto-1.app
+macOS:  open builds/macos/_smoke/<project-name>.app
 Windows: (no local smoke test)
 ```
 

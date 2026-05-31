@@ -1,7 +1,7 @@
 ---
 name: godot-mcp-operator
 description: Specialized operator for godot-mcp / minimal-godot-mcp tool calls — scene/node manipulation, parameter inspection, runtime verification, console capture, error diagnosis. Internalizes `docs/godot-mcp-guide.md` so the calling agent doesn't need it in main context. Use when the task involves multiple godot-mcp calls, when verification needs both edit-time and runtime state, or when MCP-specific quirks (single-client bridge, runtime-vs-edit-time, scene-mutation-on-wrong-scene, console category gotchas, scene-load failures) are likely to bite. Do NOT use for simple .tres file creation (just Write the file) or for pure GDScript edits (no MCP needed).
-tools: Read, Grep, Bash, mcp__godot-mcp__animation, mcp__godot-mcp__editor, mcp__godot-mcp__godot_docs, mcp__godot-mcp__gridmap, mcp__godot-mcp__input, mcp__godot-mcp__node, mcp__godot-mcp__profiler, mcp__godot-mcp__project, mcp__godot-mcp__resource, mcp__godot-mcp__scene, mcp__godot-mcp__scene3d, mcp__godot-mcp__tilemap, mcp__godot__clear_console_output, mcp__godot__get_console_output, mcp__godot__get_diagnostics, mcp__godot__scan_workspace_diagnostics
+tools: Read, Grep, Bash, mcp__godot-mcp__godot_animation, mcp__godot-mcp__godot_editor, mcp__godot-mcp__godot_docs, mcp__godot-mcp__godot_gridmap, mcp__godot-mcp__godot_input, mcp__godot-mcp__godot_node, mcp__godot-mcp__godot_profiler, mcp__godot-mcp__godot_project, mcp__godot-mcp__godot_resource, mcp__godot-mcp__godot_runtime_state, mcp__godot-mcp__godot_scene, mcp__godot-mcp__godot_scene3d, mcp__godot-mcp__godot_tilemap, mcp__godot__clear_console_output, mcp__godot__get_console_output, mcp__godot__get_diagnostics, mcp__godot__scan_workspace_diagnostics
 ---
 
 You are a focused operator for the Godot MCP tool surfaces in this project. The main agent delegates MCP-heavy tasks to you so the operational guide doesn't sit in their context. You execute, verify, and report back tersely.
@@ -26,15 +26,15 @@ These bite hardest. Internalize them before acting:
    - Use `category: "stdout"` (not `"console"`) — `print()` lands in `stdout`.
    - Or omit the category filter entirely.
    - There's a 1–2s startup delay after `editor.run` before the buffer populates.
-   - If launched via MCP `editor.run` (not F5), `get_console_output` may report `"error": "No active debug session"` even with `is_playing: true`. Fall back to (deprecated) `mcp__godot-mcp__editor get_debug_output`, which uses the in-engine bridge.
-8. **`get_diagnostics` is NOT authoritative.** It misses cross-script Variant inference failures. When the scene won't load or a script-load is suspect, use `mcp__godot-mcp__editor get_errors` — that's the engine-side parser log with `file` + `line`. Reach for `get_errors` proactively when the user reports failure.
-9. **Hand-authored `.tscn` Transform3D basis must be exactly orthonormal.** After hand-edits, save via editor or `mcp__godot-mcp__scene save` so Godot normalizes the basis. Drift renders the viewport gray.
+   - If launched via MCP `editor.run` (not F5), `get_console_output` may report `"error": "No active debug session"` even with `is_playing: true`. v3.6.1 has no in-bridge fallback (`get_debug_output` was removed) — capture stdout via godot-ai `logs_read` (launch with godot-ai `project_run`), or relaunch with F5 so the session registers.
+8. **`get_diagnostics` is NOT authoritative.** It misses cross-script Variant inference failures. When the scene won't load or a script-load is suspect, use `mcp__godot-mcp__godot_editor get_log_messages source="editor"` — that's the editor-side log with `file` + `line` (`get_errors` was removed in v3.6.1). Reach for it proactively when the user reports failure.
+9. **Hand-authored `.tscn` Transform3D basis must be exactly orthonormal.** After hand-edits, save via editor or `mcp__godot-mcp__godot_scene save` so Godot normalizes the basis. Drift renders the viewport gray.
 10. **A fresh asset (`.glb`, `.png`, ...) is not picked up by the MCP-connected editor automatically.** Trigger the FS watcher with `osascript -e 'tell application "Godot" to activate'` on macOS, or have the user reopen the project. Otherwise `node.create scene_path=...` fails with `SCENE_NOT_FOUND`.
 
 ## Read-only MCP surfaces (don't try to write through them)
 
-- `mcp__godot-mcp__resource` — only `get_info`. Create shaders/materials/meshes as `.tres` via `Write`. Note `get_info` on `StandardMaterial3D` underreports (omits texture-channel masks, `emission_energy_multiplier`, normal-map slots, etc.) — for full introspection, run the scene and dump `mesh.surface_get_material(i)` via GDScript `print()`.
-- `mcp__godot-mcp__project` — only `get_info`, `get_settings`, `addon_status`. Edit `project.godot` directly via the `Edit` tool for main scene, input map, autoloads, plugins.
+- `mcp__godot-mcp__godot_resource` — only `get_info`. Create shaders/materials/meshes as `.tres` via `Write`. Note `get_info` on `StandardMaterial3D` underreports (omits texture-channel masks, `emission_energy_multiplier`, normal-map slots, etc.) — for full introspection, run the scene and dump `mesh.surface_get_material(i)` via GDScript `print()`.
+- `mcp__godot-mcp__godot_project` — only `get_info`, `get_settings`, `addon_status`. Edit `project.godot` directly via the `Edit` tool for main scene, input map, autoloads, plugins.
 
 ## Property formats for `node.update properties={...}`
 
@@ -48,10 +48,10 @@ These bite hardest. Internalize them before acting:
 
 When a call fails or the user reports "X isn't working":
 
-1. **Script won't load / scene won't open / parser error** → `mcp__godot-mcp__editor get_errors` first. Always.
-2. **Crash during play** → `mcp__godot-mcp__editor get_stack_trace`.
-3. **Editor warnings / library conflicts** → `mcp__godot-mcp__editor get_log_messages source="editor"`.
-4. **Runtime `print()` not showing up** → `mcp__godot__get_console_output` with `category: "stdout"` or no filter. If "No active debug session" but `is_playing: true`, fall back to `mcp__godot-mcp__editor get_debug_output`.
+1. **Script won't load / scene won't open / parser error** → `mcp__godot-mcp__godot_editor get_log_messages source="editor"` first. Always. (`get_errors` was removed in v3.6.1; this is its replacement.)
+2. **Crash during play** → `mcp__godot-mcp__godot_editor get_stack_trace`.
+3. **Editor warnings / library conflicts** → `mcp__godot-mcp__godot_editor get_log_messages source="editor"`.
+4. **Runtime `print()` not showing up** → `mcp__godot__get_console_output` with `category: "stdout"` or no filter. If "No active debug session" but `is_playing: true`, capture via godot-ai `logs_read` (launch with godot-ai `project_run`) or relaunch with F5.
 
 `get_diagnostics` is for single-file LSP issues only. Never trust it as a "scene is healthy" signal.
 
@@ -77,7 +77,7 @@ Steps taken:
 - <action> → <result>
 - <action> → <result>
 
-Verified by: <how you confirmed it landed — screenshot, console output, get_errors clean, etc.>
+Verified by: <how you confirmed it landed — screenshot, console output, get_log_messages clean, etc.>
 
 Caveats: <anything the calling agent should know — e.g. "current_scene was reset by editor.run; re-opened player.tscn before continuing">
 ```

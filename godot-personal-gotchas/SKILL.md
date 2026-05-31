@@ -13,6 +13,15 @@ When something in Godot behaves unexpectedly, scan the index table by symptom **
 
 If your symptom matches an entry, apply the fix. If it doesn't match, debug normally — then add the new gotcha here when you find the cause (see "Adding new gotchas" at the bottom).
 
+## Tooling: which MCP to use
+
+Many entries below are godot-mcp write quirks — the meta-fix is **use the right tool for the job**:
+- **godot-ai = WRITER** — all scene/node/script/property writes, `input_map_manage`, `project_run`, `editor_screenshot`, `logs_read`. Writes every struct type correctly.
+- **godot-mcp = READ/TEST** — `godot_input` (inject timed actions, UNIQUE), `godot_runtime_state` (numerical pos/vel/rot), `godot_docs` (version-correct class docs, EXCLUSIVE), `godot_editor get_log_messages source="editor"` (parse errors — `get_errors`/`get_debug_output` were removed in v3.6.1), `godot_editor get_stack_trace` (crashes). **Never write through godot-mcp** (silently no-ops `Rect2` — see #15).
+- **minimal-godot = local diagnostics** — `get_diagnostics` (line:col; misses cross-script Variant inference — cross-check `get_log_messages source="editor"`).
+
+One writer at a time (both drive the same `EditorInterface`).
+
 ## Gotcha index
 
 | # | Symptom | Cause |
@@ -22,7 +31,7 @@ If your symptom matches an entry, apply the fix. If it doesn't match, debug norm
 | 3 | After live Inspector tuning, `.tscn` contains `property = null` lines; on fresh load, typed `@export` floats become 0.0 silently | Inspector "clear override" writes `property = null` instead of removing the line; null coerces to 0.0 for typed numeric exports on scene load |
 | 4 | AnimationTree dock: "double-click a node to enter sub-editor", "right-click → Rename", "Set as Start" all silently no-op in Godot 4.6.2 | UI reworked in 4.6.x — use the **Open Editor** button in the node header, edit the inline name field, and connect `Start → <target>` via the Connect tool |
 | 5 | After incremental AnimationTree build, Output panel spams `Type mismatch float and bool` + `playback_new.is_null()` every frame while the scene is open; silent on other scenes; fires even with `active = false` | Editor's AnimationTree dock holds a stale preview cache against the newer sub-resource tree. Close the scene tab and reopen — rebuilds the cache. No `.tscn` edit needed |
-| 6 | GDScript parse error `Cannot infer the type of "x" variable because the value doesn't have a set type` on lines like `var steering := _other.is_steering()` or `var slow := speed < _other.idle_threshold` | The source script (e.g. `player.gd`) has no `class_name`, so script-defined symbols on a typed Node reference resolve to Variant at engine parse time. `mcp__godot__get_diagnostics` does NOT catch it — only `mcp__godot-mcp__editor get_errors` does. Fix: annotate the consumer (`var x: bool = ...`) or add `class_name` to the source |
+| 6 | GDScript parse error `Cannot infer the type of "x" variable because the value doesn't have a set type` on lines like `var steering := _other.is_steering()` or `var slow := speed < _other.idle_threshold` | The source script (e.g. `player.gd`) has no `class_name`, so script-defined symbols on a typed Node reference resolve to Variant at engine parse time. `mcp__godot__get_diagnostics` does NOT catch it — only `mcp__godot-mcp__godot_editor get_log_messages source="editor"` does. Fix: annotate the consumer (`var x: bool = ...`) or add `class_name` to the source |
 | 7 | Dropping a non-code file (e.g. `.svg`, `.png`, `.glb`) into a docs folder makes Godot generate a sibling `.import` file and surface the file in the FileSystem dock as a packageable game resource | Godot scans the whole project root for importable files — no special-casing for docs/notes folders. Fix: add an empty file named **`.gdignore`** (NOT `.godotignore`) inside the folder. Godot then skips imports, hides the folder, and refuses `load()`/`preload()` from it. File must be empty — no `.gitignore`-style patterns supported |
 | 8 | AnimationTree StateMachine transition with `advance_condition`/`advance_expression` never auto-fires even when the condition parameter genuinely flips to `true`; `playback.get_current_node()` stays on the source state | `AnimationNodeStateMachineTransition.advance_mode` defaults to `ENABLED = 1`, which only fires via `travel()`. Condition-driven auto-fire requires `advance_mode = AUTO = 2`. Misleading enum name. Editor dock authors transitions with the wrong default |
 | 9 | Inside a `func(...)` lambda, reassigning a captured local `bool`/`int`/`float`/`String` from the enclosing scope silently does nothing — no parse error, no warning, lambda runs but outer scalar never updates | GDScript 4 closures capture outer scalars **by value**. The lambda mutates a private copy. `self.*` members and Dictionary entries are fine (reference semantics). Fix: wrap in `Array[T]` of length 1, access via `[0]` |
@@ -31,7 +40,7 @@ If your symptom matches an entry, apply the fix. If it doesn't match, debug norm
 | 12 | GDScript parse error `Identifier "expf"/"sqrtf"/"sinf"/"powf"/"logf" not declared in the current scope` — not a return-type warning, the identifier simply does not exist | Godot 4 ships typed `*f`/`*i` variants ONLY for `clamp`/`min`/`max`/`abs`/`sign`/`floor`/`ceil`/`round`. Transcendentals/trig (`exp`, `log`, `sqrt`, `sin`, `cos`, `tan`, `pow`, `lerp`, `smoothstep`, `move_toward`, ...) are Variant-only. Sibling-but-inverse to #2. Annotate the receiver (`var k: float = exp(...)`) instead of inventing a typed variant |
 | 13 | Headless Godot (GUT, `--check-only`, CLI) fails `Could not find type "X"` for a `class_name X` script that demonstrably exists on disk; `mcp__godot__get_diagnostics` reports the file AND its consumer clean | `.godot/global_script_class_cache.cfg` doesn't refresh when a new `class_name` file is created externally (Write tool, `cat`, Finder). Editor LSP parses on demand and gives false-positive green; headless Godot reads the stale cache file. Fix: focus the editor window to trigger a FileSystem rescan; verify with `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` returning > 0 |
 | 14 | AnimationTree character stuck on Idle while clearly moving; a nested sub-StateMachine's `playback.get_current_node()` stays on Start/Idle; standing still, the top-level SM oscillates between two states (e.g. `Grounded` ↔ `Fall`) every few frames; no errors/warnings | A boolean `advance_condition`/`advance_expression` is set in only ONE state's branch, so it latches stale-true when that branch stops running. The top-level SM keeps firing the spurious transition every frame; each re-entry re-initialises the nested sub-SM to its Start node, so it never advances. `advance_mode` was already correct — this is about condition *freshness*, not advance_mode (cf. #8). Fix: clear every condition boolean on every frame (add an `else` branch) |
-| 15 | godot-mcp `node.update` silently fails to write `Transform2D`/`Rect2` struct props (drops the `Transform2D` origin; no-ops `Rect2` in every format) — value must be hand-edited into the `.tscn`, after which the open editor's stale in-memory copy makes `get_properties` lie and an editor save clobbers the hand-edit | The bridge's property-set path doesn't serialize compound struct types; and the editor doesn't reload an externally-modified open scene without a close+reopen. Fix: hand-edit, then close+reopen+save resync before further `node.*`/saves; verify against the on-disk `.tscn`, not `get_properties` |
+| 15 | godot-mcp `node.update` silently no-ops `Rect2`/`region_rect` writes in every format (v3.6.1; `Transform2D` origin + `NodePath` were fixed in 3.6.1) — the `Rect2` value must be hand-edited into the `.tscn`, after which the open editor's stale in-memory copy makes `get_properties` lie and an editor save clobbers the hand-edit | The bridge's property-set path doesn't serialize `Rect2`; and the editor doesn't reload an externally-modified open scene without a close+reopen. Fix: hand-edit, then close+reopen+save resync before further `node.*`/saves; verify against the on-disk `.tscn`, not `get_properties` |
 
 ## Gotchas
 
@@ -158,7 +167,7 @@ Close the scene tab (`Cmd+W` or right-click the tab → Close) and reopen it fro
 After a session of incremental AnimationTree dock work, if the Output panel is noisy with these two specific errors, try a scene close+reopen *before* diving into clip type inspection. Real `.glb`-clip type mismatches exist but require a different repro (re-import after Blender changes, missing animations, etc. — see Godot forum thread linked below).
 
 **Confirmed by**
-Hit during the `3d-prototype-1` Step 5 AnimationTree build on 2026-05-26, after 10 incremental tasks on `scenes/player.tscn`. Output panel spamming both error types continuously. Animation track inspection via `mcp__godot-mcp__animation get_details` confirmed clean Skeleton3D `position_3d`/`rotation_3d` tracks across all 12 clips — no value/bool/float tracks. Closing+reopening the player scene tab silenced the errors entirely; `git status` showed `.tscn` clean. Related (but distinct repro) Godot Forum thread: https://forum.godotengine.org/t/type-mismatch-between-initial-and-final-value/123942
+Hit during the `3d-prototype-1` Step 5 AnimationTree build on 2026-05-26, after 10 incremental tasks on `scenes/player.tscn`. Output panel spamming both error types continuously. Animation track inspection via `mcp__godot-mcp__godot_animation get_details` confirmed clean Skeleton3D `position_3d`/`rotation_3d` tracks across all 12 clips — no value/bool/float tracks. Closing+reopening the player scene tab silenced the errors entirely; `git status` showed `.tscn` clean. Related (but distinct repro) Godot Forum thread: https://forum.godotengine.org/t/type-mismatch-between-initial-and-final-value/123942
 
 ### 6. Cross-script `:=` inference fails without `class_name`
 
@@ -177,13 +186,13 @@ Two options, in order of preference:
 1. **Add `class_name` to the source script** — e.g. `class_name Player extends CharacterBody3D` at the top of `player.gd`. Members become statically visible everywhere. Side effect: `Player` becomes a global identifier; conflicts with any other declaration of the same name.
 2. **Annotate the consumer explicitly** — `var steering: bool = _player.is_steering()`. Minimal surgical fix; doesn't touch the source script. Pick this when adding `class_name` would cause naming friction.
 
-**`mcp__godot__get_diagnostics` does NOT catch this.** The per-file LSP has no cross-script context — it reports the file clean. The failure surfaces only when Godot's engine parser tries to load the script at scene-load time. **Always cross-check `mcp__godot-mcp__editor get_errors` after writing GDScript that touches another script's exports / methods / signals.** Don't treat `get_diagnostics` clean as "all good" — necessary but not sufficient.
+**`mcp__godot__get_diagnostics` does NOT catch this.** The per-file LSP has no cross-script context — it reports the file clean. The failure surfaces only when Godot's engine parser tries to load the script at scene-load time. **Always cross-check `mcp__godot-mcp__godot_editor get_log_messages source="editor"` after writing GDScript that touches another script's exports / methods / signals.** Don't treat `get_diagnostics` clean as "all good" — necessary but not sufficient.
 
 **Detect proactively**
-When writing GDScript that touches `other_node.some_member` where `some_member` is declared on `other_node`'s attached script, prefer typed annotations on the consumer side or add `class_name` to the source. After writing such code, run `mcp__godot-mcp__editor get_errors` proactively — don't wait to be asked.
+When writing GDScript that touches `other_node.some_member` where `some_member` is declared on `other_node`'s attached script, prefer typed annotations on the consumer side or add `class_name` to the source. After writing such code, run `mcp__godot-mcp__godot_editor get_log_messages source="editor"` proactively — don't wait to be asked.
 
 **Confirmed by**
-Hit during the `3d-prototype-1` animation Step 6 on 2026-05-26 — `scripts/player_anim.gd` had `var steering := _player.is_steering()` and `var slow := speed < _player.idle_threshold` where `player.gd` had no `class_name`. The parse failure was invisible to `mcp__godot__get_diagnostics` (reported clean) and only surfaced via `mcp__godot-mcp__editor get_errors` after the user F5'd and reported "scene doesn't load". Fixed by annotating the two locals (`var steering: bool = ...`, `var slow: bool = ...`).
+Hit during the `3d-prototype-1` animation Step 6 on 2026-05-26 — `scripts/player_anim.gd` had `var steering := _player.is_steering()` and `var slow := speed < _player.idle_threshold` where `player.gd` had no `class_name`. The parse failure was invisible to `mcp__godot__get_diagnostics` (reported clean) and only surfaced via `mcp__godot-mcp__godot_editor get_log_messages source="editor"` after the user F5'd and reported "scene doesn't load". Fixed by annotating the two locals (`var steering: bool = ...`, `var slow: bool = ...`).
 
 ### 7. `docs/` folder auto-imports non-code files as game resources
 
@@ -336,7 +345,7 @@ When reviewing AI-generated or older-docs walkthroughs that describe `bone_index
 **Symptom**
 - GDScript fails to parse with `Identifier "expf" not declared in the current scope.` (or `sqrtf`, `sinf`, `cosf`, `powf`, `logf`, ...).
 - Not a "wrong return type" warning — the identifier simply does not exist.
-- Especially insidious when the failing script is not covered by GUT — the parse error only surfaces at F5 (or via `mcp__godot-mcp__editor get_log_messages`). See Gotcha #6 for the cross-script analog of this hidden-until-F5 class.
+- Especially insidious when the failing script is not covered by GUT — the parse error only surfaces at F5 (or via `mcp__godot-mcp__godot_editor get_log_messages source="editor"`). See Gotcha #6 for the cross-script analog of this hidden-until-F5 class.
 - Common motivator: writing typed math by analogy with `clampf` / `minf` / `maxf` (which DO exist — see Gotcha #2) and assuming the pattern extends.
 
 **Cause**
@@ -421,16 +430,16 @@ Rule: any boolean a StateMachine reads as an advance condition/expression must h
 **Confirmed by**
 2026-05-29 — `2d-movement-prototype`, `scripts/player/player_anim.gd`. `is_falling` was set only in the `if st == PlayerState.AIRBORNE` branch; after the player spawned slightly above ground, fell, and landed, `is_falling` stayed `true` forever. Top-level AnimationTree SM flickered `Grounded` ↔ `Fall` every frame (verified via throttled `print()` of both playbacks), resetting the nested `Grounded` sub-SM to `Idle` each frame; legs (Idle clip has no rotation tracks) appeared frozen during movement. Fixed by adding an `else` branch clearing `is_jumping`/`is_falling`/`is_fastfalling` when not airborne.
 
-### 15. godot-mcp can't write `Transform2D` / `Rect2` struct props — the hand-edit goes stale in the open editor
+### 15. godot-mcp silently no-ops `Rect2`/`region_rect` writes (v3.6.1) — the hand-edit goes stale in the open editor
 
 **Symptom**
-- Setting a struct-valued property via godot-mcp `node.update` silently fails, no error (the call returns "success"):
-  - `Transform2D` (e.g. `Bone2D.rest`): only the basis columns land; the **origin is dropped** (the dict `origin` key is ignored). A freshly-created bone can end up with a degenerate all-zeros `Transform2D` (det == 0).
-  - `Rect2` (e.g. `Sprite2D.region_rect`): **every** format no-ops — string `"Rect2(0,0,6,6)"`, dict `{"position":..,"size":..}`, array `[0,0,6,6]`. Stays at default `Rect2(0,0,0,0)`.
-- So the value must be **hand-edited into the `.tscn`** — but then the open editor keeps its **stale in-memory copy**: `node.get_properties` reports the stale value (can't be trusted as confirmation), and a later editor save (Cmd+S or MCP `scene.save`) **clobbers** the hand-edit. Re-opening an already-open scene does NOT force a disk re-read.
+- Setting `Rect2`/`region_rect` via godot-mcp `node.update` silently fails, no error (the call returns "success"):
+  - `Rect2` (e.g. `Sprite2D.region_rect`): **every** format no-ops — string `"Rect2(0,0,6,6)"`, dict `{"position":..,"size":..}`, array `[0,0,6,6]`. Stays at default `Rect2(0,0,0,0)`. **Still broken in v3.6.1.**
+  - `Transform2D` (e.g. `Bone2D.rest`) + `NodePath` — **RESOLVED in v3.6.1**: formerly only the basis landed and the origin was dropped (a freshly-created bone could end up a degenerate all-zeros `Transform2D`, det == 0); v3.6.1 now writes both correctly. (`Transform3D`/`Basis` unverified post-fix.)
+- So the `Rect2` value must be **hand-edited into the `.tscn`** — but then the open editor keeps its **stale in-memory copy**: `node.get_properties` reports the stale value (can't be trusted as confirmation), and a later editor save (Cmd+S or MCP `scene.save`) **clobbers** the hand-edit. Re-opening an already-open scene does NOT force a disk re-read.
 
 **Cause**
-The godot-mcp bridge's property-set path doesn't serialize compound struct types (`Transform2D` origin, `Rect2`, likely `Transform3D`/`Basis`) — those formats aren't implemented. Separately, the editor doesn't reload an externally-modified open scene without an explicit close+reopen (cf. #5, the AnimationTree stale-preview close+reopen fix — same "editor holds a stale copy" family).
+The godot-mcp bridge's property-set path doesn't serialize `Rect2` — that format isn't implemented (v3.6.1 fixed the earlier `Transform2D`-origin and `NodePath` gaps). Separately, the editor doesn't reload an externally-modified open scene without an explicit close+reopen (cf. #5, the AnimationTree stale-preview close+reopen fix — same "editor holds a stale copy" family).
 
 **Fix**
 Hand-edit the struct property into the `.tscn`, then force a **close-tab → reopen-scene → save** resync before any further MCP `node.*` calls or editor saves. Ordering when other props also changed: `scene.save` the MCP-settable props to disk FIRST, THEN hand-edit the struct props, THEN resync — so the resync preserves everything. Verify against the on-disk `.tscn` (grep/read), never `node.get_properties`, until after the resync.

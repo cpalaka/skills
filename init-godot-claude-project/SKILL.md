@@ -5,7 +5,7 @@ description: Use when bootstrapping a Godot project to work with Claude Code via
 
 # Initialize a Godot Project for Claude Code
 
-Bootstraps a Godot 4.x project with the `@satelliteoflove/godot-mcp` + `@ryanmazzolini/minimal-godot-mcp` MCP servers, the in-engine `godot_mcp` addon, the per-project reference guides (Godot MCP, Blender MCP, asset pipeline), and the project-level Claude permission allowlist.
+Bootstraps a Godot 4.x project with the `@satelliteoflove/godot-mcp` + `@ryanmazzolini/minimal-godot-mcp` MCP servers (plus the optional `godot-ai` writer plugin), the in-engine `godot_mcp` addon, the per-project reference guides (Godot MCP, Blender MCP, asset pipeline), and the project-level Claude permission allowlist.
 
 ## When to use
 
@@ -88,7 +88,7 @@ ls -d .mcp.json addons/godot_mcp docs/godot-mcp-guide.md docs/blender-mcp-guide.
 ```
 
 For each file/dir that exists, do NOT overwrite blindly:
-- `.mcp.json` exists → read it; if both servers already present, skip step 4.
+- `.mcp.json` exists → read it; if the servers (godot-mcp, godot, and godot-ai if used) are already present, skip step 4.
 - `addons/godot_mcp/` exists → skip step 3 (addon already installed).
 - `docs/godot-mcp-guide.md`, `docs/blender-mcp-guide.md`, `docs/asset-pipeline.md` → each is handled independently in step 5 (skip the file that exists unless the user wants a refresh; copy the missing ones).
 - `CLAUDE.md` exists → APPEND the snippet (step 6), don't overwrite.
@@ -97,10 +97,10 @@ For each file/dir that exists, do NOT overwrite blindly:
 ### 3. Install the in-engine addon
 
 ```
-npx -y @satelliteoflove/godot-mcp --install-addon .
+npx -y @satelliteoflove/godot-mcp@3.6.1 --install-addon .
 ```
 
-Copies `addons/godot_mcp/` into the project. The addon contains the WebSocket bridge that the MCP servers connect to.
+Copies `addons/godot_mcp/` into the project. The addon contains the WebSocket bridge that the MCP servers connect to. **The version is pinned to `@3.6.1` to match the server pin in `templates/mcp.json`** — an unpinned install grabs the latest addon, and a 2.x-addon ↔ 3.x-server split risks bridge-protocol mismatch (connection fails / tools misbehave after `/mcp`). If you bump one, bump both.
 
 **Verify it actually installed** before continuing. Step 8 references TWO paths inside the addon (`plugin.cfg` and `game_bridge/mcp_game_bridge.gd`) — both must exist or the autoload registration in step 8B will silently reference a missing file:
 
@@ -111,6 +111,19 @@ test -f addons/godot_mcp/plugin.cfg && \
 ```
 
 If either file is missing, the install command likely failed (package version mismatch, no `node` on PATH, network issue, or the upstream package restructured the addon layout). Stop and surface the error to the user — don't proceed to step 8.
+
+### 3B. (Optional but recommended) Install the godot-ai writer plugin
+
+`godot-ai` (`hi-godot/godot-ai`, MIT) is the **primary writer** in the recommended setup — scene/node/script/property creation, `input_map_manage`, `script_patch`, `project_run`, `editor_screenshot`, `logs_read`. It writes every struct type correctly; godot-mcp stays as the read/test complement. Skip this only if the project will write through godot-mcp (not recommended — godot-mcp silently no-ops `Rect2`).
+
+Prerequisite: `uv` on PATH (the godot-ai dock auto-starts a uv-managed Python server on `:8000` + `:9500`).
+
+1. **Vendor the addon.** Obtain `addons/godot_ai/` from the `hi-godot/godot-ai` project per its current README and copy it into the project's `addons/`. The HTTP URL is not version-pinned, so the addon version *is* the pin — record it (this guide was validated against **v2.5.10**).
+2. **Disable telemetry** (ON by default): set `GODOT_AI_DISABLE_TELEMETRY=true` in the environment before first launching the editor; the setting persists once written.
+3. **Enable the plugin** at Project → Project Settings → Plugins after opening the editor.
+4. The `.mcp.json` written in step 4 already carries the `godot-ai` HTTP entry (`http://127.0.0.1:8000/mcp`), and `settings.local.json` (step 7) allows `mcp__godot-ai__*` + enables the server. **The entry is INERT until the plugin is enabled AND the editor is running** — a fresh clone with the entry but no plugin will show godot-ai as a disconnected MCP server in `/mcp`; that is expected, not a bug.
+
+**If the project will NOT use godot-ai**, remove the `godot-ai` block from `.mcp.json` and the `mcp__godot-ai__*` allow + `"godot-ai"` enabled-server entry from `settings.local.json`, to avoid a spurious connection error.
 
 ### 4. Write `.mcp.json`
 
@@ -149,7 +162,7 @@ If `.claude/settings.local.json` does NOT exist:
 If it DOES exist:
 - Read it.
 - Union the `permissions.allow` arrays using **strict exact-string dedup** — do NOT try to semantically merge overlapping Bash patterns. Example: if existing has `"Bash(lsof -nP -iTCP -sTCP:LISTEN)"` and template has `"Bash(lsof -nP -iTCP:6550*)"`, keep BOTH. They're different commands; collapsing them changes the permission surface.
-- Ensure `enabledMcpjsonServers` contains both `"godot-mcp"` and `"godot"` (add if missing).
+- Ensure `enabledMcpjsonServers` contains `"godot-mcp"`, `"godot"`, and (if the project uses the godot-ai writer plugin) `"godot-ai"` (add if missing).
 - Preserve all other top-level keys (model, theme, hooks, etc.) untouched.
 - Write the merged result back.
 
@@ -204,9 +217,9 @@ Sections in `project.godot` are top-level INI-style. When creating new sections,
 Tell the user:
 
 1. Open the project in the Godot 4.x editor (or restart the editor if it was already open — needed to pick up the new addon + autoload).
-2. Confirm the `godot_mcp` plugin is enabled at Project → Project Settings → Plugins.
+2. Confirm the `godot_mcp` plugin (and the `godot_ai` plugin, if installed) is enabled at Project → Project Settings → Plugins.
 3. In Claude Code, run `/mcp` to (re)connect the MCP servers to the now-running bridge.
-4. Verify with: `mcp__godot-mcp__project addon_status` — should return `connected: true`.
+4. Verify with: `mcp__godot-mcp__godot_project addon_status` — should return `connected: true`.
 
 If the user's `~/.claude/settings.json` (user-level) does NOT already allow the godot-mcp tools, also mention they may get permission prompts until those are added. The user-level perms are out of scope for this skill — it only sets project-level perms.
 

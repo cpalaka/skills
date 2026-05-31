@@ -23,8 +23,8 @@ If a preference's "How to apply" conflicts with what the user just asked for, fo
 | 2 | Executing a multi-task plan via `subagent-driven-development` in a Godot project | Skip per-task F5/USER-ACTION verification scaffolds. Batch all manual verification at end-of-plan. Add prints/instrumentation working-tree-only; revert on user confirmation |
 | 3 | Working on a Godot project (any session) | Invoke `godot-personal-gotchas` skill explicitly via the Skill tool — don't rely on its auto-activation. The skill description is too generic to fire on intent contexts |
 | 4 | Godot project is or is about to become public (open-source, demo deployment, portfolio piece) | Audit `.gitignore` for AI-workflow plumbing + process-scratch before pushing publicly. Hide: `CLAUDE.md`, `.claude/`, `docs/superpowers/`, plan/spec scratch, frozen handoffs. Keep: `.mcp.json`, MCP guides, gotchas catalog, vendored addons |
-| 5 | Before instructing on Godot 4.x class API specifics, Inspector workflow, or sub-resource property names | Fetch current docs via `mcp__godot-mcp__godot_docs fetch_class <ClassName>` before composing the response. Training-data drift to older 4.x and Godot 3.x conventions is the failure mode; fresh docs ground the response |
-| 6 | About to claim "all scripts compile" or "compile clean" from a green GUT run | Don't. GUT only compiles scripts its tests/targets touch. Run `--headless --check-only --quit` for exhaustive parse (when editor closed), OR `mcp__godot-mcp__editor get_log_messages` (when editor open). Skipping this on the basis of GUT green is the trap |
+| 5 | Before instructing on Godot 4.x class API specifics, Inspector workflow, or sub-resource property names | Fetch current docs via `mcp__godot-mcp__godot_docs fetch_class <ClassName>` before composing the response (**godot-mcp-EXCLUSIVE** — godot-ai has no docs tool, so keep godot-mcp connected even when godot-ai is the writer). Training-data drift to older 4.x and Godot 3.x conventions is the failure mode; fresh docs ground the response |
+| 6 | About to claim "all scripts compile" or "compile clean" from a green GUT run | Don't. GUT only compiles scripts its tests/targets touch. Run `--headless --check-only --quit` for exhaustive parse (when editor closed), OR `mcp__godot-mcp__godot_editor get_log_messages source="editor"` (when editor open), OR godot-ai `logs_read` after a `project_run` (the write-side server's own log read). Skipping this on the basis of GUT green is the trap |
 
 ## Preferences
 
@@ -200,7 +200,7 @@ The strongest verification chain pre-F5:
 
 1. **GUT** — unit-tested logic
 2. **`godot --headless --path . --check-only --quit`** — exhaustive parse coverage; works when the editor is closed
-3. **F5 with `mcp__godot-mcp__editor get_log_messages`** — runtime errors AND parse errors when scenes load scripts
+3. **F5 with `mcp__godot-mcp__godot_editor get_log_messages source="editor"`** (or godot-ai `logs_read` after `project_run`) — runtime errors AND parse errors when scenes load scripts
 
 Layers (1) and (2) overlap with (3) but catch failures earlier and cheaper. Skipping (2) on the basis of (1) is the trap.
 
@@ -210,7 +210,7 @@ This is a strict superset of the warnings-as-errors gates that GUT covers. The f
 
 **How to apply**
 
-When the editor is open, prefer `mcp__godot-mcp__editor get_log_messages` over `--check-only --quit` — the headless command tries to bind the godot-mcp WebSocket port (6550) and hangs if the editor's already on it, leaving orphan Godot processes. Always `ps aux | grep godot` before re-running headless when the editor is open.
+When the editor is open, prefer `mcp__godot-mcp__godot_editor get_log_messages source="editor"` over `--check-only --quit` — the headless command tries to bind the godot-mcp WebSocket port (6550) and hangs if the editor's already on it, leaving orphan Godot processes. Always `ps aux | grep godot` before re-running headless when the editor is open.
 
 When the editor is closed, `--check-only --quit` is the right tool. When in doubt or under time pressure, spot-read any `.gd` script that's about to be loaded by a scene the user is about to F5 — fastest manual verification.
 

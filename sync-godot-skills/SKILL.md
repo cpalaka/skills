@@ -49,6 +49,7 @@ PROPAGATE (= portable Godot/Blender knowledge or generalizable workflow):
 - New sections in the MCP guides documenting tool surfaces or workflow rules.
 - New CLAUDE.md guidance about which skills/docs to consult and when.
 - New workflow preferences that generalize across Godot projects: how to handle a class of edits, when to invoke a skill, plan-execution discipline, conditional rules tied to project-state (public/private, has-a-deploy-workflow, etc.).
+- **MCP tool-surface changes** — when an MCP server renames or removes a tool action (e.g. godot-mcp's `get_errors`/`get_debug_output` → `get_log_messages source="editor"` in v3.6.1, or the unprefixed → `godot_*` prefix migration), or version-scopes a behavior (e.g. the struct-write no-op narrowing to `Rect2`-only). These are CROSS-CUTTING — handle them as a sweep, not a single-pair diff (see "Handling cross-cutting MCP action changes" below).
 
 DO NOT propagate (= project-specific):
 - Convention decisions made by this project (axis-flip choices, naming choices, game-design rules).
@@ -58,6 +59,16 @@ DO NOT propagate (= project-specific):
 - Feedback tied to a single specific decision in one project (e.g. "for THIS repo we chose to keep CLAUDE.md out of public" — propagate the general principle, drop the project-specific scope).
 
 For unclear cases, INCLUDE the entry in your report and ASK before propagating.
+
+## Handling cross-cutting MCP action changes
+
+A renamed/removed MCP action (or a version-scoped behavior change) is NOT a single-pair diff — the stale token is scattered across the MCP guide, every agent definition, the personal-gotchas/preferences skills, and any tool-selection matrix/preamble. Handle it as a sweep, in this order:
+
+1. **Fix the canonical source first.** Update the project's `docs/godot-mcp-guide.md` (and any memory that downstream content cites — e.g. an A/B verdict or tooling-research memory) before touching templates/skills. Downstream files quote these; fixing them first stops you copying the error forward.
+2. **Propagate to templates AND personal skills together** — not one pair at a time. A half-applied rename leaves contradictory guidance live in a session.
+3. **Re-verify by grepping every skill + template file for the OLD token** (e.g. `grep -rn 'get_errors\|mcp__godot-mcp__editor[^_]' …`). Expected residue: only "X was removed / does not exist" notes and dated "Confirmed by" historical anchors.
+
+Distinguish **active guidance** (update to the new action) from **historical anchors** ("Confirmed by: <date> … surfaced via <old tool>") and **deprecation notes** ("`get_errors` was removed in v3.6.1") — the latter two are preserved or version-scoped, not blindly renamed. An active *recommendation* to use the old action is a miss; a "was removed" note is correct.
 
 ## Constraints
 

@@ -3,6 +3,8 @@
     "allow": [
       "Bash(pgrep -fl:*)",
       "Bash(lsof -nP -iTCP:6550*)",
+      "Bash(lsof -nP -iTCP:8000*)",
+      "Bash(lsof -nP -iTCP:9500*)",
       "Bash(mkdir -p:*)",
       "Bash(chmod +x:*)",
       "Bash(godot-mcp-clean)",
@@ -10,18 +12,21 @@
       "mcp__godot__clear_console_output",
       "mcp__godot__get_console_output",
       "mcp__godot__scan_workspace_diagnostics",
-      "mcp__godot-mcp__scene",
-      "mcp__godot-mcp__node",
-      "mcp__godot-mcp__scene3d",
-      "mcp__godot-mcp__editor",
-      "mcp__godot-mcp__project",
-      "mcp__godot-mcp__resource",
+      "mcp__godot-mcp__godot_scene",
+      "mcp__godot-mcp__godot_node",
+      "mcp__godot-mcp__godot_scene3d",
+      "mcp__godot-mcp__godot_editor",
+      "mcp__godot-mcp__godot_project",
+      "mcp__godot-mcp__godot_resource",
       "mcp__godot-mcp__godot_docs",
-      "mcp__godot-mcp__input"
+      "mcp__godot-mcp__godot_input",
+      "mcp__godot-mcp__godot_runtime_state",
+      "mcp__godot-ai__*"
     ]
   },
   "enabledMcpjsonServers": [
     "godot-mcp",
-    "godot"
+    "godot",
+    "godot-ai"
   ]
 }

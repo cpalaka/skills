@@ -12,7 +12,7 @@ Before scanning, read these in order:
 
 1. `docs/godot-gotchas.md` — the canonical project catalog (symptom → cause → fix).
 2. `docs/godot-mcp-guide.md` — for MCP-related quirks.
-3. The per-machine memory directory `~/.claude/projects/-Users-chaipalaka-gamedev-godot-3d-prototype-1-3d-proto-1/memory/` — read each `gotcha_*.md` file. These mirror and sometimes extend the project catalog.
+3. This project's Claude memory directory, `~/.claude/projects/<this-project-slug>/memory/` (resolve `<this-project-slug>` from the project's absolute path with `/` → `-`; may not exist on a fresh clone) — read each `gotcha_*.md` file there if present. These mirror and sometimes extend the project catalog.
 
 Treat these as the source of truth. If a check below conflicts with the catalog, the catalog wins (it may have been updated).
 
@@ -27,22 +27,18 @@ For each finding, report: **file:line — gotcha name — why it matches — sug
 ### .tscn / .tres checks
 
 - **Null override zeroing typed exports.** Grep changed `.tscn` files for ` = null`. Each hit is suspicious. Cause: Inspector "clear override" writes `property = null`, which coerces to `0.0` on load for typed numeric exports.
-- **Hand-authored Transform3D basis drift.** In changed `.tscn` files, look for `Transform3D(` lines authored by hand (i.e. not auto-saved by the editor in this session). Flag any where axis lengths look non-orthonormal (e.g. `1.00009`, `0.99966`). Suggest re-saving via editor or `mcp__godot-mcp__scene save`.
+- **Hand-authored Transform3D basis drift.** In changed `.tscn` files, look for `Transform3D(` lines authored by hand (i.e. not auto-saved by the editor in this session). Flag any where axis lengths look non-orthonormal (e.g. `1.00009`, `0.99966`). Suggest re-saving via editor or `mcp__godot-mcp__godot_scene save`.
 
 ### GDScript checks
 
 - **Variant inference via global numeric overloads.** Grep changed `.gd` files for `:=` lines containing `clamp(`, `min(`, `max(`, `abs(`, `sign(`, `floor(`, `ceil(`, `round(` (i.e. the un-suffixed variants). Each is a likely warnings-as-errors parse failure. Fix: use `clampf`/`clampi`/`minf`/`mini`/etc.
-- **Variant inference on cross-script access.** Grep changed `.gd` files for `:=` lines that look like `var X := <ident>.<member>` where `<ident>` is a typed reference to a node whose class is a Godot built-in (e.g. `CharacterBody3D`, `Node3D`). If `<member>` looks custom (snake_case method or property not on the base class), flag it. Cause: without `class_name` on the source script, the member resolves to Variant; `:=` fails. Suggest annotating consumer (`var X: bool = ...`) or adding `class_name` to the source script. Note explicitly in the finding that `mcp__godot__get_diagnostics` will NOT catch this — only `mcp__godot-mcp__editor get_errors` does.
+- **Variant inference on cross-script access.** Grep changed `.gd` files for `:=` lines that look like `var X := <ident>.<member>` where `<ident>` is a typed reference to a node whose class is a Godot built-in (e.g. `CharacterBody3D`, `Node3D`). If `<member>` looks custom (snake_case method or property not on the base class), flag it. Cause: without `class_name` on the source script, the member resolves to Variant; `:=` fails. Suggest annotating consumer (`var X: bool = ...`) or adding `class_name` to the source script. Note explicitly in the finding that `mcp__godot__get_diagnostics` will NOT catch this — only `mcp__godot-mcp__godot_editor get_log_messages source="editor"` does.
 
 ### Project structure / asset checks
 
 - **Edits inside `.godot/`.** Any change under `.godot/` is suspicious — that directory is editor-generated and gitignored. Flag it loudly.
 - **Non-code files added under `docs/` without `.gdignore`.** If the diff adds image/binary/non-`.md` files under `docs/` (or any folder that doesn't already contain one), check whether `<folder>/.gdignore` exists. If missing, flag — Godot will auto-import them as game resources.
 - **Window mode changes from script.** Grep changed `.gd` for `window_set_mode`, `WINDOW_MODE_FULLSCREEN`, `WINDOW_MODE_WINDOWED`. Each is a candidate for the embedded-game-tab silent no-op. Suggest the user verify by detaching the Game tab (Make Floating) or unchecking Embed Game On Next Play.
-
-### Forward-axis convention
-
-- Project convention (since 2026-05-25) is **local -Z forward**. Flag any new code that assumes `+Z forward`, uses `transform.basis.z` (vs `-transform.basis.z`) for forward direction, or `atan2(horizontal.x, horizontal.z)` (vs the negated form). Reference `docs/godot-gotchas.md` § "Forward axis is canonical -Z".
 
 ### AnimationTree dock context (when relevant)
 

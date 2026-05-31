@@ -2,11 +2,15 @@
   "mcpServers": {
     "godot-mcp": {
       "command": "npx",
-      "args": ["-y", "@satelliteoflove/godot-mcp@2.17.0"]
+      "args": ["-y", "@satelliteoflove/godot-mcp@3.6.1"]
     },
     "godot": {
       "command": "npx",
       "args": ["-y", "@ryanmazzolini/minimal-godot-mcp@0.1.6"]
+    },
+    "godot-ai": {
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp"
     }
   }
 }

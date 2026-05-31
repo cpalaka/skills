@@ -60,7 +60,7 @@ Typically on lines like `var steering := _player.is_steering()` or `var slow := 
 1. **Add `class_name` to the source script** — e.g. `class_name Player extends CharacterBody3D` at the top of `player.gd`. Makes its members statically visible everywhere. Side effect: `Player` becomes a global identifier.
 2. **Annotate the consumer explicitly** — `var steering: bool = _player.is_steering()`. Minimal surgical fix; doesn't touch the source script. Use when adding `class_name` would cause naming friction.
 
-**`mcp__godot__get_diagnostics` does NOT catch this** — the per-file LSP has no cross-script context and reports the file clean. The engine parser at script-load time is what fails. Always cross-check `mcp__godot-mcp__editor get_errors` after writing cross-script access. (See `docs/godot-mcp-guide.md` → "Reading errors when the scene fails to load".)
+**`mcp__godot__get_diagnostics` does NOT catch this** — the per-file LSP has no cross-script context and reports the file clean. The engine parser at script-load time is what fails. Always cross-check `mcp__godot-mcp__godot_editor get_log_messages source="editor"` after writing cross-script access. (See `docs/godot-mcp-guide.md` → "Reading errors when the scene fails to load".)
 
 **Detect proactively:** When writing GDScript that touches `other_node.some_member` where `some_member` is declared on `other_node`'s attached script, prefer typed annotations on the consumer side or add `class_name` to the source.
 
@@ -265,7 +265,7 @@ The damping bound is tighter — it's violated *before* the frequency bound. At 
 
 ## Godot 4 ships typed `*f`/`*i` variants only for a narrow whitelist
 
-**Symptom:** GDScript fails to parse with `Identifier "expf" not declared in the current scope.` (or `sqrtf`, `sinf`, `cosf`, `powf`, `logf`, ...). Not a "wrong return type" warning — the identifier simply does not exist. Especially insidious when the failing script is not covered by GUT — the parse error only surfaces at F5 (or via `mcp__godot-mcp__editor get_log_messages`).
+**Symptom:** GDScript fails to parse with `Identifier "expf" not declared in the current scope.` (or `sqrtf`, `sinf`, `cosf`, `powf`, `logf`, ...). Not a "wrong return type" warning — the identifier simply does not exist. Especially insidious when the failing script is not covered by GUT — the parse error only surfaces at F5 (or via `mcp__godot-mcp__godot_editor get_log_messages source="editor"`).
 
 **Cause:** Godot 4 provides typed `*f` / `*i` variants only for a small comparison/rounding family. Most numeric globals — including all transcendentals and most trig — exist **only** as Variant-returning globals. The pattern does NOT generalize from `clampf` to anything else.
 
@@ -302,20 +302,20 @@ Note the rare exception: `wrap` is Variant, `wrapf` exists — so don't blanket-
 
 ---
 
-## godot-mcp can't write `Transform2D` / `Rect2` (struct-valued) properties — and the open editor then holds a STALE copy of the hand-edit until a close+reopen+save resync
+## godot-mcp silently no-ops `Rect2`/`region_rect` writes (v3.6.1) — and the open editor then holds a STALE copy of the hand-edit until a close+reopen+save resync
 
-**Symptom:** Setting a struct-valued property via the godot-mcp `node.update` / property-write call silently fails to take the full value, with no error — the call returns "success."
+**Symptom:** Setting `Rect2`/`region_rect` via the godot-mcp `node.update` / property-write call silently fails to take, with no error — the call returns "success."
 
-- **`Transform2D`** (e.g. `Bone2D.rest`): only the basis columns land; the **origin is dropped** (the dict format's `origin` key is ignored). A freshly-created bone can end up with a degenerate all-zeros `Transform2D` (det == 0).
-- **`Rect2`** (e.g. `Sprite2D.region_rect`): **all** tried formats no-op — string-expression `"Rect2(0,0,6,6)"`, dict `{"position":..,"size":..}`, and array `[0,0,6,6]`. The property stays at its default `Rect2(0,0,0,0)`.
+- **`Rect2`** (e.g. `Sprite2D.region_rect`): **all** tried formats no-op — string-expression `"Rect2(0,0,6,6)"`, dict `{"position":..,"size":..}`, and array `[0,0,6,6]`. The property stays at its default `Rect2(0,0,0,0)`. **Still broken in v3.6.1.**
+- **`Transform2D`** (e.g. `Bone2D.rest`) + **`NodePath`** — *RESOLVED in v3.6.1*: formerly only the basis landed and the origin was dropped (a freshly-created bone could end up a degenerate all-zeros `Transform2D`, det == 0); v3.6.1 now writes both correctly. (`Transform3D`/`Basis` unverified post-fix — treat with caution.)
 
 Because the write silently fails, the value must be **hand-edited into the `.tscn`**. But then a second failure mode kicks in: the editor that has the scene open keeps serializing its **stale in-memory copy**. `node.get_properties` reports the stale value (NOT the on-disk one — so it can't be trusted as confirmation), and a subsequent editor save (Cmd+S or MCP `scene.save`) **clobbers the hand-edit**, reverting disk to the stale value. Re-opening an already-open scene does NOT force a disk re-read.
 
-**Cause:** The godot-mcp bridge's property-set path doesn't serialize compound struct types (`Transform2D` origin, `Rect2`, likely `Transform3D`/`Basis`) — those formats aren't implemented (the property-formats section of `godot-mcp-guide.md` covers Vector2/Vector3/Color/enum but not these). Separately, the editor doesn't reload an externally-modified open scene without an explicit close+reopen.
+**Cause:** The godot-mcp bridge's property-set path doesn't serialize `Rect2` — that format isn't implemented (see the property-formats section of `godot-mcp-guide.md`, which documents the working formats and flags `Rect2` as the remaining no-op). v3.6.1 fixed the earlier `Transform2D`-origin and `NodePath` gaps. Separately, the editor doesn't reload an externally-modified open scene without an explicit close+reopen.
 
 **Fix:** Hand-edit the struct property into the `.tscn`, then force a **close-tab → reopen-scene → save** resync before any further MCP `node.*` calls or editor saves. If other MCP-settable props were also changed, `scene.save` them to disk **first**, **then** hand-edit the struct props, **then** resync — so the resync preserves everything. Don't trust `node.get_properties` until after the resync; verify against the on-disk `.tscn` (grep/read).
 
-**Detect proactively:** Before writing any `Transform2D` / `Rect2` / `Transform3D` property via `node.update`, assume the write will silently no-op or drop fields — plan to hand-edit the `.tscn`. After any such hand-edit on an open scene, treat `node.get_properties` as suspect until a close+reopen+save resync; grep the on-disk `.tscn` to confirm (e.g. `grep -n 'rest = Transform2D' scenes/...` / `grep -n 'region_rect = Rect2' scenes/...`). See `godot-mcp-guide.md` § "Property formats".
+**Detect proactively:** Before writing any `Rect2`/`region_rect` property via `node.update`, assume the write will silently no-op — plan to hand-edit the `.tscn`. (`Transform2D`/`NodePath` write fine in v3.6.1; no workaround needed.) After any such hand-edit on an open scene, treat `node.get_properties` as suspect until a close+reopen+save resync; grep the on-disk `.tscn` to confirm (e.g. `grep -n 'region_rect = Rect2' scenes/...`). See `godot-mcp-guide.md` § "Property formats".
 
 ---
 
@@ -323,7 +323,7 @@ Because the write silently fails, the value must be **hand-edited into the `.tsc
 
 These also exist but live in their own dedicated docs — listed here for discoverability:
 
-- **Godot MCP tool quirks** — see `docs/godot-mcp-guide.md`. Covers: single-client WS bridge, leaked processes, runtime-vs-edit-time state, scene-mutation-on-wrong-scene risk, `get_debug_output` vs `get_console_output`.
+- **Godot MCP tool quirks** — see `docs/godot-mcp-guide.md`. Covers: single-client WS bridge, leaked processes, runtime-vs-edit-time state, scene-mutation-on-wrong-scene risk, console-capture quirks (`get_console_output` category/session traps).
 - **Blender MCP tool quirks** — see `docs/blender-mcp-guide.md`. Covers: schema inconsistencies, data-API-over-`bpy.ops`, depsgraph staleness, edit-mode bmesh, glTF Material Output AO pattern, Blender 5.x API drift.
 - **Asset pipeline shape** — see `docs/asset-pipeline.md`.
 
