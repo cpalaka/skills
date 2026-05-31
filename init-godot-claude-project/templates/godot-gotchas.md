@@ -319,6 +319,30 @@ Because the write silently fails, the value must be **hand-edited into the `.tsc
 
 ---
 
+## `AnimatableBody2D` with `sync_to_physics = true` ignores a `move_and_slide` parent — pinned bodies don't track
+
+**Symptom:** A `RigidBody2D` is pinned (via `PinJoint2D`) to an `AnimatableBody2D` anchor that is a child of a `CharacterBody2D`. The intent: the anchor "rides" the parent so the pinned body follows. But when the parent moves via `move_and_slide()`, the anchor — and therefore the pinned body — stays frozen at its spawn position; the pinned body visibly detaches from the moving parent. No error, no warning. Also manifests on the initial gravity settle: the anchor stays at the spawn Y while the parent falls, leaving the pin offset above the true attachment point.
+
+**Cause:** `AnimatableBody2D` with `sync_to_physics = true` reads its position authoritatively FROM the physics frame — it is designed to be moved *manually* by code, `AnimationPlayer`, or `RemoteTransform2D` (per the class docs). A parent `CharacterBody2D`'s `move_and_slide()` updates the child's scene-tree global transform, but `sync_to_physics = true` makes the body ignore that and hold its physics-frame position (where nothing actively moved it). The docs explicitly warn "Do **not** use [sync_to_physics] together with `move_and_collide()`" — a `move_and_slide()` parent is the same conflict class.
+
+**Fix:** Set `sync_to_physics = false` on the `AnimatableBody2D`. Then scene-tree parent inheritance drives the body's physics transform and the anchor (plus the pinned body) tracks the parent. **This inverts the common assumption** that `sync_to_physics = true` is the "safe default" for a parent-ridden anchor — for a *parent-driven* (not code-driven) anchor, `true` is the BROKEN setting.
+
+**Detect proactively:** If a pinned/jointed body "won't follow" a node moved by `move_and_slide`/`move_and_collide`, and the anchor is an `AnimatableBody2D`, check `sync_to_physics` first. Diagnose numerically: watch the anchor's world position while the parent moves — if the parent's x advances and the anchor's x has slope 0, the anchor isn't tracking.
+
+---
+
+## Forward axis is canonical -Z
+
+**Symptom:** A `Node3D` faces or moves the wrong way — code computes "forward" as `+Z` (uses `transform.basis.z` directly, or `atan2(horizontal.x, horizontal.z)` for a heading) and the result points backward relative to the engine's own helpers.
+
+**Cause:** Godot's convention is **local -Z is forward** — the `-Z` axis points out the "front" of a `Node3D`, and both `Node3D.look_at` and `-transform.basis.z` assume it. Code that treats `+Z` as forward fights `look_at` and every engine system that follows the convention.
+
+**Fix:** Use `-transform.basis.z` for the forward vector, and the negated `atan2` form when deriving a heading from a horizontal direction. Audit code that assumes `+Z forward`, uses `transform.basis.z` (vs `-transform.basis.z`), or `atan2(horizontal.x, horizontal.z)` (vs the negated form).
+
+**Detect proactively:** Grep changed `.gd` for `basis.z` without a leading `-`, and `atan2(` in heading math.
+
+---
+
 ## (Existing project-level gotchas)
 
 These also exist but live in their own dedicated docs — listed here for discoverability:

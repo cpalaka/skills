@@ -1,5 +1,6 @@
 .DS_Store
 docs/
+__pycache__/
 
 # Claude Code workspace plumbing — never publish
 .claude/

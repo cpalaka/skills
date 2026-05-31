@@ -41,6 +41,8 @@ One writer at a time (both drive the same `EditorInterface`).
 | 13 | Headless Godot (GUT, `--check-only`, CLI) fails `Could not find type "X"` for a `class_name X` script that demonstrably exists on disk; `mcp__godot__get_diagnostics` reports the file AND its consumer clean | `.godot/global_script_class_cache.cfg` doesn't refresh when a new `class_name` file is created externally (Write tool, `cat`, Finder). Editor LSP parses on demand and gives false-positive green; headless Godot reads the stale cache file. Fix: focus the editor window to trigger a FileSystem rescan; verify with `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` returning > 0 |
 | 14 | AnimationTree character stuck on Idle while clearly moving; a nested sub-StateMachine's `playback.get_current_node()` stays on Start/Idle; standing still, the top-level SM oscillates between two states (e.g. `Grounded` ↔ `Fall`) every few frames; no errors/warnings | A boolean `advance_condition`/`advance_expression` is set in only ONE state's branch, so it latches stale-true when that branch stops running. The top-level SM keeps firing the spurious transition every frame; each re-entry re-initialises the nested sub-SM to its Start node, so it never advances. `advance_mode` was already correct — this is about condition *freshness*, not advance_mode (cf. #8). Fix: clear every condition boolean on every frame (add an `else` branch) |
 | 15 | godot-mcp `node.update` silently no-ops `Rect2`/`region_rect` writes in every format (v3.6.1; `Transform2D` origin + `NodePath` were fixed in 3.6.1) — the `Rect2` value must be hand-edited into the `.tscn`, after which the open editor's stale in-memory copy makes `get_properties` lie and an editor save clobbers the hand-edit | The bridge's property-set path doesn't serialize `Rect2`; and the editor doesn't reload an externally-modified open scene without a close+reopen. Fix: hand-edit, then close+reopen+save resync before further `node.*`/saves; verify against the on-disk `.tscn`, not `get_properties` |
+| 16 | A `RigidBody2D` pinned/jointed (via `PinJoint2D`) to an `AnimatableBody2D` anchor that is a child of a `move_and_slide()` `CharacterBody2D` stays frozen at spawn — the anchor (and the pinned body) won't ride the moving parent; also holds spawn Y on the initial gravity settle; no error/warning | `sync_to_physics = true` makes the `AnimatableBody2D` read its transform authoritatively from the physics frame (designed for code/`AnimationPlayer`/`RemoteTransform2D`-driven motion), so it ignores the parent's scene-tree transform update. Same conflict class the docs flag for `move_and_collide()`. Fix: `sync_to_physics = false` so scene-tree inheritance drives it |
+| 17 | A `Node3D` faces/moves backward — code computes "forward" as `+Z`, uses `transform.basis.z` directly, or `atan2(horizontal.x, horizontal.z)` for a heading | Godot's convention is **local -Z is forward** (`look_at` and `-transform.basis.z` both assume it); `+Z`-forward code fights the engine. Fix: use `-transform.basis.z` and the negated `atan2` form; grep changed `.gd` for `basis.z` without a leading `-` |
 
 ## Gotchas
 
@@ -446,6 +448,40 @@ Hand-edit the struct property into the `.tscn`, then force a **close-tab → reo
 
 **Confirmed by**
 2026-05-29 — `2d-movement-prototype` IK re-introduction (Tasks 3–5, 7). Setting new `Bone2D.rest = Transform2D(1,0,0,1,0,6)` (`node.update` left origin `(0,0)`; one path gave a det==0 zero-matrix) and four `Sprite2D.region_rect` values (all formats no-op'd) had to be hand-edited into `scenes/player/player_rig.tscn`; `node.get_properties` confirmed the editor's in-memory rests were stale/degenerate while disk was correct, and an editor save would have clobbered disk. Resolved each time by a user close+reopen+save resync, verified by re-reading the on-disk `.tscn`.
+
+### 16. `AnimatableBody2D` with `sync_to_physics = true` ignores a `move_and_slide` parent — pinned bodies don't track
+
+**Symptom**
+A `RigidBody2D` is pinned (via `PinJoint2D`) to an `AnimatableBody2D` anchor that is a child of a `CharacterBody2D`. The anchor is meant to ride the player so the pinned body follows. When the player moves via `move_and_slide()`, the anchor — and the pinned body — stays frozen at spawn; the pinned body visibly detaches. No error, no warning. Also shows on the initial gravity settle: the anchor holds the spawn Y while the player falls.
+
+**Cause**
+`AnimatableBody2D` with `sync_to_physics = true` reads its position authoritatively from the physics frame — it's designed to be moved *manually* by code / `AnimationPlayer` / `RemoteTransform2D`. A parent's `move_and_slide()` updates the child's scene-tree global transform, but `sync_to_physics = true` makes the body ignore that and hold its physics-frame position (where nothing moved it). Docs warn: do NOT use `sync_to_physics` with `move_and_collide()`; a `move_and_slide()` parent is the same conflict class.
+
+**Fix**
+Set `sync_to_physics = false`. Scene-tree parent inheritance then drives the physics transform and the anchor (plus the pinned body) tracks the parent. Inverts the common assumption that `true` is the "safe default" for a parent-ridden anchor — for a *parent-driven* (not code-driven) anchor, `true` is the BROKEN setting.
+
+**Detect proactively**
+Pinned/jointed body "won't follow" a node moved by `move_and_slide`/`move_and_collide` and the anchor is an `AnimatableBody2D` → check `sync_to_physics` first. Numeric diagnose: parent x advances, anchor x slope 0 ⇒ not tracking.
+
+**Confirmed by**
+2026-05-30 — `arm-control` prototype, build step 5 (shoulder rig for the physics sword-arm). Live via godot-mcp input-injection + `runtime_state watch`: with `sync_to_physics = true`, player x went 0→320 while the anchor x stayed 12 (slope 0); with `false`, the anchor x tracked 12→332 and the pinned arm followed at ~0.03px drift.
+
+### 17. Forward axis is canonical -Z
+
+**Symptom**
+A `Node3D` faces or moves the wrong way — code computes "forward" as `+Z` (uses `transform.basis.z` directly, or `atan2(horizontal.x, horizontal.z)` for a heading) and the result points backward relative to the engine's own helpers.
+
+**Cause**
+Godot's convention is **local -Z is forward** — the `-Z` axis points out the "front" of a `Node3D`, and both `Node3D.look_at` and `-transform.basis.z` assume it. Code that treats `+Z` as forward fights `look_at` and every engine system that follows the convention.
+
+**Fix**
+Use `-transform.basis.z` for the forward vector, and the negated `atan2` form when deriving a heading from a horizontal direction. Audit code that assumes `+Z forward`, uses `transform.basis.z` (vs `-transform.basis.z`), or `atan2(horizontal.x, horizontal.z)` (vs the negated form).
+
+**Detect proactively**
+Grep changed `.gd` for `basis.z` without a leading `-`, and `atan2(` in heading math.
+
+**Confirmed by**
+Godot's documented `Node3D` convention — `look_at` and `-basis.z` both assume local `-Z` forward.
 
 ## Adding new gotchas
 
