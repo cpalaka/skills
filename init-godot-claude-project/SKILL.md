@@ -22,7 +22,7 @@ Bootstraps a Godot 4.x project with the `@satelliteoflove/godot-mcp` + `@ryanmaz
 ## Prerequisites
 
 - Target directory contains `project.godot` (Godot 4.x).
-- `node` / `npx` on PATH (for the addon installer).
+- `node` / `npm` / `npx` on PATH (npm + node for the frozen MCP launchers; npx for the one-time addon install).
 - Claude Code running in the target project directory.
 
 ## Process
@@ -125,9 +125,28 @@ Prerequisite: `uv` on PATH (the godot-ai dock auto-starts a uv-managed Python se
 
 **If the project will NOT use godot-ai**, remove the `godot-ai` block from `.mcp.json` and the `mcp__godot-ai__*` allow + `"godot-ai"` enabled-server entry from `settings.local.json`, to avoid a spurious connection error.
 
+### 3C. Freeze the MCP server launchers (supply-chain hardening)
+
+`.mcp.json` launches the two npm-distributed servers (`godot-mcp`, `minimal-godot-mcp`) on **every** editor/Claude session. Launching them via `npx -y <pkg>@<ver>` re-resolves the **unpinned transitive dependency tree** from the registry on each cold start and runs install lifecycle scripts — a recurring arbitrary-code-execution surface on the dev machine, and on every machine that clones the repo and approves the MCP prompt. Pinning the top-level version does NOT freeze the transitive tree. Fix: install both servers once into a lockfile-frozen local tree and launch from that.
+
+(Distinct from step 3's `--install-addon`: that is a **one-time, version-pinned** fetch whose result — `addons/godot_mcp/` — is committed, not a recurring runtime exposure, so it stays as-is.)
+
+If `tools/mcp/package-lock.json` already exists, the freeze is in place — skip to step 4. Otherwise, from the project root:
+
+1. Create `tools/mcp/` and copy `templates/mcp/package.json` into it (pins both servers to exact versions — no `^`/`~` ranges).
+2. Generate the integrity-locked tree:
+   ```
+   npm install --prefix tools/mcp --no-audit --no-fund
+   ```
+   This writes `tools/mcp/package-lock.json` (lockfileVersion 3, sha512 integrity per package) and materializes `tools/mcp/node_modules/`. **Commit the lockfile + `package.json`, NOT `node_modules/`.**
+3. Stop Godot import-scanning `node_modules/`: create an **empty** file `tools/.gdignore` (NOT `.godotignore` — the wrong name silently does nothing; see the gotcha catalog).
+4. Ignore the materialized tree in git: ensure `.gitignore` contains `tools/mcp/node_modules/` (create `.gitignore` if absent; append with exact-string dedup if present).
+
+The freeze is per-project and runs at init, so a freshly-bootstrapped project has `node_modules/` already materialized. **A later fresh clone must run `npm ci --prefix tools/mcp` once** (integrity-verified against the committed lock) before the godot-mcp/minimal tools will load — called out in the handoff (step 9).
+
 ### 4. Write `.mcp.json`
 
-Copy `templates/mcp.json` from this skill's directory to the project root as `.mcp.json` (note the leading dot).
+Copy `templates/mcp.json` from this skill's directory to the project root as `.mcp.json` (note the leading dot). **The template launches the two npm servers from the lockfile-frozen `tools/mcp/` install via `node …` (not `npx -y`), so step 3C must run first** — otherwise `.mcp.json` points at a `node_modules/` that doesn't exist yet.
 
 ### 5. Write the per-project reference docs
 
@@ -221,6 +240,8 @@ Tell the user:
 3. In Claude Code, run `/mcp` to (re)connect the MCP servers to the now-running bridge.
 4. Verify with: `mcp__godot-mcp__godot_project addon_status` — should return `connected: true`.
 
+**If this project was set up by cloning an already-bootstrapped repo** (rather than a fresh init), first run `npm ci --prefix tools/mcp` to materialize the lockfile-frozen MCP launchers — `node_modules/` is gitignored. Also note `.mcp.json` changes only take effect after a Claude Code restart.
+
 If the user's `~/.claude/settings.json` (user-level) does NOT already allow the godot-mcp tools, also mention they may get permission prompts until those are added. The user-level perms are out of scope for this skill — it only sets project-level perms.
 
 ## Verification
@@ -232,7 +253,9 @@ ls .mcp.json addons/godot_mcp/plugin.cfg docs/godot-mcp-guide.md docs/blender-mc
   grep -q "MCPGameBridge" project.godot && echo "autoload OK" && \
   grep -q "addons/godot_mcp/plugin.cfg" project.godot && echo "plugin OK" && \
   test -d ~/.agents/skills/godot-gdscript-patterns && echo "gdscript-patterns skill OK" && \
-  test -d ~/.agents/skills/godot-animation-tree-mastery && echo "animation-tree-mastery skill OK"
+  test -d ~/.agents/skills/godot-animation-tree-mastery && echo "animation-tree-mastery skill OK" && \
+  test -f tools/mcp/package-lock.json && echo "mcp lockfile OK" && \
+  test -d tools/mcp/node_modules && echo "mcp launchers materialized OK"
 ```
 
 All files listed + both grep echoes = green.
@@ -244,6 +267,7 @@ All files listed + both grep echoes = green.
 - **Single-client MCP bridge:** if the user has multiple Claude sessions open, only one can hold the slot. Surface this if they hit "Another MCP server connected and replaced this one" — recommend `godot-mcp-clean` then `/mcp`.
 - **Hand-editing `project.godot`** is fragile. After your edits, ask the user to open the editor and check the Project → Project Settings UI to make sure the plugin shows enabled and the autoload appears — Godot will rewrite the file cleanly on save.
 - **If `CLAUDE.md` is heavily customized**, ask the user where to slot the godot-mcp-guide pointer rather than guessing.
+- **Fresh clone, godot-mcp/minimal tools won't load:** `tools/mcp/node_modules/` is gitignored, so a clone has only the lockfile. Run `npm ci --prefix tools/mcp` once (integrity-verified against the committed lock) to materialize the frozen launchers, then `/mcp`. Expected, not a bug.
 
 ## After running
 

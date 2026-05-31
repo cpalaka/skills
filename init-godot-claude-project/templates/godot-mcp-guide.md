@@ -104,7 +104,7 @@ For the Blender → Godot pipeline (where source files live, what crosses, namin
 
 ## New-project setup checklist
 
-1. `.mcp.json` with all three servers (godot-mcp, minimal-godot, godot-ai)
+1. `.mcp.json` with all three servers (godot-mcp, minimal-godot, godot-ai). The two npm servers launch from a lockfile-frozen local install in `tools/mcp/` via `node …` (committed `package-lock.json`; `node_modules/` gitignored), **not** `npx -y` — this freezes the transitive dependency tree against supply-chain drift. After a fresh clone, run `npm ci --prefix tools/mcp` before the godot-mcp/minimal tools will load.
 2. `addons/godot_mcp/` present; enabled in `[editor_plugins]`
 3. `MCPGameBridge` autoload registered
 4. This guide copied to `docs/godot-mcp-guide.md`; `CLAUDE.md` references it
