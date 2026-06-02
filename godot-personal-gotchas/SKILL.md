@@ -38,11 +38,12 @@ One writer at a time (both drive the same `EditorInterface`).
 | 10 | A semi-implicit Euler spring driving a node's `scale` (squash-stretch, hit feedback) blows up within ~10 frames of first impulse — rig becomes invisible (scale past ±10), physics still works, no error in console | At 60fps with `freq > ~6-7 Hz`, the damping bound `2·zeta·omega·dt < 1` is violated *before* the freq bound `omega·dt < 2`; amplitudes grow each cycle. Fix: cap `freq` at ~6 Hz OR replace explicit Euler with sub-stepping / analytical critically-damped form / exponential decay |
 | 11 | Walkthrough says "set `bone_index` AND `bone2d_node` separately on a Skeleton2D modification"; in 4.6.2 Inspector, picking the Bone2D from `bone2d_node` auto-populates `bone_index` — looks like 2 fields but it's 1 | Skeleton2D modification UI computes `bone_index` from the picked NodePath. Both fields serialize, but the integer is UI-derived, not user-input. Stale walkthroughs / older docs frame them as independent |
 | 12 | GDScript parse error `Identifier "expf"/"sqrtf"/"sinf"/"powf"/"logf" not declared in the current scope` — not a return-type warning, the identifier simply does not exist | Godot 4 ships typed `*f`/`*i` variants ONLY for `clamp`/`min`/`max`/`abs`/`sign`/`floor`/`ceil`/`round`. Transcendentals/trig (`exp`, `log`, `sqrt`, `sin`, `cos`, `tan`, `pow`, `lerp`, `smoothstep`, `move_toward`, ...) are Variant-only. Sibling-but-inverse to #2. Annotate the receiver (`var k: float = exp(...)`) instead of inventing a typed variant |
-| 13 | Headless Godot (GUT, `--check-only`, CLI) fails `Could not find type "X"` for a `class_name X` script that demonstrably exists on disk; `mcp__godot__get_diagnostics` reports the file AND its consumer clean | `.godot/global_script_class_cache.cfg` doesn't refresh when a new `class_name` file is created externally (Write tool, `cat`, Finder). Editor LSP parses on demand and gives false-positive green; headless Godot reads the stale cache file. Fix: focus the editor window to trigger a FileSystem rescan; verify with `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` returning > 0 |
+| 13 | Headless Godot (GUT, `--check-only`, CLI) fails `Could not find type "X"` for a `class_name X` script that demonstrably exists on disk; `mcp__godot__get_diagnostics` reports the file AND its consumer clean | `.godot/global_script_class_cache.cfg` doesn't refresh when a new `class_name` file is created externally (Write tool, `cat`, Finder). Editor LSP parses on demand and gives false-positive green; headless Godot reads the stale cache file. Fix: `mcp__godot-ai__filesystem_manage op=reimport` (preferred — works headless/agent, no window focus, also generates `.uid`) OR focus the editor window to trigger a rescan; verify with `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` > 0. Traps: self-references fail too; targeted reimport doesn't prune deleted-file entries |
 | 14 | AnimationTree character stuck on Idle while clearly moving; a nested sub-StateMachine's `playback.get_current_node()` stays on Start/Idle; standing still, the top-level SM oscillates between two states (e.g. `Grounded` ↔ `Fall`) every few frames; no errors/warnings | A boolean `advance_condition`/`advance_expression` is set in only ONE state's branch, so it latches stale-true when that branch stops running. The top-level SM keeps firing the spurious transition every frame; each re-entry re-initialises the nested sub-SM to its Start node, so it never advances. `advance_mode` was already correct — this is about condition *freshness*, not advance_mode (cf. #8). Fix: clear every condition boolean on every frame (add an `else` branch) |
 | 15 | godot-mcp `node.update` silently no-ops `Rect2`/`region_rect` writes in every format (v3.6.1; `Transform2D` origin + `NodePath` were fixed in 3.6.1) — the `Rect2` value must be hand-edited into the `.tscn`, after which the open editor's stale in-memory copy makes `get_properties` lie and an editor save clobbers the hand-edit | The bridge's property-set path doesn't serialize `Rect2`; and the editor doesn't reload an externally-modified open scene without a close+reopen. Fix: hand-edit, then close+reopen+save resync before further `node.*`/saves; verify against the on-disk `.tscn`, not `get_properties` |
 | 16 | A `RigidBody2D` pinned/jointed (via `PinJoint2D`) to an `AnimatableBody2D` anchor that is a child of a `move_and_slide()` `CharacterBody2D` stays frozen at spawn — the anchor (and the pinned body) won't ride the moving parent; also holds spawn Y on the initial gravity settle; no error/warning | `sync_to_physics = true` makes the `AnimatableBody2D` read its transform authoritatively from the physics frame (designed for code/`AnimationPlayer`/`RemoteTransform2D`-driven motion), so it ignores the parent's scene-tree transform update. Same conflict class the docs flag for `move_and_collide()`. Fix: `sync_to_physics = false` so scene-tree inheritance drives it |
 | 17 | A `Node3D` faces/moves backward — code computes "forward" as `+Z`, uses `transform.basis.z` directly, or `atan2(horizontal.x, horizontal.z)` for a heading | Godot's convention is **local -Z is forward** (`look_at` and `-transform.basis.z` both assume it); `+Z`-forward code fights the engine. Fix: use `-transform.basis.z` and the negated `atan2` form; grep changed `.gd` for `basis.z` without a leading `-` |
+| 18 | Assigning an array LITERAL to a typed `Array[T]` PROPERTY throws at runtime `Invalid assignment of property 'x' with value of type 'Array'` — even when elements match `T`; parses clean so `--check-only`/`get_diagnostics` miss it | An array literal `[...]` is an untyped `Array`; Godot 4 won't coerce it into a typed `Array[T]` property on assignment (empty `[]` and untyped function params are fine — only typed-property assignment fails). Fix: `prop.assign([...])` or a typed local `var a: Array[T] = [...]; prop = a` |
 
 ## Gotchas
 
@@ -384,9 +385,14 @@ When a new `.gd` file declaring `class_name X` is created **externally to the ed
 Files created via the editor's "New Script…" dialog do NOT hit this (the dialog writes the cache as part of its action). Edits to existing `class_name` files do NOT hit this either.
 
 **Fix**
-- Focus the editor window (or click anywhere in the FileSystem dock) to trigger a scan. This rewrites `.godot/global_script_class_cache.cfg` with the new `class_name` entries.
+- **Preferred when the editor is open + godot-ai MCP is connected** (e.g. an agent session where you can't reliably focus the editor window): `mcp__godot-ai__filesystem_manage` with `op=reimport`, `params={"paths": ["res://scripts/your_new_class.gd", ...]}`. Runs `EditorFileSystem.update_file` — registers the `class_name` in the cache AND generates the `.uid` sidecar, no window focus needed. Works from a subagent too (`ToolSearch` `select:mcp__godot-ai__filesystem_manage` first).
+- Otherwise: focus the editor window (or click anywhere in the FileSystem dock) to trigger a scan. This rewrites `.godot/global_script_class_cache.cfg` with the new `class_name` entries.
 - Verify before retrying: `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` must return `> 0`.
 - Then re-run the headless command.
+
+**Two traps**
+- **Self-references fail too.** A script that uses its OWN `class_name` internally (`X.new()`, `-> X`, `Array[X]`) — not just a cross-file consumer — fails with `Identifier not found: X` until that file is reimported. Every new `class_name` script needs the reimport, even standalone ones.
+- **Targeted reimport / `write_text` do NOT prune deletions.** They only update the named paths; a cache entry for a DELETED `class_name` file lingers (`class_name X -> deleted_path`) and collides if you later add a real `X` at a different path. To supersede it, create the real file with the same `class_name` and reimport THAT (`update_file` replaces the entry's path — verified the stale entry then resolves to the real file). Only a full editor rescan prunes vanished files wholesale.
 
 **Detect proactively**
 - Any time a new `class_name`-declaring script is created via tooling (not the editor's New Script dialog), assume the cache is stale until proven otherwise.
@@ -395,6 +401,8 @@ Files created via the editor's "New Script…" dialog do NOT hit this (the dialo
 
 **Confirmed by**
 2026-05-27 — `2d-movement-prototype` F-C1+D1 architectural fix. Created `scripts/player/player_tick_context.gd` (declaring `class_name PlayerTickContext`) via Write tool while editor was running. LSP diagnostics on both the new file and `scripts/player/player.gd` (consumer) came back clean. `godot --headless --path . -s addons/gut/gut_cmdln.gd -gtest=res://test/unit/test_player_state_machine.gd -gexit` produced 5× `Parse Error: Could not find type "PlayerTickContext"`. `grep -c "PlayerTickContext" .godot/global_script_class_cache.cfg` returned `0`. After focusing the editor window, the same grep returned `1` and the GUT run passed 6/6. Commit `a15e3fe`.
+
+2026-06-01 — `circle-combat-prototype` player-SM Phase A. Confirmed the `mcp__godot-ai__filesystem_manage op=reimport` fix (registers the class + generates `.uid`, no window focus — reliable even from a subagent), and both traps: a script self-referencing its own `class_name` (`Intent.new()` inside `intent.gd`) failed `Identifier not found: Intent` headless until reimported; and a stale `class_name ActionSM -> deleted_path` entry was NOT pruned by reimporting the deleted path or by a `write_text` scan — only superseded by creating the real `scripts/action_sm.gd` with the same `class_name` and reimporting it (the entry's path then resolved to the real file; verified by grep + a green headless run).
 
 ### 14. Stale advance-condition boolean flickers the parent StateMachine and resets a nested sub-StateMachine to Start every frame
 
@@ -482,6 +490,25 @@ Grep changed `.gd` for `basis.z` without a leading `-`, and `atan2(` in heading 
 
 **Confirmed by**
 Godot's documented `Node3D` convention — `look_at` and `-basis.z` both assume local `-Z` forward.
+
+### 18. Typed `Array[T]` property rejects an untyped array-literal assignment (Godot 4.6, runtime-only)
+
+**Symptom**
+- Assigning an array literal to a typed-array PROPERTY throws at runtime: `SCRIPT ERROR: Invalid assignment of property or key 'edges' with value of type 'Array' on a base object of type 'Resource (MoveDef)'.`
+- e.g. `move_def.edges = [make_edge()]` where `edges` is `@export var edges: Array[MoveEdge]`. Throws even when every element is the correct type, and even when the element comes from a function typed `-> MoveEdge`.
+- The script PARSES clean — fires only at runtime — so `--check-only` and `mcp__godot__get_diagnostics` miss it; only an actual run catches it.
+
+**Cause**
+An array literal `[...]` is an untyped `Array`. Godot 4 refuses to assign an untyped `Array` to a typed `Array[T]` property (no implicit element-wise coercion on property set). Asymmetry: an EMPTY literal `[]` → typed array is fine, and passing an untyped array to an untyped function PARAMETER (e.g. `load_graph(moves: Array, ...)`) is fine. The failure is specifically untyped-literal → typed-`Array[T]` PROPERTY assignment.
+
+**Fix**
+Use `Array.assign()` (copies + element-type-checks): `move_def.edges.assign([make_edge(), make_edge()])`. Or build a typed local first: `var arr: Array[MoveEdge] = [make_edge()]; move_def.edges = arr`. Both verified.
+
+**Detect proactively**
+Watch test / factory / `.tres`-builder code that populates a typed-array resource field (`MoveDef.edges`, `MoveLibrary.moves`/`entry_edges`, `Array[StringName]` fields, ...). Grep: `grep -nE '\.(edges|moves|entry_edges)[ ]*=[ ]*\[' scripts/ tests/`. Runtime-only, so a unit-test run (not `--check-only`) is what catches it.
+
+**Confirmed by**
+2026-06-01 — `circle-combat-prototype` player-SM Phase A. The plan's test code authored `MoveDef.edges = [...]`, `MoveLibrary.moves = [...]`, `entry_edges = [...]`; all threw `Invalid assignment of property` at runtime and were fixed to `.assign([...])`. Verified `.assign()` and the typed-local-var form both work; empty-literal and untyped-param paths confirmed unaffected.
 
 ## Adding new gotchas
 
