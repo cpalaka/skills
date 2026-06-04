@@ -1,6 +1,6 @@
 ---
 name: sync-godot-skills
-description: Audit and propagate learnings from a Godot project's docs and per-project memory back to the source skills (init-godot-claude-project, godot-personal-gotchas, godot-personal-preferences). Identifies drift, presents a parity table for user approval, applies surgical updates to skill files only. Direction is always project → skill, never the reverse. Use when wanting to run a parity check between project docs/memory and skills, sync new Godot gotchas to the godot-personal-gotchas skill, sync new workflow feedback to the godot-personal-preferences skill, propagate doc updates to the init-godot-claude-project templates, or when the user says "audit godot skill parity", "sync godot skills", or invokes /sync-godot-skills.
+description: Audit and propagate learnings from a Godot project's docs and per-project memory back to the source skills (init-godot-claude-project, godot-personal-gotchas, godot-personal-preferences, godot-architecture-review). Identifies drift, presents a parity table for user approval, applies surgical updates to skill files only. Direction is always project → skill, never the reverse. Use when wanting to run a parity check between project docs/memory and skills, sync new Godot gotchas to the godot-personal-gotchas skill, sync new workflow feedback to the godot-personal-preferences skill, propagate doc updates to the init-godot-claude-project templates, sync architecture-process learnings to the godot-architecture-review skill, or when the user says "audit godot skill parity", "sync godot skills", or invokes /sync-godot-skills.
 ---
 
 # Sync Godot Skills
@@ -19,6 +19,7 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 - Skill 1 (init template): `~/.claude/skills/init-godot-claude-project/templates/`.
 - Skill 2 (personal gotchas): `~/.claude/skills/godot-personal-gotchas/SKILL.md` (or `gotchas/<slug>.md` files if the skill has been split — check both).
 - Skill 3 (personal preferences): `~/.claude/skills/godot-personal-preferences/SKILL.md`.
+- Skill 4 (architecture review): `~/.claude/skills/godot-architecture-review/` (SKILL.md, ARTIFACTS.md, PHASES.md).
 
 ## File pairs to diff
 
@@ -29,6 +30,7 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 5. `CLAUDE.md`                 ↔ `init-godot-claude-project/templates/CLAUDE.md.full`
 6. Memory `gotcha_*.md` files  ↔ entries in `godot-personal-gotchas/SKILL.md` (match by symptom keyword or section title). Only Godot-engine gotchas belong in the personal-gotchas skill.
 7. Memory `feedback_*.md` files ↔ entries in `godot-personal-preferences/SKILL.md` (match by topic keyword or section title). Only generalizable workflow preferences propagate; project-specific feedback stays in memory only (see Rules below).
+8. `docs/architecture/refactor-process.md` (or `docs/architecture/campaign.md`) ↔ entries in `godot-architecture-review/` (SKILL.md / ARTIFACTS.md / PHASES.md — match by section title). Only generalizable process knowledge propagates (guardrails, gates, artifact conventions, phase mechanics); project parameters (drivers, anchor tasks, population labels, candidates, run log) stay in the project.
 
 ## Process
 
@@ -36,11 +38,12 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 2. Pairs 1–5: run `diff` via Bash. Capture hunks.
 3. Pair 6: list `gotcha_*.md` files; for each, grep `godot-personal-gotchas/SKILL.md` for the symptom keyword. Build an "in skill / missing / stale" table.
 4. Pair 7: list `feedback_*.md` files; for each, grep `godot-personal-preferences/SKILL.md` for the topic keyword. Build the same "in skill / missing / stale" table. Project-specific feedback (see Rules) is auto-classified as "stays in memory only" — flag but don't propose to propagate.
-5. Classify each diff hunk and each missing entry: propagate / skip / ask (see Rules).
-6. **PRESENT a parity table to the user and PAUSE for approval before editing.** Do not edit until they confirm.
-7. After approval: apply edits to skill files only. For new gotcha entries in `godot-personal-gotchas/SKILL.md`, match the existing structure (index row + body section with Symptom / Cause / Fix / Detect proactively / Confirmed by). For new preference entries in `godot-personal-preferences/SKILL.md`, match the existing structure (index row + body section with When this applies / Preferred behavior / Why / How to apply).
-8. Verify by re-running `diff` on each pair. Expected residue: only the project-specific content you explicitly scrubbed.
-9. Report what changed in 2–3 sentences.
+5. Pair 8: if `docs/architecture/refactor-process.md` or `docs/architecture/campaign.md` exists, scan it for generalizable process rules (guardrails, gates, artifact conventions, phase mechanics) and grep the `godot-architecture-review` files by section title. Build the same table. Project parameters are auto-classified "stays in the project". Absent file → skip the pair.
+6. Classify each diff hunk and each missing entry: propagate / skip / ask (see Rules).
+7. **PRESENT a parity table to the user and PAUSE for approval before editing.** Do not edit until they confirm.
+8. After approval: apply edits to skill files only. For new gotcha entries in `godot-personal-gotchas/SKILL.md`, match the existing structure (index row + body section with Symptom / Cause / Fix / Detect proactively / Confirmed by). For new preference entries in `godot-personal-preferences/SKILL.md`, match the existing structure (index row + body section with When this applies / Preferred behavior / Why / How to apply). For `godot-architecture-review` changes, match its file split (SKILL.md = core rules; ARTIFACTS.md = artifact shapes; PHASES.md = phase mechanics + kickoff prompts).
+9. Verify by re-running `diff` on each pair. Expected residue: only the project-specific content you explicitly scrubbed.
+10. Report what changed in 2–3 sentences.
 
 ## Rules for what propagates
 
@@ -72,7 +75,7 @@ Distinguish **active guidance** (update to the new action) from **historical anc
 
 ## Constraints
 
-- Skill directories are NOT git repos — no commits there, just file writes.
+- The hand-authored skill dirs live in the `cpalaka-claude-skills` git repo (symlinked into `~/.claude/skills/`) — apply file writes only; committing there is the user's decision after reviewing the sync, never part of this skill's run.
 - Do NOT modify any project file. If you find typos or improvements in project files, mention them in the report; the user decides whether to fix.
 - Use `diff` via Bash, not Read + manual comparison.
 - Don't delete content from skills unless newer project content clearly supersedes it (and even then, surface the deletion in your report).
