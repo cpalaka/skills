@@ -25,6 +25,8 @@ If a preference's "How to apply" conflicts with what the user just asked for, fo
 | 4 | Godot project is or is about to become public (open-source, demo deployment, portfolio piece) | Audit `.gitignore` for AI-workflow plumbing + process-scratch before pushing publicly. Hide: `CLAUDE.md`, `.claude/`, `docs/superpowers/`, plan/spec scratch, frozen handoffs. Keep: `.mcp.json`, MCP guides, gotchas catalog, vendored addons |
 | 5 | Before instructing on Godot 4.x class API specifics, Inspector workflow, or sub-resource property names | Fetch current docs via `mcp__godot-mcp__godot_docs fetch_class <ClassName>` before composing the response (**godot-mcp-EXCLUSIVE** — godot-ai has no docs tool, so keep godot-mcp connected even when godot-ai is the writer). Training-data drift to older 4.x and Godot 3.x conventions is the failure mode; fresh docs ground the response |
 | 6 | About to claim "all scripts compile" or "compile clean" from a green GUT run | Don't. GUT only compiles scripts its tests/targets touch. Run `--headless --check-only --quit` for exhaustive parse (when editor closed), OR `mcp__godot-mcp__godot_editor get_log_messages source="editor"` (when editor open), OR godot-ai `logs_read` after a `project_run` (the write-side server's own log read). Skipping this on the basis of GUT green is the trap |
+| 7 | About to commit a scene/wiring task whose changed code **consumes values produced by another module** (animator reads gameplay state, UI binds sibling nodes, one system drives another via a shared convention) | After your own headless/automated verification, BEFORE the commit, dispatch a read-only adversarial review subagent prompted to trace every consumed value back to its producer and check the convention matches (units, sign, screen-Y-down, angle-wrapping / ±π branch cut, facing-relative-vs-world). Self-consistent solo verification asserts against your own assumption and misses producer/consumer mismatches living OUTSIDE the changed diff. Reconcile + fix, then commit. Skip for pure test-covered helper tasks |
+| 8 | Deciding whether to stay solo on the main thread or fan out subagents for a piece of work | Discriminator is **plan specificity, not implementation-vs-exploration**. Fan out subagents for exploration / research / codebase reconnaissance regardless. While a plan is still fluid or being discovered, stay solo and surgical on the main thread so the user sees and steers each change. Once a plan is **fully specified** (exact code / field tables + verification commands), subagent-driven execution is fine |
 
 ## Preferences
 
@@ -71,7 +73,7 @@ After any inline `.tscn` edit, immediately Read the file back and verify the cha
 
 **When this applies**
 
-Executing a multi-task plan via the `superpowers:subagent-driven-development` skill in a Godot project, where individual tasks would otherwise prompt for F5 manual verification.
+Executing a multi-task plan via the `superpowers:subagent-driven-development` skill in a Godot project, where individual tasks would otherwise prompt for F5 manual verification. (Whether subagent-driven execution is the right mode at all is gated by preference #8 — plan specificity; this preference presumes that question already answered yes.)
 
 **Preferred behavior**
 
@@ -213,6 +215,52 @@ This is a strict superset of the warnings-as-errors gates that GUT covers. The f
 When the editor is open, prefer `mcp__godot-mcp__godot_editor get_log_messages source="editor"` over `--check-only --quit` — the headless command tries to bind the godot-mcp WebSocket port (6550) and hangs if the editor's already on it, leaving orphan Godot processes. Always `ps aux | grep godot` before re-running headless when the editor is open.
 
 When the editor is closed, `--check-only --quit` is the right tool. When in doubt or under time pressure, spot-read any `.gd` script that's about to be loaded by a scene the user is about to F5 — fastest manual verification.
+
+---
+
+### 7. Adversarial producer/consumer review before committing cross-module wiring
+
+**When this applies**
+
+About to commit a Godot scene/wiring task where the changed code **consumes values produced by another module** — an animation controller reading gameplay state (aim angle, facing, velocity), a UI node binding to sibling nodes, one system driving another via a shared convention. Especially when the contract is implicit: units, sign, coordinate handedness (screen-Y-down vs world), angle wrapping / ±π branch cuts, facing-relative vs world-space.
+
+**Preferred behavior**
+
+After your own headless/automated verification passes, but BEFORE the per-task commit, dispatch a **read-only** review subagent (general-purpose) with an explicit producer/consumer-trace lens: for every gameplay value the changed code consumes, trace it back to its producer and verify the consumer's assumption matches the producer's actual contract. Reconcile the findings, fix, THEN commit. Skip for pure headless-TDD helper tasks that are already test-covered (no cross-module consumption).
+
+**Why**
+
+Solo authoring + self-consistent verification is self-confirming: the author's own check asserts against the author's own (possibly wrong) assumption, so a producer/consumer convention mismatch passes the check and ships. These bugs live OUTSIDE the changed diff — in the contract *between* modules — which is exactly the blind spot an adversarial cross-module review covers. Empirically, one such task shipped three convention-mismatch bugs (a raw screen-space angle fed to a facing-canonical cone; inverted elevation; a linear chase sweeping the long way across the ±π branch cut when facing left) that the author's headless check missed because it asserted against the same wrong assumption.
+
+**How to apply**
+
+Dispatch the subagent read-only over: the changed consumer script(s) + the producer scripts it reads + the scene that wires them. Prompt it specifically to check units / sign / screen-Y-down / angle-wrapping / facing-relative-vs-world for each consumed value — not a generic "review this." Reconcile, fix, commit. Complements the F5-batching discipline (preference #2): F5 catches "does it look right," this catches "is the contract right" before the visual check even runs.
+
+---
+
+### 8. Solo-vs-fan-out: gate on plan specificity, not implementation-vs-exploration
+
+**When this applies**
+
+Deciding whether to keep a piece of work on the main thread (solo, surgical) or fan it out to subagents — at the start of any work unit, before dispatching.
+
+**Preferred behavior**
+
+- **Fan out subagents for exploration, research, and codebase reconnaissance** — always, to keep main context light. Understanding-shaped work is fan-out-by-default.
+- **Stay solo and surgical while a plan is still fluid or being discovered.** When requirements are being worked out as the code is written, keep changes on the main thread so the user sees and steers each step and retains full understanding/control.
+- **Once a plan is fully specified, subagent-driven execution is fine.** A fully-specified plan means exact code / field tables plus verification commands per task — enough that a controller can curate exact per-task context and dispatch implementers without losing the user's grip on the design.
+
+The discriminator is **plan specificity, not implementation-vs-exploration.** "Implementation stays solo" is the wrong cut: a fully-specified implementation plan is a fine subagent-driven target; a fluid, being-discovered design stays solo even when it's nominally "just implementation."
+
+**Why**
+
+The naive rule "fan out for understanding, stay solo for changing" mis-gates: it forces solo execution even on a fully-specified plan where subagent-driven execution runs cleanly. The real risk being managed is loss of the user's steering and understanding while the design is still fluid — which is a function of how specified the plan is, not whether the work is labeled implementation or exploration.
+
+**How to apply**
+
+Before dispatching, ask: *is the plan fully specified?* If it's exploration/research/recon, fan out. If it's a fluid or being-discovered design, stay solo on the main thread. If it's a fully-specified plan (exact code/field tables + verification commands), subagent-driven execution is appropriate — dispatch one implementer at a time (single-writer-safe for MCP) with the per-task review. This is the gating question that preference #2 (F5 batching) presumes already answered: that preference only kicks in *once* you're in subagent-driven plan execution.
+
+_Confirmed by the circle-combat-prototype project-working-style memory: split confirmed 2026-05-31, discriminator refined 2026-06-02._
 
 ---
 

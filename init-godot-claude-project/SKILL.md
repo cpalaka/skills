@@ -150,11 +150,12 @@ Copy `templates/mcp.json` from this skill's directory to the project root as `.m
 
 ### 5. Write the per-project reference docs
 
-Create `docs/` if missing. Copy three files from this skill's `templates/` directory:
+Create `docs/` if missing. Copy four files from this skill's `templates/` directory:
 
 - `templates/godot-mcp-guide.md` → `docs/godot-mcp-guide.md` — Godot MCP tool reference + gotchas. Always copy.
 - `templates/blender-mcp-guide.md` → `docs/blender-mcp-guide.md` — Blender MCP tool reference + Blender 5.x API drift + Blender→Godot pipeline notes. Always copy (cheap insurance — projects often discover later they want a Blender pipeline).
 - `templates/asset-pipeline.md` → `docs/asset-pipeline.md` — Directory layout (parallel-vs-nested), naming discipline, PBR material survival mapping, multi-material slot ordering, bone-attached props, inherited-scene pattern for rigged characters. Always copy.
+- `templates/godot-gotchas.md` → `docs/godot-gotchas.md` — project-level engine/editor gotcha catalog (the portable counterpart to the `godot-personal-gotchas` skill). Always copy.
 
 For each: if the destination already exists, skip it unless the user has asked for a refresh (in which case overwrite). Don't merge — the source-of-truth for these docs lives in the skill template; partial updates would risk drift.
 

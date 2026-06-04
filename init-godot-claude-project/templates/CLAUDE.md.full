@@ -31,3 +31,5 @@ Godot project. See `project.godot` for engine and feature configuration.
 ## Running
 
 Open the project in the Godot editor and press F5. From the CLI, `godot --path .` runs the main scene defined in `project.godot`.
+
+Never trust `$?` from a `godot --script` run — exit codes lie on parse failure and mid-run abort (see `docs/godot-gotchas.md`); assert on the run's output plus a pinned check count instead.

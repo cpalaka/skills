@@ -53,16 +53,20 @@ Each entry: **symptom → cause → fix**. Optional: how to detect proactively.
 
 Typically on lines like `var steering := _player.is_steering()` or `var slow := speed < _player.idle_threshold`, where `_player` is typed (e.g. `CharacterBody3D`) but the accessed symbol is defined on its attached script (not the base class).
 
-**Cause:** With `_player: CharacterBody3D`, the static parser only knows about `CharacterBody3D`'s built-in members. Script-defined symbols (custom exports, methods, signals) aren't visible to the parser unless the source script declares `class_name Foo` — making `Foo` a globally-known type. Without `class_name`, `_player.script_member` resolves to Variant; `:=` inference fails the same warnings-as-errors gate as the `clamp` family above.
+**Also fires on a member of a *fully untyped* base** — most commonly an untyped function parameter: `func drive(p, delta: float, axis: float): var s := p.speed`. Here `p` has no annotation at all, so it's Variant, `p.speed` has no inferable type, and `:=` errors with the same message. Note: unlike the typed-but-classless case above, this variant is a **HARD compile error independent of `treat_warnings_as_errors`** — `:=` simply cannot infer from a Variant member access regardless of the warnings gate.
+
+**Cause:** With `_player: CharacterBody3D`, the static parser only knows about `CharacterBody3D`'s built-in members. Script-defined symbols (custom exports, methods, signals) aren't visible to the parser unless the source script declares `class_name Foo` — making `Foo` a globally-known type. Without `class_name`, `_player.script_member` resolves to Variant; `:=` inference fails the same warnings-as-errors gate as the `clamp` family above. When the base itself is untyped (Variant) — e.g. an untyped param `p` accessed as `p.speed` — there's no type to infer at all and `:=` hard-errors regardless of warnings config.
 
 **Fix:** Two options, in order of preference:
 
 1. **Add `class_name` to the source script** — e.g. `class_name Player extends CharacterBody3D` at the top of `player.gd`. Makes its members statically visible everywhere. Side effect: `Player` becomes a global identifier.
 2. **Annotate the consumer explicitly** — `var steering: bool = _player.is_steering()`. Minimal surgical fix; doesn't touch the source script. Use when adding `class_name` would cause naming friction.
 
-**`mcp__godot__get_diagnostics` does NOT catch this** — the per-file LSP has no cross-script context and reports the file clean. The engine parser at script-load time is what fails. Always cross-check `mcp__godot-mcp__godot_editor get_log_messages source="editor"` after writing cross-script access. (See `docs/godot-mcp-guide.md` → "Reading errors when the scene fails to load".)
+For the **untyped-base** variant (`var s := p.speed` on an untyped param `p`): use plain `=` (`var s = p.speed` — `s` becomes Variant, which is legal), or annotate the receiver (`var s: float = p.speed`). Never `:=` on a member access of an untyped/Variant base.
 
-**Detect proactively:** When writing GDScript that touches `other_node.some_member` where `some_member` is declared on `other_node`'s attached script, prefer typed annotations on the consumer side or add `class_name` to the source.
+**`mcp__godot__get_diagnostics` does NOT catch this** — the per-file LSP has no cross-script context and reports the file clean. The engine parser at script-load time is what fails. Always cross-check `mcp__godot-mcp__godot_editor get_log_messages source="editor"` after writing cross-script access. (See `docs/godot-mcp-guide.md` → "Reading errors when the scene fails to load".) Same hidden-until-headless class as the `class_name`-cache and typed-array gotchas below — an actual headless run is what catches it, not the diagnostics call.
+
+**Detect proactively:** When writing GDScript that touches `other_node.some_member` where `some_member` is declared on `other_node`'s attached script, prefer typed annotations on the consumer side or add `class_name` to the source. Likewise never write `var x := <untyped_param>.<member>` — annotate the receiver or use `=`.
 
 ---
 
@@ -284,6 +288,22 @@ Note the rare exception: `wrap` is Variant, `wrapf` exists — so don't blanket-
 
 ---
 
+## `CanvasItem.texture_filter` "inherit" member is `TEXTURE_FILTER_PARENT_NODE`, not `TEXTURE_FILTER_INHERIT` (Godot 4.6)
+
+**Symptom:** GDScript parse error:
+
+> Parse Error: Cannot find member "TEXTURE_FILTER_INHERIT" in base "CanvasItem".
+
+It's a **LOAD-time** parse error (fires at F5 / game boot / when the script loads), not a `--check-only`-only nicety. If the offending script is `preload`ed by another (e.g. a `player.gd` preloads it), the failure **cascades** and the whole scene won't boot — presenting as "can't start the game / error in the stack trace" rather than a localized error. Surfaces at GDScript `--check-only`, at `mcp__godot-mcp__godot_editor get_log_messages source="editor"`, and at godot-ai `logs_read source=editor` (function `GDScript::reload`). A green GUT run or a `[x]` "docs-confirmed" pre-flight checkbox does NOT catch it.
+
+**Cause:** Godot 4.6's `CanvasItem.TextureFilter` enum has **no** `TEXTURE_FILTER_INHERIT` member. The "inherit from parent node / project default" value is **`TEXTURE_FILTER_PARENT_NODE` (= 0)**. Full member list: `TEXTURE_FILTER_PARENT_NODE` (0), `TEXTURE_FILTER_NEAREST` (1), `TEXTURE_FILTER_LINEAR` (2), `TEXTURE_FILTER_NEAREST_WITH_MIPMAPS` (3), `TEXTURE_FILTER_LINEAR_WITH_MIPMAPS` (4), `..._ANISOTROPIC` (5, 6), `TEXTURE_FILTER_MAX` (7). The trap is writing `_INHERIT` by analogy with the word "inherit" (and `BaseMaterial3D` / older-docs naming intuition); `TEXTURE_FILTER_NEAREST` on the same line is correct, which makes the wrong member look plausible by association.
+
+**Fix:** Use `CanvasItem.TEXTURE_FILTER_PARENT_NODE` for the "leave at the default / inherit" branch. Confirmed against live `mcp__godot-mcp__godot_docs fetch_class CanvasItem` — property `texture_filter` is type `TextureFilter`, default `0` = PARENT_NODE. `TEXTURE_FILTER_NEAREST` for the pixelated branch is correct as-is.
+
+**Detect proactively:** When setting `texture_filter` from script (especially a conditional `NEAREST if pixelated else <default>`), the default branch is `TEXTURE_FILTER_PARENT_NODE`, not `_INHERIT`. More broadly: **re-verify version-sensitive enum/property names against live `godot_docs` even when a plan/pre-flight checkbox CLAIMS they were docs-confirmed** — a `[x]` is not evidence the check ran. Same hidden-until-load class as the `expf`/typed-`*f`-variant entry above and the cross-script-`class_name` entry below — only an actual load (F5 / `--check-only` / editor log read) catches it, not a GUT pass.
+
+---
+
 ## `class_name` cache stale when new script is created outside the editor
 
 **Symptom:** Headless Godot invocations (`godot --headless ... -s addons/gut/gut_cmdln.gd`, `godot --check-only --quit`, custom CLI scripts) fail with `SCRIPT ERROR: Parse Error: Could not find type "X" in the current scope.` for a `class_name X` type that demonstrably exists — the `.gd` file is on disk, the editor is open with the project loaded, and `mcp__godot__get_diagnostics` returns clean diagnostics for both the new file and any file referencing the type. GUT reports `Failed to load script ... with error "Parse error"` followed by `WARNING: Ignoring script ... because it does not extend GutTest`. The error message points at the *consumer* of the new type, not the missing cache entry, which makes the diagnosis indirect.
@@ -291,14 +311,15 @@ Note the rare exception: `wrap` is Variant, `wrapf` exists — so don't blanket-
 **Cause:** When a new `.gd` file declaring `class_name X` is created **externally to the editor** (Claude's Write tool, `cat > file.gd`, copy via Finder, scaffolding scripts, MCP file-creation patterns), the on-disk `.godot/global_script_class_cache.cfg` is NOT updated immediately. The editor's LSP can parse files on demand (so per-file diagnostics succeed and give a false-positive green), but the cache file — which **separate headless Godot processes consult to resolve `class_name` references** — only refreshes when the editor's FileSystem dock actually rescans. Rescan triggers: editor-window focus, FileSystem dock interaction, scene save. Files created via the editor's "New Script…" dialog do NOT hit this (the dialog writes the cache as part of its action); edits to existing `class_name` files do NOT hit this either.
 
 **Fix:**
-- **Preferred when the editor is open + godot-ai MCP is connected** (e.g. an agent session where you can't reliably focus the editor window): `mcp__godot-ai__filesystem_manage` with `op=reimport`, `params={"paths": ["res://scripts/your_new_class.gd", ...]}`. Runs `EditorFileSystem.update_file` — registers the `class_name` in the cache AND generates the `.uid` sidecar, no window focus needed. Works from a subagent too (`ToolSearch` `select:mcp__godot-ai__filesystem_manage` first).
+- **Preferred when the editor is open + godot-ai MCP is connected** (e.g. an agent session where you can't reliably focus the editor window): `mcp__godot-ai__filesystem_manage` with `op=reimport`, `params={"paths": ["res://scripts/your_new_class.gd", ...]}`. Runs `EditorFileSystem.update_file` — registers the `class_name` in the cache AND generates the `.uid` sidecar, no window focus needed. Works from a subagent too (`ToolSearch` `select:mcp__godot-ai__filesystem_manage` first). **Caveat — reimport is a NO-OP for a script in a BRAND-NEW directory** (a dir the editor's `EditorFileSystem` has not yet scanned; e.g. created via the Write tool / `cat` / Finder). `update_file` updates an *already-recognized* file; if the parent dir was never scanned, there's nothing to update — so reimport **falsely reports success** (`{"reimported_count":1,"not_found":[]}`) while adding NO cache entry and generating NO `.uid`, leaving the class unresolvable headless. The success report means "the op executed," not "the class registered." See trap (3) below for the new-dir fix.
 - Otherwise: focus the editor window (or click anywhere in the FileSystem dock) to trigger a scan. This rewrites `.godot/global_script_class_cache.cfg` with the new `class_name` entries.
 - Verify before retrying headless: `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` must return `> 0`.
 - Then re-run the headless command.
 
-**Two traps:**
+**Three traps:**
 - **Self-references fail too.** A script that uses its OWN `class_name` internally (`X.new()`, `-> X`, `Array[X]`) — not just a cross-file consumer — fails with `Identifier not found: X` until that file is reimported. Every new `class_name` script needs the reimport, even standalone ones.
 - **Targeted reimport / `write_text` do NOT prune deletions.** They only update the named paths; a cache entry for a DELETED `class_name` file lingers (`class_name X -> deleted_path`) and will collide if you later add a real `X` at a different path. To supersede it, create the real file with the same `class_name` and reimport THAT (`update_file` replaces the entry's path). Only a full editor rescan prunes vanished files wholesale.
+- **Reimport silently no-ops in a brand-new directory — use `write_text` to force a scan.** When the `class_name` script lives in a directory the editor never scanned, `reimport` returns success but registers nothing (see Fix caveat above). Trigger an editor filesystem SCAN instead: godot-ai `filesystem_manage op=write_text` is documented to "Trigger an editor filesystem scan" — re-writing the file (or any sibling) via `write_text` indexes the new directory, registering the class AND generating the `.uid`. (Focusing the editor window also triggers a scan.) **Never trust the `reimport` return value for a new dir** — verify with `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` (> 0).
 
 **Detect proactively:**
 - Any time a new `class_name`-declaring script is created via tooling (not the editor's New Script dialog), assume the cache is stale until proven otherwise.
@@ -367,6 +388,159 @@ Because the write silently fails, the value must be **hand-edited into the `.tsc
 **Fix:** Use `-transform.basis.z` for the forward vector, and the negated `atan2` form when deriving a heading from a horizontal direction. Audit code that assumes `+Z forward`, uses `transform.basis.z` (vs `-transform.basis.z`), or `atan2(horizontal.x, horizontal.z)` (vs the negated form).
 
 **Detect proactively:** Grep changed `.gd` for `basis.z` without a leading `-`, and `atan2(` in heading math.
+
+---
+
+## godot-ai omits `uid=` on a script ext_resource when the `.uid` sidecar doesn't exist yet at save time
+
+**Symptom:** godot-ai adds a brand-new script node to a scene (`node_create` + `script_attach` + `scene_save`) and the saved `[ext_resource type="Script" ...]` line in the `.tscn` is written WITHOUT its `uid=` attribute — even though sibling script ext_resources have `uid="uid://..."`. It still resolves by `path=` (so it works at runtime), but it's inconsistent with the other entries and breaks if the script is later renamed/moved outside the editor.
+
+**Cause:** godot-ai serializes the ext_resource with whatever it knows at save time. The UID isn't available until the editor imports the freshly-written `.gd` and generates its `.uid` sidecar — which hasn't happened yet at the moment of the save.
+
+**Fix:** Do NOT hand-edit the `.tscn`. Instead:
+
+1. `mcp__godot-ai__filesystem_manage` with `op=reimport`, `params={"paths": ["res://scripts/your_script.gd"]}` — generates the `.uid` sidecar.
+2. `mcp__godot-ai__scene_save` again — godot-ai now writes the `uid=` cleanly.
+
+Verified to produce exactly a one-line diff (`+[ext_resource ... uid="uid://..." path=...]`) with zero `unique_id` churn or reordering.
+
+The same `reimport` trick force-generates a `.uid` for a new script (e.g. so it can be committed, if the project tracks `.uid` files). Note: the headless `--script` test runner does NOT generate a `.uid` for a script it only `preload`s by path, so reimport is the reliable way to materialize it.
+
+**Detect proactively:** After any godot-ai scene edit that attaches a newly-created script, grep the saved `.tscn` for the new script's ext_resource line — if it has `path=` but no `uid=` while siblings do, reimport + re-save before committing. See `godot-mcp-guide.md` for the godot-ai writer surface.
+
+---
+
+## godot-ai `resource_manage` can't author script-`class_name` resources — only built-in engine types
+
+**Symptom:**
+- godot-ai `resource_manage` `op=create` (or `op=get_info`) with `type="<YourScriptClass>"` — e.g. a `class_name MoveDef extends Resource` — fails with `VALUE_OUT_OF_RANGE: Unknown resource type: MoveDef`.
+- There's no path through godot-ai to instantiate/save a `.tres` for a custom Resource subclass (any `class_name X extends Resource`).
+- Built-in engine resource types (`Curve`, `Environment`, `Gradient`, physics shapes, etc.) DO work via `resource_manage`.
+
+**Cause:** godot-ai's `resource_manage` resource handler resolves type names against the engine's built-in ClassDB only; it does not consult the script-registered global-class cache (the `class_name` cache). So a custom Resource type name is "unknown" to it even though the editor and GDScript resolve it fine.
+
+**Fix:**
+
+1. **Hand-write the custom-resource `.tres` inline** (Write tool), using an existing editor-saved instance of the same resource as the format template. Key format points:
+   - Reference the script via `[ext_resource type="Script" uid="uid://…" path="res://scripts/x.gd" id="…"]` — the `uid` comes from the script's `.gd.uid` sidecar.
+   - Author data as `[sub_resource type="Resource" id="…"]` blocks, each with `script = ExtResource("…")`.
+   - Typed-array properties serialize as `Array[ExtResource("def_id")]([SubResource("…"), …])`.
+   - `StringName` fields → `&"…"`; `@export_enum` String fields → plain `"…"`.
+2. **Verify** the hand-written file by godot-ai `resource_manage op=load` (parses + lists properties) plus a `project_run` boot-check, reading `logs_read source="game"/"editor"` for any load-time `push_error`.
+3. **Built-in resources still go through godot-ai** — e.g. a Curve via `resource_manage op=create type="Curve" resource_path="…"` then `op=curve_set_points` with points as `{offset, value}` dicts (NOT `[x, y]` arrays — that errors `Curve points[0] must be {offset, value, …}`). godot-ai embeds the Curve's `uid` inline in its `[gd_resource]` header (no `.uid` sidecar — resources carry uid inline; sidecars are script-only).
+
+**Detect proactively:** Before reaching for godot-ai `resource_manage` to create/inspect a `.tres`, check whether the resource's `type` is a `class_name` (your script) or a built-in engine class. Custom = hand-write inline + verify via `op=load` + boot-check; built-in = godot-ai is fine. A `resource_manage` call that returned `Unknown resource type:` is this gotcha. Related: the `uid`-omission entry above and the `class_name` cache-stale entry above (both godot-ai/`class_name` resource-handling quirks).
+
+---
+
+## godot-ai cannot author `Skeleton3D` bones — hand-write the bones block into the `.tscn`, then a USER reload is required
+
+**Symptom:** Creating `Skeleton3D` bones via godot-ai fails — bones are neither child nodes nor settable properties. `node_set_property bones/0/name` → `PROPERTY_NOT_ON_CLASS` ("not found on Skeleton3D"): the dynamic `bones/N/*` properties don't exist until the bone exists, and there's no bone-count setter to bootstrap one. `batch_execute` has create-node/set-property/delete/attach-script commands but NO method-call command, so it can't call `add_bone`/`set_bone_parent`/`set_bone_rest` either.
+
+**Cause:** godot-ai exposes nodes + properties + a few batch verbs, but no `Skeleton3D` bone-authoring API and no general method-call path. The bone array is engine-internal state reached only through methods (`add_bone`, …) that godot-ai can't invoke.
+
+**Fix:** Hand-write the bone array into the `[node ... type="Skeleton3D"]` block of the `.tscn`. Per bone, 7 lines: `bones/N/name`, `bones/N/parent` (int; must reference a lower index), `bones/N/rest` (`Transform3D`), `bones/N/enabled = true`, `bones/N/position` (`Vector3` = rest origin), `bones/N/rotation` (`Quaternion` = identity `(0,0,0,1)` for a translation-only rest), `bones/N/scale = Vector3(1,1,1)`. **Include the pose triple** (`position`/`rotation`/`scale`) — omitting it leaves bones at pose=identity, not rest, collapsing the rig.
+
+- **Identity-basis rests are translation-only → safe to hand-author.** For a *rotated* rest, the `.tscn` `Transform3D` is **row-major**: `Transform3D(m00,m01,m02, m10,m11,m12, m20,m21,m22, ox,oy,oz)`. Don't guess the basis — template-extract it: set a node's `rotation` (Euler) via godot-ai (which serializes the basis correctly) and read the resulting `transform =` line. (A π/4-about-Z rest is `0.7071068,-0.7071068,0, 0.7071068,0.7071068,0, 0,0,1`.)
+- **The editor will NOT pick up the hand-edit on an open scene, and you must NOT `scene_save` to fix it** (that writes the bone-LESS in-memory copy over your disk bones). godot-ai `scene_open` tab-switching does NOT force a reload; `filesystem_manage op=write_text` does NOT either. A **user must do Scene → Reload Saved Scene** (or close + reopen the tab) — the same close+reopen resync as the `Rect2`/stale-open-scene gotcha above, here for scene *creation*.
+- **Verify the reload worked** before continuing: a child `BoneAttachment3D`'s `bone_idx` resolves to `0..n` (it stays `-1` if the skeleton still has 0 bones). `bone_name` alone does NOT resolve `bone_idx` at edit-time via MCP — write both `bone_name` and `bone_idx` in the `.tscn`. Independently, validate the disk file headless before bothering the user: `load("res://…tscn").instantiate()` then `get_bone_count()`.
+- **After the user reload**, the in-memory scene HAS the bones, so `scene_save` is now safe and beneficial — it blesses the format and bakes each `BoneAttachment3D`'s resolved global transform into the `.tscn`. Order: author the full rig on disk → user reload → screenshot-verify → `scene_save` → commit.
+
+**Detect proactively:** Any time a task needs `Skeleton3D` bones (or `BoneAttachment3D` rigs) and godot-ai is the writer, plan for the hand-write + one user reload up front — don't discover it mid-build. The `bones/N/name` `PROPERTY_NOT_ON_CLASS` error is the tell.
+
+---
+
+## godot-ai `node_set_property` sets a `Vector2i` to the container's LENGTH, not its values
+
+**Symptom:** Setting a `Vector2i` property via godot-ai (e.g. `SubViewport.size`) silently produces the wrong value:
+- dict `{"x":256,"y":256}` → `Vector2i(2, 2)` (took the dict's **key count**).
+- array `[256, 256]` → `Vector2i(2, 2)` (took the array **length**).
+- string `"Vector2i(256, 256)"` → **no-op** (value unchanged; couldn't coerce).
+
+A 2-element container of any shape becomes `(2, 2)` regardless of the values you passed.
+
+**Cause:** godot-ai's value-coercion path for `Vector2i` is broken — it appears to use the container length instead of reading the `x`/`y` components. **`Vector3` is unaffected** — `{"x":0,"y":1.6,"z":4}` set a `Camera3D.position` correctly in the same session — so this is specific to the `Vector2i` coercion.
+
+**Fix:** Hand-edit the `Vector2i` line in the `.tscn` (`size = Vector2i(256, 256)`). If the scene is open, the editor holds a stale copy — apply the same close+reopen+save resync discipline as the other open-scene gotchas (don't `scene_save` over your hand-edit before the reload).
+
+**Detect proactively:** When a godot-ai `node_set_property` targets a `Vector2i`-typed property (`SubViewport.size`, `size_2d_override`, TileMap cell coords, etc.), assume it will be mangled — set it by hand and read back the `.tscn`. Sibling to the godot-mcp `Rect2` no-op above: both are struct-coercion gaps, different MCP server.
+
+---
+
+## godot-ai cannot author an `AnimationTree` graph — hand-write `tree_root` + bone-track clips into the `.tscn`, verify headless (don't `scene_save`)
+
+**Symptom:** Building an `AnimationTree` via godot-ai, there's no verb for the graph. `animation_manage` is **AnimationPlayer-only** (`player_create`, `add_property_track`, `preset_*`…) — no `AnimationNodeBlendTree` / `AnimationNodeStateMachine` / `AnimationNodeBlendSpace1D` / `AnimationNodeAnimation` authoring, and `add_property_track` is **value-track-only** (bone clips need `rotation_3d`/`position_3d` transform tracks it can't make). Sibling to the skeleton-bones gotcha above.
+
+**Cause:** godot-ai's writer surface covers AnimationPlayer ops and ordinary property/value tracks; the `tree_root` sub-resource graph and transform-track clips are outside its verb set (same class of gap as the custom-resource and Vector2i gotchas above).
+
+**Fix — hand-write into the `.tscn`** (same discipline as the bones block):
+- **Clips** as `[sub_resource type="Animation"]`: `tracks/N/type = "rotation_3d"`, `path = NodePath("Skeleton3D:bone_name")`, `interp = 0` (nearest = stepped), `keys = PackedFloat32Array(time, transition, qx,qy,qz,qw, …)` (6 floats/key for rotation_3d; 5 for position_3d: time,transition,x,y,z). Bundle in `[sub_resource type="AnimationLibrary"] _data = { &"RESET": …, &"idle": …, … }`; AnimationPlayer `libraries = { "": SubResource("…lib") }`. AnimationPlayer `root_node` defaults `NodePath("..")` (its parent) → bone paths are `Skeleton3D:bone`, **NOT** `../Skeleton3D:bone`.
+- **Tree graph** sub-resources, **leaf→composite order**: `AnimationNodeAnimation` (`animation = &"idle"`) → `AnimationNodeBlendSpace1D` (`blend_point_0/node = SubResource(…)`, `blend_point_0/pos`, `min_space`/`max_space`) → `AnimationNodeStateMachine` (`states/<Name>/node` + `/position`, `transitions = ["Start", "<Name>", SubResource(<trans>)]`; do NOT declare `states/Start/…` — Start/End are implicit) → `AnimationNodeBlendTree` (`nodes/<name>/node`, `nodes/output/position`, `node_connections = [&"output", 0, &"<name>"]`). Start→state transition: set `advance_mode = 2` (AUTO) so it fires on entry — see the `advance_mode = 2` gotcha above. **Runtime param paths follow the author-chosen node names**: nested-SM-in-BlendTree → `parameters/<smNodeName>/playback` and `parameters/<smNodeName>/<StateName>/blend_position`.
+- **`AnimationTree` node**: `tree_root = SubResource("…BlendTree")`, `anim_player = NodePath("../AnimationPlayer")`, `active = true`, `callback_mode_process = 2` (MANUAL, for a stepped clock). (Property names confirmed against 4.6.2 docs: `AnimationMixer.callback_mode_process`, `AnimationTree.anim_player`/`tree_root`.)
+- **Masked `Blend2` sector layer**: `AnimationNodeBlend2` filter serialization is **not in the public docs** (found via a `ResourceSaver.save` probe) — `filter_enabled = true` then `filters = ["Skeleton3D:upper_arm_r", "Skeleton3D:forearm_r", …]` are **plain quoted path strings in a flat array, NOT `NodePath(...)`**. Mask semantics at `blend_amount = 1.0`: filtered tracks take from input **1**, unfiltered from input **0** → wire `arm_blend.0 ← locomotion`, `arm_blend.1 ← arm`.
+
+**Verify WITHOUT the editor — and do NOT `scene_save`:** when the puppet scene is already open in a tab, `scene_open` just re-activates the **STALE** in-memory tab (`scene_get_hierarchy`/`get_properties`/screenshots all read stale, same as the skeleton-bones gotcha above), and a `scene_save` would **CLOBBER** the disk hand-edit. Adding an AnimationPlayer/AnimationTree introduces **no new Transform3D** → nothing to normalize → **skip `scene_save` entirely** (no user reload needed; F5 reads disk). Validate with a throwaway headless `extends SceneTree` script: `load(…).instantiate()`, assert clips present, `tree_root != null`, and that `at.get("parameters/<sm>/playback")` / `…/blend_position` **resolve** (proves the param paths the animator code uses match the authored node names). Headless `--script` runs fine with the editor open here; `ps aux | grep godot` after to catch orphans.
+
+**Detect proactively:** Any task needing an `AnimationTree` graph or `rotation_3d`/`position_3d` bone clips with godot-ai as writer — plan the `.tscn` hand-write + headless param-path check up front. Before using any `parameters/...` path in animator code, read the **real** authored node names (in code, not by eye); don't assume the plan's names.
+
+---
+
+## A standalone `.gdshader` can't be compile-checked headless — the dummy RenderingServer never compiles shaders
+
+**Symptom:** You want a per-task compile-check of a hand-authored `.gdshader` (syntax/type errors) WITHOUT an F5 and without wiring it into a used material. Every headless lever comes back clean even when the shader is broken: `godot --headless --check-only --quit` (or any headless run) does NOT surface shader syntax/type errors, and a bare filesystem import/scan doesn't either.
+
+**Cause:** A `.gdshader` only compiles when a **real** RenderingServer loads it into a *used* material. Headless Godot uses the **dummy RenderingServer**, which never compiles shaders, so errors are never raised. And `.gdshader` has no import system — a filesystem scan just registers the file, it doesn't compile it. So the per-task compile-check model needs a different lever for shaders than for scripts. Same "a green headless/GUT pass is not proof it compiles" theme as the typed-array and `class_name`-cache entries above — but here it's the RenderingServer, not the parser, that's stubbed out.
+
+**Fix (editor OPEN = real RenderingServer):**
+1. `mcp__godot-ai__material_manage op=create params={path:"res://shaders/_tmp.tres", type:"shader", shader_path:"res://shaders/foo.gdshader", overwrite:true}` — a throwaway ShaderMaterial.
+2. `mcp__godot-ai__material_manage op=get params={path:"res://shaders/_tmp.tres"}` — the returned `shader_parameters` array **enumerates the shader's uniforms**, which only succeeds if the shader PARSED (`: source_color` vec4 uniforms come back typed `Color` with correct defaults). Bonus: the enumerated names/types double as a cross-check that the uniform surface matches what the GDScript consumer will `set_shader_parameter()`.
+3. `mcp__godot-ai__logs_read source="editor"` — empty / no `SHADER ERROR` line = clean. (The editor-source buffer persists across `project_run`; `run_id` empty.)
+4. Delete the throwaway: `rm -f shaders/_tmp.tres shaders/_tmp.tres.uid shaders/_tmp.tres.import`. **zsh trap:** a `.godot/imported/_tmp*` glob with NO match aborts the entire `rm` line (silently skipping the real deletes) — split it onto its own line.
+
+**Authoritative GPU compile still happens at F5** (shader wired into a rendered material). This editor-open technique is the cheap per-task gate; the F5 Gate is the real exercise. See `docs/godot-mcp-guide.md` for the godot-ai `material_manage` writer surface.
+
+**Detect proactively:** Whenever a per-task plan says "compile-check the shader," do NOT reach for `--check-only`/`--headless` — they won't catch shader errors. Use the editor-open `material_manage create` + `get` (uniform enumeration) + `logs_read source=editor` recipe instead.
+
+---
+
+## `Script.can_instantiate()` returns `true` for an `@abstract` GDScript — use `is_abstract()` to pin abstractness (Godot 4.6.2)
+
+**Symptom:** `Script.can_instantiate()` returns `true` for a GDScript marked `@abstract`. A test/assertion that pins "this base class is abstract / not instantiable" via `not script.can_instantiate()` does the exact inverse of intent: it silently passes against a NON-abstract script and fails against the genuinely-abstract one. No error, no warning — the method just doesn't consult abstractness.
+
+**Cause:** `can_instantiate()` reports whether the script is **compiled / valid**, not whether instantiation is *permitted*. GDScript abstractness (the 4.5+ `@abstract` annotation) is enforced at `.new()` time but is NOT reflected in `can_instantiate()`. The truthful queryable signal is **`Script.is_abstract()`** (also 4.5+), which correctly returns `true` for the abstract base and `false` for concrete subclasses.
+
+**Fix:** Pin abstractness with `script.is_abstract()`, never `not script.can_instantiate()`.
+
+```gdscript
+var base := load("res://scripts/base_state.gd")  # @abstract class_name BaseState
+assert_true(base.is_abstract())          # ✓ correct — true for the abstract base
+# assert_false(base.can_instantiate())   # ✗ WRONG — can_instantiate() is true for the abstract base
+
+var leaf := load("res://scripts/concrete_state.gd")          # concrete
+assert_false(leaf.is_abstract())         # ✓ false for concrete subclasses
+```
+
+Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == true`, `is_abstract() == true`; a concrete subclass → `is_abstract() == false`.
+
+**Detect proactively:** Grep tests for abstractness pins routed through the wrong method: `grep -nE 'can_instantiate\(\)' tests/`. Any assertion that treats `can_instantiate()` as a proxy for "is abstract / not instantiable" is inverted — switch it to `is_abstract()`.
+
+---
+
+## Headless `--script` test-harness exit codes lie — a parse failure AND a mid-run runtime abort BOTH exit 0 (Godot 4.6.2)
+
+**Symptom:** This project's headless test harness (`extends SceneTree` + `_initialize()` calling `_run()` then printing a summary and `quit(1 if _failures > 0 else 0)`, invoked via `godot --headless --path . --script res://tests/<file>.gd`) exits **0** — looking green to `$?` / CI — in BOTH failure modes that bypass the assert counters:
+
+- **(a) The test file FAILS TO PARSE** (e.g. references a const/method that doesn't exist yet on a `preload`'d script — the normal TDD RED state). Godot prints `SCRIPT ERROR: Parse Error: ...` + `ERROR: Failed to load script "res://tests/..." with error "Parse error".` and the process **exits 0** — `quit(1)` never ran because nothing ran.
+- **(b) A RUNTIME error inside `_run()`** (nonexistent method on a Variant, wrong arg count, etc.) aborts ONLY `_run` — the CALLER `_initialize` **continues**, prints a truncated-but-green-looking summary counting only the asserts reached before the abort (e.g. `0/0 checks passed, 0 failures`, or worse a real-looking `4/4 checks passed`), and calls `quit(0)`. Exit 0, output looks like a pass.
+
+**Cause:** GDScript runtime errors do **not** propagate up the call stack — the erroring function aborts and returns `null`, but the caller resumes at its next statement. And a `--script` load/parse failure does **not** set a nonzero process exit code. So the harness's quit-code contract only holds when every test line actually executes; any abort that skips `quit(1)` (or runs it after a truncated count) leaves `$?` == 0.
+
+**Fix — never trust exit codes from this harness:**
+- **Assert on OUTPUT, not `$?`.** Grep for the `N/N checks passed, 0 failures` line AND the **absence** of `SCRIPT ERROR` — and **pin the EXPECTED total N** (a truncated green summary has a too-small N; that's the only tell for mode (b) when the reached asserts all passed).
+- **Wrap every invocation in a timeout.** macOS has no GNU `timeout`; use `perl -e 'alarm 30; exec @ARGV' /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --script res://tests/<file>.gd` — because an abort in `_initialize` ITSELF (before `quit()`) hangs the process forever.
+- **As TDD RED evidence, read the `SCRIPT ERROR` lines as the RED signal, never the exit code.**
+
+**Detect proactively:** Treat a green `$?` from a `--script` run as meaningless on its own. Every such run needs the output-grep + pinned-N check + perl-alarm wrapper. A durable structural fix is to wrap the harness in a shared base that requires an `EXPECTED_CHECKS` pin (turning mode (b) and silent truncation into a counted failure + real nonzero exit) plus a per-process perl-alarm test runner that derives its verdict from output, never `$?`. Mode (a) parse failures remain undetectable in-process — only such a runner (or a manual output read) catches them.
 
 ---
 
