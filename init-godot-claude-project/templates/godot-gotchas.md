@@ -544,6 +544,21 @@ Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == 
 
 ---
 
+## godot-ai has no file-move op — directory reorgs need a USER FileSystem-dock drag (rewrites `ext_resource` paths, NOT bare `preload()` strings)
+
+**Symptom:** A file/directory reorganization (moving `.gd`/`.tscn`/`.tres` into new folders) has no godot-ai verb — `filesystem_manage` only does `read`/`write`/`reimport`/`search`. And moving the files outside the editor (`mv`, Finder, Write-to-new-path + delete) silently orphans every reference: `ext_resource` paths, `.uid` sidecars, `preload()` strings.
+
+**Cause:** Dependency-safe moves are an editor FileSystem-dock operation — the dock's drag is what triggers the engine's dependency-rewrite pass. godot-ai has no verb for it; out-of-editor moves bypass the rewrite entirely.
+
+**Fix:** Have the **USER drag the files in the editor FileSystem dock**:
+- The drag auto-rewrites all uid-keyed `ext_resource` `path=` entries across `.tscn` + `.tres` (uids stay byte-identical), carries the `.uid` sidecars, and re-points the `class_name` cache via the editor's own scan (no brand-new-dir reimport trap — the editor creates the dirs itself; see the `class_name` cache entry above).
+- It does **NOT** rewrite bare `preload("res://…")` string paths — afterwards run `grep -rn 'preload(' scripts/ tests/` and hand-fix any stale paths.
+- Benign side effect: the editor may re-serialize a touched `.tres` and drop optional `load_steps` hints — not corruption.
+
+**Detect proactively:** Any task that says "move/reorganize files": plan the USER dock-drag step plus a post-move `preload(` grep up front; never `mv` referenced files out-of-editor.
+
+---
+
 ## (Existing project-level gotchas)
 
 These also exist but live in their own dedicated docs — listed here for discoverability:

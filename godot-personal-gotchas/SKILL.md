@@ -54,6 +54,7 @@ One writer at a time (both drive the same `EditorInterface`).
 | 26 | Headless GDScript test (`SceneTree`+`_initialize`+`--script`): a node's `_ready()` does NOT fire synchronously after `add_child(node)` inside `_initialize()`; full-lifecycle assertions silently run against a not-yet-ready node | `_initialize` runs before the tree processes ready notifications |
 | 27 | A headless `extends SceneTree` + `_initialize` + `--script` test exits 0 (green to `$?`) even on a PARSE failure or a mid-run RUNTIME abort | A `--script` parse/load failure doesn't set a nonzero exit (nothing ran, `quit(1)` skipped); a runtime error inside `_run()` aborts only that func, caller `_initialize` resumes, prints a truncated-green summary, `quit(0)`. GDScript runtime errors don't propagate up the call stack |
 | 28 | A test pinning "this base is abstract / not instantiable" via `not script.can_instantiate()` is inverted — passes against a NON-abstract script, fails against the genuinely-abstract one; no error/warning | `Script.can_instantiate()` reports whether the script is COMPILED/valid, not whether `.new()` is permitted (Godot 4.6.2); it returns `true` for an `@abstract` script. `@abstract` (4.5+) is enforced only at `.new()` time. The queryable signal is `Script.is_abstract()` (4.5+) |
+| 29 | Need to move/reorganize `.gd`/`.tscn`/`.tres` into new directories — godot-ai `filesystem_manage` has NO move op (only read/write/reimport/search), and an out-of-editor `mv`/Write-to-new-path orphans every reference | Dependency-safe moves are an editor FileSystem-dock operation. Have the USER drag in the dock: it auto-rewrites all uid-keyed `ext_resource` `path=` entries across `.tscn`+`.tres` (uids byte-identical), carries `.uid` sidecars, and re-points the `class_name` cache via the editor's own scan (no #13 new-dir trap — the editor creates the dirs). It does NOT rewrite bare `preload("res://…")` strings — grep and hand-fix those. Benign: a touched `.tres` may re-serialize and drop optional `load_steps` hints |
 
 ## Gotchas
 
@@ -712,6 +713,25 @@ A test pinning "this base is abstract / not instantiable" via `not script.can_in
 
 **Confirmed by**
 2026-06-04 — `circle-combat-prototype`, architecture deep-dive #3 (typed locomotion `drive(p)` seam), `tests/test_locomotion_seam.gd`'s `@abstract` pin. The `can_instantiate()` assertion failed against the genuinely-abstract base (`@abstract class_name LocomotionState`, where `can_instantiate() == true`, `is_abstract() == true`); the concrete leaf `grounded.gd` → `is_abstract() == false`. Switched to `is_abstract()` and it went green. First use of `@abstract` in this codebase, Godot 4.6.2. See memory `gotcha-script-abstract-can-instantiate.md`.
+
+### 29. Directory reorgs: godot-ai has no file-move op — USER dock-drag rewrites `ext_resource` paths but NOT bare `preload()` strings
+
+**Symptom**
+A scripts/scenes reorganization needs files moved into new directories. godot-ai `filesystem_manage` exposes no move/rename op (only `read`/`write`/`reimport`/`search`), and moving files outside the editor (`mv`, Finder, Write-to-new-path + delete) leaves every `ext_resource` path, `.uid` sidecar, and `preload()` string pointing at the old location.
+
+**Cause**
+Dependency-safe moves are an editor FileSystem-dock operation — the dock's drag is what triggers the engine's dependency-rewrite pass. godot-ai simply has no verb for it, and out-of-editor moves bypass the rewrite entirely.
+
+**Fix**
+- Have the **USER drag the files in the editor FileSystem dock**. The drag auto-rewrites all uid-keyed `ext_resource` `path=` entries across `.tscn` + `.tres` (uids stay byte-identical), carries the `.uid` sidecars along, and re-points the `class_name` cache via the editor's own scan (no #13 brand-new-dir reimport trap — the editor creates the dirs itself).
+- It does **NOT** rewrite bare `preload("res://…")` string paths — afterwards run `grep -rn 'preload(' scripts/ tests/` and hand-fix any stale paths.
+- Benign side effect: the editor may re-serialize a touched `.tres` and drop optional `load_steps` hints — not corruption.
+
+**Detect proactively**
+Any task that says "move/reorganize files": plan a USER dock-drag step plus a post-move `preload(` grep up front; never reach for `mv` or Write-to-new-path on referenced files.
+
+**Confirmed by**
+2026-06-04 — `circle-combat-prototype` scripts/ reorg into system-map-mirrored subfolders (merge `7e857ae`, ADR-0019). The dock-drag rewrote all 14 uid-keyed `ext_resource` paths (main.tscn + library.tres, uids byte-identical); 26 bare `preload()` strings across 2 scripts + 10 test files needed hand-fixing; editor re-serialization dropped library.tres's optional `load_steps` hint. See memory `scripts-reorg-layout.md`.
 
 ## Adding new gotchas
 
