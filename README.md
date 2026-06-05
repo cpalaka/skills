@@ -56,6 +56,22 @@ A manually-invoked meta-skill that checks every installed Claude skill for upstr
 
 [`SKILL.md`](./skill-updater/SKILL.md)
 
+### godot-architecture-review
+
+A convergent, re-runnable architecture review & refactor campaign for Godot projects — applies *A Philosophy of Software Design* (deep modules, depth-as-leverage, information hiding) without fighting Godot idioms, orchestrating `improve-codebase-architecture` under Godot guardrails and leaving durable convergence artifacts (`CONTEXT.md`, `docs/adr/`, `docs/architecture/system-map.md`).
+
+**When to use:** A Godot project needs an architecture review, a refactor or deepening campaign, or the user says "architecture review" / "refactor process" / "find shallow modules" / "APoSD review".
+
+[`SKILL.md`](./godot-architecture-review/SKILL.md)
+
+### init-backlog-project
+
+Bootstraps [backlog.md](https://github.com/MrLesk/Backlog.md) (the markdown-native task-board CLI) into a dev project with locked personal conventions: CLI-only/no-MCP, no generated agent instructions, Definition-of-Done defaults ending in a user-sign-off gate, and the board as the single source of progress (replacing roadmap-in-agent-memory). Includes a CLAUDE.md section template with per-project verification placeholders.
+
+**When to use:** Adopting backlog.md in a project ("add backlog to this project", "set up the task board", "port the backlog conventions"), or re-orienting on the conventions themselves (DoD vs AC, sign-off rule, plan-doc linkage, seeding).
+
+[`SKILL.md`](./init-backlog-project/SKILL.md)
+
 ## 3rd-party skills I use
 
 Skills I have installed locally and use as part of my workflow. Grouped by upstream source.
