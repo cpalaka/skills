@@ -130,4 +130,4 @@ The dispatch cost is non-trivial (three full exports take 30-90s combined). Only
 - You do **not** push to git, create PRs, or trigger CI runs. The user owns the push decision.
 - You do **not** baseline-compare against prior runs (v1). Report current state and let the user eyeball for surprises.
 - You do **not** launch the web or macOS app yourself. The agent reports + hands off commands; the user runs them.
-- If an export fails for a reason that looks like a known Godot quirk, surface it but don't speculate on the fix — direct the user to `docs/godot-gotchas.md` or to invoke `godot-mcp-operator` for engine-side diagnosis.
+- If an export fails for a reason that looks like a known Godot quirk, surface it but don't speculate on the fix — direct the user to `docs/godot-gotchas.md`, or to `godot_editor get_log_messages source="editor"` (see `docs/godot-mcp-guide.md`) for engine-side diagnosis.

@@ -12,7 +12,7 @@ Before scanning, read these in order:
 
 1. `docs/godot-gotchas.md` — the canonical project catalog (symptom → cause → fix).
 2. `docs/godot-mcp-guide.md` — for MCP-related quirks.
-3. This project's Claude memory directory, `~/.claude/projects/<this-project-slug>/memory/` (resolve `<this-project-slug>` from the project's absolute path with `/` → `-`; may not exist on a fresh clone) — read each `gotcha_*.md` file there if present. These mirror and sometimes extend the project catalog.
+3. This project's Claude memory directory, `~/.claude/projects/<this-project-slug>/memory/` (resolve `<this-project-slug>` from the project's absolute path with `/` → `-`; may not exist on a fresh clone) — read each `gotcha-*.md` file there if present. These exist only for gotchas with no `docs/godot-gotchas.md` counterpart (most gotchas live solely in the doc catalog).
 
 Treat these as the source of truth. If a check below conflicts with the catalog, the catalog wins (it may have been updated).
 

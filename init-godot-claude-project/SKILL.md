@@ -188,18 +188,17 @@ If it DOES exist:
 
 ### 7.5. Copy project-local subagents
 
-Four project-local subagents in `.claude/agents/` extend the bootstrap with reusable helpers that offload heavy reference docs from main context. They're independent of `settings.local.json` and are filed in their own directory.
+Three project-local subagents in `.claude/agents/` extend the bootstrap with reusable helpers that offload heavy reference docs from main context. They're independent of `settings.local.json` and are filed in their own directory.
 
-Create `.claude/agents/` if missing. Copy four files from this skill's `templates/agents/` directory:
+Create `.claude/agents/` if missing. Copy three files from this skill's `templates/agents/` directory:
 
-- `templates/agents/godot-gotcha-reviewer.md` → `.claude/agents/godot-gotcha-reviewer.md` — read-only diff scan against the project's gotcha catalog. Use before commits or after live-Inspector tuning.
-- `templates/agents/gotcha-curator.md` → `.claude/agents/gotcha-curator.md` — files a new gotcha consistently across `docs/godot-gotchas.md` + memory + `MEMORY.md`.
-- `templates/agents/godot-mcp-operator.md` → `.claude/agents/godot-mcp-operator.md` — multi-step godot-mcp operator that internalizes `docs/godot-mcp-guide.md`.
+- `templates/agents/godot-gotcha-reviewer.md` → `.claude/agents/godot-gotcha-reviewer.md` — read-only diff scan against the project's gotcha catalog. Dispatch on demand for `.tscn`/MCP-authored/cross-script diffs.
+- `templates/agents/gotcha-curator.md` → `.claude/agents/gotcha-curator.md` — files a new gotcha consistently: `docs/godot-gotchas.md` entry + `MEMORY.md` index line.
 - `templates/agents/godot-export-verifier.md` → `.claude/agents/godot-export-verifier.md` — pre-push smoke-tester that runs all platform exports headlessly and surfaces PASS/FAIL plus interactive-verification commands. Use before pushing to `main` or any branch wired to a deploy workflow.
 
 For each: if the destination already exists, skip it unless the user has asked for a refresh. The source-of-truth for these agent definitions lives in the skill template; partial updates would risk drift.
 
-These subagents reference structures (`docs/godot-gotchas.md`, `docs/godot-mcp-guide.md`, the `gotcha_*.md` memory pattern, `MEMORY.md`) that earlier steps create, so they're inert until those exist.
+These subagents reference structures (`docs/godot-gotchas.md`, `docs/godot-mcp-guide.md`, `MEMORY.md`) that earlier steps create, so they're inert until those exist.
 
 ### 8. Enable the addon + register the autoload in `project.godot`
 

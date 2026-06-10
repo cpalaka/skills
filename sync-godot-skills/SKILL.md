@@ -17,8 +17,8 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 - Project docs: `docs/` under cwd.
 - Project memory: `~/.claude/projects/<slug>/memory/` where `<slug>` = the cwd with slashes replaced by hyphens (leading hyphen). Verify by listing `~/.claude/projects/` and matching the directory whose name encodes the cwd.
 - Skill 1 (init template): `~/.claude/skills/init-godot-claude-project/templates/`.
-- Skill 2 (personal gotchas): `~/.claude/skills/godot-personal-gotchas/SKILL.md` (or `gotchas/<slug>.md` files if the skill has been split — check both).
-- Skill 3 (personal preferences): `~/.claude/skills/godot-personal-preferences/SKILL.md`.
+- Skill 2 (personal gotchas): `~/.claude/skills/godot-personal-gotchas/` — split layout: `SKILL.md` = symptom index; `gotchas/NN-<slug>.md` = full entry bodies. Check both.
+- Skill 3 (personal preferences): `~/.claude/skills/godot-personal-preferences/` — split layout: `SKILL.md` = preference index; `preferences/N-<slug>.md` = full entry bodies. Check both.
 - Skill 4 (architecture review): `~/.claude/skills/godot-architecture-review/` (SKILL.md, ARTIFACTS.md, PHASES.md).
 
 ## File pairs to diff
@@ -28,20 +28,20 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 3. `docs/blender-mcp-guide.md` ↔ `init-godot-claude-project/templates/blender-mcp-guide.md`
 4. `docs/asset-pipeline.md`    ↔ `init-godot-claude-project/templates/asset-pipeline.md`
 5. `CLAUDE.md`                 ↔ `init-godot-claude-project/templates/CLAUDE.md.full`
-6. Memory `gotcha_*.md` files  ↔ entries in `godot-personal-gotchas/SKILL.md` (match by symptom keyword or section title). Only Godot-engine gotchas belong in the personal-gotchas skill.
-7. Memory `feedback_*.md` files ↔ entries in `godot-personal-preferences/SKILL.md` (match by topic keyword or section title). Only generalizable workflow preferences propagate; project-specific feedback stays in memory only (see Rules below).
+6. `docs/godot-gotchas.md` entries ↔ entries in `godot-personal-gotchas/` (index row in SKILL.md + `gotchas/NN-<slug>.md` body; match by symptom keyword or section title). Only Godot-engine gotchas belong in the personal-gotchas skill. (Memory `gotcha-*.md` files exist only for gotchas with no doc counterpart — include any found.)
+7. Memory `feedback_*.md` files ↔ entries in `godot-personal-preferences/` (index row in SKILL.md + `preferences/N-<slug>.md` body; match by topic keyword or section title). Only generalizable workflow preferences propagate; project-specific feedback stays in memory only (see Rules below).
 8. `docs/architecture/refactor-process.md` (or `docs/architecture/campaign.md`) ↔ entries in `godot-architecture-review/` (SKILL.md / ARTIFACTS.md / PHASES.md — match by section title). Only generalizable process knowledge propagates (guardrails, gates, artifact conventions, phase mechanics); project parameters (drivers, anchor tasks, population labels, candidates, run log) stay in the project.
 
 ## Process
 
 1. Pre-check + resolve all paths. Confirm each exists.
 2. Pairs 1–5: run `diff` via Bash. Capture hunks.
-3. Pair 6: list `gotcha_*.md` files; for each, grep `godot-personal-gotchas/SKILL.md` for the symptom keyword. Build an "in skill / missing / stale" table.
-4. Pair 7: list `feedback_*.md` files; for each, grep `godot-personal-preferences/SKILL.md` for the topic keyword. Build the same "in skill / missing / stale" table. Project-specific feedback (see Rules) is auto-classified as "stays in memory only" — flag but don't propose to propagate.
+3. Pair 6: list `docs/godot-gotchas.md` entry titles (plus any memory `gotcha-*.md` files); for each, grep the `godot-personal-gotchas` index and `gotchas/` bodies for the symptom keyword. Build an "in skill / missing / stale" table.
+4. Pair 7: list `feedback_*.md` files; for each, grep the `godot-personal-preferences` index and `preferences/` bodies for the topic keyword. Build the same "in skill / missing / stale" table. Project-specific feedback (see Rules) is auto-classified as "stays in memory only" — flag but don't propose to propagate.
 5. Pair 8: if `docs/architecture/refactor-process.md` or `docs/architecture/campaign.md` exists, scan it for generalizable process rules (guardrails, gates, artifact conventions, phase mechanics) and grep the `godot-architecture-review` files by section title. Build the same table. Project parameters are auto-classified "stays in the project". Absent file → skip the pair.
 6. Classify each diff hunk and each missing entry: propagate / skip / ask (see Rules).
 7. **PRESENT a parity table to the user and PAUSE for approval before editing.** Do not edit until they confirm.
-8. After approval: apply edits to skill files only. For new gotcha entries in `godot-personal-gotchas/SKILL.md`, match the existing structure (index row + body section with Symptom / Cause / Fix / Detect proactively / Confirmed by). For new preference entries in `godot-personal-preferences/SKILL.md`, match the existing structure (index row + body section with When this applies / Preferred behavior / Why / How to apply). For `godot-architecture-review` changes, match its file split (SKILL.md = core rules; ARTIFACTS.md = artifact shapes; PHASES.md = phase mechanics + kickoff prompts).
+8. After approval: apply edits to skill files only. For new gotcha entries in `godot-personal-gotchas/`, match the split structure (index row in SKILL.md + a `gotchas/NN-<slug>.md` body file with Symptom / Cause / Fix / Detect proactively / Confirmed by). For new preference entries in `godot-personal-preferences/`, match the split structure (index row in SKILL.md + a `preferences/N-<slug>.md` body file with When this applies / Preferred behavior / Why / How to apply). For `godot-architecture-review` changes, match its file split (SKILL.md = core rules; ARTIFACTS.md = artifact shapes; PHASES.md = phase mechanics + kickoff prompts).
 9. Verify by re-running `diff` on each pair. Expected residue: only the project-specific content you explicitly scrubbed.
 10. Report what changed in 2–3 sentences.
 
