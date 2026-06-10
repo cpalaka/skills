@@ -38,6 +38,6 @@ If this project uses the backlog.md task board, the generic conventions (CLI-onl
 
 ## Running
 
-Open the project in the Godot editor and press F5. From the CLI, `godot --path .` runs the main scene defined in `project.godot`.
+Open the project in the Godot editor and press F5. From the CLI, `godot --path .` runs the main scene defined in `project.godot` (if `godot` isn't on PATH, invoke the binary by full path; `tests/run_tests.sh` finds it on its own via the `GODOT` env var → macOS app path → PATH).
 
-Never trust `$?` from a `godot --script` run — exit codes lie on parse failure and mid-run abort (see `docs/godot-gotchas.md`); assert on the run's output plus a pinned check count instead.
+**Run the headless test suite with `tests/run_tests.sh`** (subset by pattern: `tests/run_tests.sh <pattern>`; `--selftest` verifies the runner's own verdicts against `tests/fixtures/`). Never trust `$?` from a raw `godot --script` test run — exit codes lie on parse failure and mid-run abort (see `docs/godot-gotchas.md`); the runner + the shared base `tests/scene_tree_test.gd` (required `EXPECTED_CHECKS` pin) exist to make verdicts truthful.

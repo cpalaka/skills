@@ -23,6 +23,7 @@ Bootstraps a Godot 4.x project with the `@satelliteoflove/godot-mcp` + `@ryanmaz
 
 - Target directory contains `project.godot` (Godot 4.x).
 - `node` / `npm` / `npx` on PATH (npm + node for the frozen MCP launchers; npx for the one-time addon install).
+- A Godot 4.x binary reachable from the CLI — `$GODOT` env var, the macOS app path (`/Applications/Godot.app/Contents/MacOS/Godot`), or `godot` on PATH. Needed for the step-5B harness selftest; if unreachable, defer that selftest to the step-9 handoff.
 - Claude Code running in the target project directory.
 
 ## Process
@@ -84,13 +85,14 @@ If not a Godot project, stop and ask the user.
 ### 2. Inventory what's already there
 
 ```
-ls -d .mcp.json addons/godot_mcp docs/godot-mcp-guide.md docs/blender-mcp-guide.md docs/asset-pipeline.md CLAUDE.md .claude/settings.local.json 2>/dev/null
+ls -d .mcp.json addons/godot_mcp docs/godot-mcp-guide.md docs/blender-mcp-guide.md docs/asset-pipeline.md CLAUDE.md .claude/settings.local.json tests tests/run_tests.sh 2>/dev/null
 ```
 
 For each file/dir that exists, do NOT overwrite blindly:
 - `.mcp.json` exists → read it; if the servers (godot-mcp, godot, and godot-ai if used) are already present, skip step 4.
 - `addons/godot_mcp/` exists → skip step 3 (addon already installed).
 - `docs/godot-mcp-guide.md`, `docs/blender-mcp-guide.md`, `docs/asset-pipeline.md` → each is handled independently in step 5 (skip the file that exists unless the user wants a refresh; copy the missing ones).
+- `tests/run_tests.sh` exists → skip step 5B unless the user wants a refresh of a prior copy of this harness. If `tests/` exists with a different framework (GUT, gdUnit — check the `tests/` contents and `addons/`), skip step 5B entirely; don't mix harnesses.
 - `CLAUDE.md` exists → APPEND the snippet (step 6), don't overwrite.
 - `.claude/settings.local.json` exists → MERGE the allowlist (step 7), don't overwrite.
 
@@ -159,9 +161,45 @@ Create `docs/` if missing. Copy four files from this skill's `templates/` direct
 
 For each: if the destination already exists, skip it unless the user has asked for a refresh (in which case overwrite). Don't merge — the source-of-truth for these docs lives in the skill template; partial updates would risk drift.
 
+### 5B. Scaffold the headless test harness
+
+Copy the harness from this skill's `templates/tests/` into the project:
+
+- `templates/tests/run_tests.sh` → `tests/run_tests.sh`, then `chmod +x tests/run_tests.sh`
+- `templates/tests/scene_tree_test.gd` → `tests/scene_tree_test.gd`
+- `templates/tests/fixtures/` → `tests/fixtures/` (the `--selftest` verdict fixtures: 1 deliberately-green PASS fixture + 6 deliberately-defective `.gd` files + 1 parse-error fixture kept inert as `.gd.txt` — a parse-broken `.gd` at rest would permanently redden the editor's problem panel and any `godot --check-only` parse scan)
+
+If `tests/` already exists with a different framework (GUT, gdUnit), skip this step and surface that to the user — don't mix harnesses. A prior copy of this harness: skip unless the user wants a refresh (source-of-truth lives in the skill template, same rule as the docs in step 5).
+
+Why this ships with the bootstrap: headless `--script` exit codes lie — a parse failure and a mid-run runtime abort BOTH exit 0 (see that entry in `docs/godot-gotchas.md`, copied in step 5). A bare `godot --script` test run can look green having run nothing. The runner verdicts from captured output instead of `$?` (summary-line grep + `SCRIPT ERROR` / `Failed to load script` greps + a perl-alarm timeout), and the shared base requires a `const EXPECTED_CHECKS := <N>` pin per test so silent truncation becomes a counted failure.
+
+Writing a test: name it `tests/test_<topic>.gd` (the runner globs `tests/test_*.gd`; the base is deliberately NOT named `test_*` so it's never collected):
+
+```
+extends "res://tests/scene_tree_test.gd"
+const EXPECTED_CHECKS := 2          # REQUIRED — pins the _assert count
+func _run() -> void:
+	_assert(1 + 1 == 2, "math holds")
+	_assert(true, "second check")
+```
+
+Notes:
+
+- Binary resolution: `$GODOT` env var → `/Applications/Godot.app/Contents/MacOS/Godot` (macOS default) → `godot` on PATH. Per-file timeout via `TEST_TIMEOUT` (default 30s).
+- The base uses `@abstract` (Godot 4.5+; validated on 4.6). For an older 4.x project, remove the standalone `@abstract` line above `extends SceneTree` and replace `@abstract func _run() -> void` with a stub (`func _run() -> void:` + an indented `pass`) — the pin mechanism still works; you only lose the can't-run-the-base-directly guard.
+- The first run (headless or editor) generates `.uid` sidecars for the copied scripts — expected Godot behavior, not drift; commit them.
+
+Verify immediately — this works with zero project tests, because the fixtures are the selftest's subjects:
+
+```
+tests/run_tests.sh --selftest
+```
+
+Expected output ends with `selftest: 8/8 verdicts correct`. Suite mode (`tests/run_tests.sh`) with no `test_*.gd` files yet exits 2 with "no tests match" — expected until the first real test lands. If no Godot binary is reachable from the CLI yet, defer the selftest to the step-9 handoff instead of skipping it silently.
+
 ### 6. Update or create `CLAUDE.md`
 
-`templates/CLAUDE.md.snippet` is a short list of markdown bullets (starts with `- **For any work involving the Godot MCP tools...`). Treat it as a bullet list, not a section.
+`templates/CLAUDE.md.snippet` is a short list of markdown bullets (starts with `- **For the project's domain vocabulary...`). Treat it as a bullet list, not a section. If step 5B was skipped for an existing test framework, drop the test-suite bullet (`- **Run the headless test suite...`) before inserting — and if creating from `CLAUDE.md.full` in that case, drop the `tests/run_tests.sh` paragraph from its `## Running` section too.
 
 If `CLAUDE.md` exists at project root:
 - Read it.
@@ -255,10 +293,11 @@ ls .mcp.json addons/godot_mcp/plugin.cfg docs/godot-mcp-guide.md docs/blender-mc
   test -d ~/.agents/skills/godot-gdscript-patterns && echo "gdscript-patterns skill OK" && \
   test -d ~/.agents/skills/godot-animation-tree-mastery && echo "animation-tree-mastery skill OK" && \
   test -f tools/mcp/package-lock.json && echo "mcp lockfile OK" && \
-  test -d tools/mcp/node_modules && echo "mcp launchers materialized OK"
+  test -d tools/mcp/node_modules && echo "mcp launchers materialized OK" && \
+  test -x tests/run_tests.sh && echo "test runner OK"
 ```
 
-All files listed + both grep echoes = green.
+All files listed + both grep echoes + all `test` echoes = green. (The `test runner OK` echo is legitimately absent if step 5B was skipped for an existing test framework.)
 
 ## Common gotchas
 
