@@ -526,6 +526,20 @@ Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == 
 
 ---
 
+## Headless `--script` harness: `_ready()` does NOT fire synchronously after `add_child()` inside `_initialize()`
+
+**Symptom:** A headless GDScript test (`extends SceneTree`, entry point `_initialize()`) adds a node with `add_child(node)` and immediately asserts against its initialized state — the assertions see uninitialized/default values, as if `_ready()` never ran. No error, no warning: `add_child(node)` succeeds, but the node's `_ready()` has not fired yet.
+
+**Cause:** `_initialize()` runs before the tree processes ready notifications, so a node's `_ready()` is NOT fired synchronously after `add_child(node)` there — full-lifecycle assertions placed right after `add_child` run against a not-yet-ready node.
+
+**Fix:**
+- Call `node._ready()` explicitly after `add_child(node)`, OR defer the assertions to the first `_process(delta)` (which runs after the tree has processed ready notifications).
+- To test input handlers without a real mouse, construct InputEvents directly — `InputEventMouseMotion.new()` with `.relative`, `InputEventMouseButton.new()` with `.button_index` / `.pressed` — and feed them to `node._unhandled_input(ev)` (godot-mcp `godot_input` cannot inject mouse motion/buttons).
+
+**Detect proactively:** Any headless test asserting on state a node sets up in `_ready()`: make sure the assertion runs after an explicit `_ready()` call or inside `_process`, never directly after `add_child` in `_initialize()`.
+
+---
+
 ## Headless `--script` test-harness exit codes lie — a parse failure AND a mid-run runtime abort BOTH exit 0 (Godot 4.6.2)
 
 **Symptom:** This project's headless test harness (`extends SceneTree` + `_initialize()` calling `_run()` then printing a summary and `quit(1 if _failures > 0 else 0)`, invoked via `godot --headless --path . --script res://tests/<file>.gd`) exits **0** — looking green to `$?` / CI — in BOTH failure modes that bypass the assert counters:
@@ -556,6 +570,98 @@ Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == 
 - Benign side effect: the editor may re-serialize a touched `.tres` and drop optional `load_steps` hints — not corruption.
 
 **Detect proactively:** Any task that says "move/reorganize files": plan the USER dock-drag step plus a post-move `preload(` grep up front; never `mv` referenced files out-of-editor.
+
+---
+
+## godot-ai `op=reimport` logs STALE fatal-looking errors — autoload `Identifier not found` in dependents + preload `no resource loaders` on just-written assets (transient; read the log in deltas)
+
+**Symptom:** After `mcp__godot-ai__filesystem_manage op=reimport` of a GDScript, `logs_read source="editor"` shows fatal-looking errors that are actually stale/transient:
+
+- **(a)** Dependent scripts log `Compile Error: Identifier not found: <AutoloadName>` + `Failed to load script ... Compilation failed` when the reimported script IS the autoload they reference.
+- **(b)** A script `preload()`ing binary assets (`.wav`/`.svg`) written moments earlier logs `Parse Error: Preload file "res://..." has no resource loaders (unrecognized file extension)` because the reimport raced the asset's `.import` sidecar generation.
+
+Meanwhile the headless test suite passes and the game boots clean — the errors do not reflect current state.
+
+**Cause:** Two races in the same family:
+
+- **(a)** Reimporting an autoload script triggers dependent-script recompilation WHILE the autoload's own GDScript is mid-reload, so the global identifier is momentarily unresolvable. The editor logs the failure and never retracts it — the editor log buffer is **append-only** (`run_id` empty, never rotates; same buffer behavior noted in the `.gdshader` compile-check entry above).
+- **(b)** `reimport` of a script whose `preload()` targets are brand-new binary assets can run before EditorFileSystem finishes generating those assets' `.import` sidecars — the parse fails on the missing loader, then the assets finish importing and the logged error is stale.
+
+**Fix:** Treat the editor log as APPEND-ONLY and work in deltas: note `total_count` before a reimport batch; read with `offset=<previous total_count>` after. When these errors appear:
+
+1. Verify prerequisites settled: `.import` sidecars exist on disk for every preloaded asset; the autoload is registered.
+2. Re-reimport ONLY the failing script once.
+3. Read the log delta again — zero NEW entries = clean; the earlier errors were transient.
+
+Ordering that avoids most of it: reimport the autoload script alone first, then dependents in a second call; write binary assets and confirm their `.import` sidecars exist before reimporting scripts that `preload()` them.
+
+**Detect proactively:** Any `op=reimport` batch that touches an autoload script, or a script `preload()`ing assets written in the same session — expect these log lines and apply the delta-read discipline before treating them as real failures. Sibling of the `class_name`-cache-stale entry above (same EditorFileSystem-timing family — there the reimport is the fix; here the reimport is the trigger). Truth signal when in doubt: the headless test suite + a clean boot, not the cumulative editor log.
+
+---
+
+## Installing a GDExtension while the editor is running crashes the editor instantly — server-level extensions can't hot-load
+
+**Symptom:** Copied a new GDExtension addon (e.g. godot-rapier2d, a PhysicsServer2D replacement) into `addons/` while the Godot editor had the project open. The editor's filesystem watcher picked it up, wrote the extension to `.godot/extension_list.cfg`, then the editor process died instantly — no error dialog, no crash report, just gone.
+
+**Cause:** Physics-server extensions (and other server-level extensions: rendering, audio) register at the Servers init stage, which only happens at process startup — they cannot hot-load into a running editor. The filesystem watcher's attempt to load the extension mid-session kills the process.
+
+**Fix:**
+- **Close the editor before dropping any `.gdextension` addon into the project** — especially server-level extensions (physics, rendering, audio).
+- If the crash already happened: the `extension_list.cfg` registration the dying editor leaves behind is actually valid — the next launch loads the extension correctly at the proper init stage. No cleanup needed; just relaunch.
+
+**Detect proactively:** Before any `cp`/`mv`/unzip that lands a `.gdextension` under `addons/`, check for a running editor (`ps aux | grep -i godot`) and close it first. Also verify any GDExtension install/upgrade with a headless editor boot (`godot --headless -e --quit --path .`) before trusting it in the GUI editor.
+
+---
+
+## A fatal startup error in a `--headless` run hangs forever instead of exiting (macOS modal alert)
+
+**Symptom:** `godot --headless --path . --quit` (or any headless invocation) prints the engine banner then sits at 0% CPU forever. The exit code never arrives — `$?` lies by never happening. Looks like a hang or deadlock in the engine or a GDExtension.
+
+**Cause:** Godot routes fatal setup errors through `OS_MacOS::alert()`, which runs a modal `NSAlert` `runModal` loop **even in headless mode** — an invisible (or easily-missed) dialog box parks the process. The actual error text is printed to stderr just before the hang (e.g. `Error: Can't run project: no main scene defined in the project.`).
+
+**Fix / diagnosis:**
+- Capture stderr (don't `2>/dev/null`) and read the last lines before the silence — the real error is there.
+- Confirm the modal-alert stack with `sample <pid> 1 | grep alert` (shows `Main::setup → OS_MacOS::alert → -[NSAlert runModal]`).
+- Kill the process; fix the underlying error.
+
+Related to the "Headless `--script` test-harness exit codes lie" entry above — this is the macOS-alert flavor where the exit code never even arrives. The perl-alarm timeout wrapper documented there also bounds this hang.
+
+**Detect proactively:** Any headless run that goes silent at 0% CPU after the banner: read stderr first, then `sample` the PID for `NSAlert` before suspecting an engine/GDExtension deadlock.
+
+---
+
+## Injected MCP mouse clicks act at one fixed wrong world position when the handler uses `get_global_mouse_position()`
+
+**Symptom:** godot-ai `game_manage op=input_mouse event="button"` returns `sent:true` and the game's `_unhandled_input` genuinely fires — but a click handler that calls `get_global_mouse_position()` acts at a far-off-window position, and EVERY injected click acts at the SAME wrong position (e.g. one fixed world x repeatedly; spawned bodies land in the void and freefall). The freefall can look exactly like physics tunneling. Injecting `event="motion"` first does NOT fix it.
+
+**Cause:** The injected `InputEventMouseButton` carries its `position`, but `get_global_mouse_position()` reads the Viewport's tracked OS cursor, which sits wherever the real mouse is (outside the game window in MCP-driven sessions). Injected motion events don't warp the tracked cursor either.
+
+**Fix:** In click handlers that should be injectable/testable, use the event's own position converted to world space:
+
+```gdscript
+var world_pos := get_canvas_transform().affine_inverse() * event.position
+```
+
+Identical behavior for real clicks, correct for injected ones.
+
+**Detect proactively:** Grep input handlers before MCP-driven testing: `grep -rn 'get_global_mouse_position' scripts/` — any hit in a click handler will misbehave under injected input. Trap note: the freefalling-body signature (huge y, ~constant gravity acceleration, same spawn x every time) reads as "physics blasted the body through the floor" — check the spawn position before blaming the solver. Identical x across independent drops is the giveaway.
+
+---
+
+## Rapier Fluid2D particles silently leak/explode through static walls when per-step travel exceeds the SPH kernel radius
+
+**Symptom:** Fluid particles vanish through a `StaticBody2D` container with no error; reading the `Fluid2D` `points` at runtime shows positions at y ~ 4e6 / x ~ ±30k. The pool's level mysteriously stops rising (leak rate = pour rate). Also affects the addon `Faucet2D`'s injected stream. Worse at smaller `physics/rapier/fluid/fluid_particle_radius_2d`.
+
+**Cause:** SPH boundary coupling is only as thick as the kernel radius (= `fluid_smoothing_factor` × `fluid_particle_radius_2d`; defaults 2.0 × 20). A particle moving faster than ~kernel-radius-per-physics-step (e.g. 20 px/frame = 1200 px/s at radius 10) crosses the boundary's sampled region in one step; the resulting pressure spike ejects it ballistically. The addon's `Faucet2D` hardcodes its injection velocity to full gravity speed (980 px/s) in `_ready`, which after any fall distance exceeds the limit. The same spike can eject coupled `RigidBody2D`s.
+
+**Fix:** Keep fluid impact speeds under ~kernel radius per physics step:
+- Override `faucet.velocities_new` with a gentle velocity after `add_child` (its `_ready` already ran).
+- Shorten drop heights.
+- Thicken container walls.
+- Raise `fluid_smoothing_factor`.
+- For rigid bodies interacting with agitated fluid, set `continuous_cd = RigidBody2D.CCD_MODE_CAST_SHAPE` as a containment backstop.
+
+**Detect proactively:** Before lowering `fluid_particle_radius_2d` or adding a tall faucet drop, compute kernel radius (`smoothing_factor × particle_radius`) and the per-step travel at expected impact speed (speed / physics fps) — travel > kernel radius means leaks. At runtime, sample `Fluid2D.points` extrema: any |coordinate| in the tens of thousands means particles already escaped.
 
 ---
 
