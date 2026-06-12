@@ -14,3 +14,5 @@ After any godot-ai scene edit that attaches a newly-created script, grep the sav
 
 **Confirmed by**
 2026-05-31 — adding `DebugMotionOverlay` (`res://scripts/debug_motion_overlay.gd`) to `scenes/main.tscn`. See memory `gotcha-godot-ai-uid-omission.md`.
+
+2026-06-12 — UNCHANGED, re-validated against the godot-ai v2.7.2 source: `scene_save` is still a bare `EditorInterface.save_scene()` passthrough with no uid handling (`plugin/addons/godot_ai/handlers/scene_handler.gd:244-247`; zero `ResourceUID` references in plugin or server).

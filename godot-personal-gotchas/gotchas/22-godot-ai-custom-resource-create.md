@@ -14,3 +14,5 @@ Before reaching for godot-ai `resource_manage` on a `.tres`, check whether the `
 
 **Confirmed by**
 2026-06-02 — `circle-combat-prototype` player-SM Phase E.1 (`8e8d231`), godot-ai v2.5.13 / Godot 4.6.2; the 13-`MoveDef` `library.tres` was hand-written inline. See memory `gotcha-godot-ai-custom-resource-create.md`.
+
+2026-06-12 — UNCHANGED, re-validated against the godot-ai v2.7.2 source: type resolution still ClassDB-only (`resource_handler.gd:207-209` rejects via `ClassDB.class_exists` → `Unknown resource type`; `ClassDB.instantiate` at `:185`; the global script-class list is consulted only by read-only `api_handler.gd`, and only to emit a WRONG_TYPE error).

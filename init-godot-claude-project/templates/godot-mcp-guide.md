@@ -6,7 +6,7 @@ For agents working in Godot projects with `@satelliteoflove/godot-mcp` + `@ryanm
 
 - **godot-mcp** (v3.6.1) — drives the editor via WebSocket bridge (port 6550). Tools (all prefixed `mcp__godot-mcp__godot_*`): `godot_scene`, `godot_node`, `godot_scene3d`, `godot_editor`, `godot_resource`, `godot_project`, `godot_input`, `godot_runtime_state`, `godot_docs`, plus `godot_tilemap`, `godot_gridmap`, `godot_animation`, `godot_profiler`. **READ/TEST role only — never its write ops** (see the matrix below).
 - **minimal-godot-mcp** — filesystem-based. Tools: GDScript diagnostics, runtime console output capture.
-- **godot-ai** (`hi-godot/godot-ai` v2.5.13, vendored at `addons/godot_ai/`; added 2026-05-30) — construction-grade editor MCP over HTTP `http://127.0.0.1:8000/mcp` (its Python server is also a WS *server* on :9500; the editor plugin dials out). ~39 tools / 120+ ops: `scene_*`/`node_*`/`script_*`, `signal_manage`, `material`/`particle`/`camera`/`animation`/`ui_manage`, `project_run`, `editor_screenshot`, `logs_read`. Enabled as a project plugin; the dock auto-starts the uv server. Upgrades *construction* over godot-mcp's run/edit baseline — but the two heavily overlap (scene/node/script), so **prefer one writer per editor instance** across them.
+- **godot-ai** (`hi-godot/godot-ai` v2.7.2, vendored at `addons/godot_ai/`; added 2026-05-30, bumped 2026-06-12) — construction-grade editor MCP over HTTP `http://127.0.0.1:8000/mcp` (its Python server is also a WS *server* on :9500; the editor plugin dials out). 41 tools / 135 ops: `scene_*`/`node_*`/`script_*`, `signal_manage`, `material`/`particle`/`camera`/`animation`/`ui_manage`, `project_run`, `editor_screenshot`, `logs_read`. Enabled as a project plugin; the dock auto-starts the uv server. Upgrades *construction* over godot-mcp's run/edit baseline — but the two heavily overlap (scene/node/script), so **prefer one writer per editor instance** across them.
 
 ## Which tool to use (writer / reader split)
 
@@ -43,7 +43,7 @@ Three editor MCPs run side by side — use them by role, not interchangeably. go
 
 ## Multi-editor / worktree sessions (godot-ai)
 
-godot-ai is multi-editor/multi-session **by design** (verified in the v2.5.13 source): the Python server keeps a per-session registry, each editor plugin registers a session id `<dir-slug>@<4hex>` (the hex suffix exists to disambiguate same-project twins), and a second editor instance finding a compatible running server *adopts* it rather than fighting for the port. "One writer per editor instance" is the real constraint — commands run serially on each editor's main thread; a second editor on a worktree is a second independent writer.
+godot-ai is multi-editor/multi-session **by design** (verified in the v2.7.2 source): the Python server keeps a per-session registry, each editor plugin registers a session id `<dir-slug>@<4hex>` (the hex suffix exists to disambiguate same-project twins), and a second editor instance finding a compatible running server *adopts* it rather than fighting for the port. "One writer per editor instance" is the real constraint — commands run serially on each editor's main thread; a second editor on a worktree is a second independent writer.
 
 Rules when running two editor-writing agents:
 

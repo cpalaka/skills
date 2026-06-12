@@ -19,3 +19,5 @@ Any AnimationTree/BlendSpace/StateMachine authoring with godot-ai as writer: pla
 
 **Confirmed by**
 2026-06-02/03 — `circle-combat-prototype` animation slice Tasks 5/7 (`scenes/character_puppet.tscn`, `73845d2`, `3e9300f`), godot-ai 2.5.13 / Godot 4.6.2. See memory `gotcha-godot-ai-animationtree-authoring.md`.
+
+2026-06-12 — UNCHANGED, re-validated against the godot-ai v2.7.2 source: `animation_manage` still AnimationPlayer-only (exactly 15 ops, `src/godot_ai/tools/animation.py:113-129` — no BlendTree/StateMachine/BlendSpace verbs) and `add_property_track` still hardcodes `Animation.TYPE_VALUE` (`animation_handler.gd:295`; no `track_type` parameter server-side).

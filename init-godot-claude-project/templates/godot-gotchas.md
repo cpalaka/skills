@@ -319,7 +319,7 @@ It's a **LOAD-time** parse error (fires at F5 / game boot / when the script load
 **Three traps:**
 - **Self-references fail too.** A script that uses its OWN `class_name` internally (`X.new()`, `-> X`, `Array[X]`) — not just a cross-file consumer — fails with `Identifier not found: X` until that file is reimported. Every new `class_name` script needs the reimport, even standalone ones.
 - **Targeted reimport / `write_text` do NOT prune deletions.** They only update the named paths; a cache entry for a DELETED `class_name` file lingers (`class_name X -> deleted_path`) and will collide if you later add a real `X` at a different path. To supersede it, create the real file with the same `class_name` and reimport THAT (`update_file` replaces the entry's path). Only a full editor rescan prunes vanished files wholesale.
-- **Reimport silently no-ops in a brand-new directory — use `write_text` to force a scan.** When the `class_name` script lives in a directory the editor never scanned, `reimport` returns success but registers nothing (see Fix caveat above). Trigger an editor filesystem SCAN instead: godot-ai `filesystem_manage op=write_text` is documented to "Trigger an editor filesystem scan" — re-writing the file (or any sibling) via `write_text` indexes the new directory, registering the class AND generating the `.uid`. (Focusing the editor window also triggers a scan.) **Never trust the `reimport` return value for a new dir** — verify with `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` (> 0).
+- **Reimport silently no-ops in a brand-new directory — and as of godot-ai v2.7.2, `write_text` no longer forces a scan either.** When the `class_name` script lives in a directory the editor never scanned, `reimport` returns success but registers nothing (see Fix caveat above; re-validated against the v2.7.2 source — `filesystem_handler.gd:97-101` still reports unconditional success after a bare `EditorFileSystem.update_file`, no cache-membership check). **v2.5.x workaround:** `write_text` triggered a real editor filesystem scan — re-writing the file (or any sibling) indexed the new directory, registering the class AND generating the `.uid`. **v2.7.2:** `write_text` now deliberately does the same single-file `update_file` as reimport (no scan — `filesystem_handler.gd:60-66`, avoiding a WorkerThreadPool SIGABRT under concurrent writes; the server docstring still claiming it "Triggers an editor filesystem scan" is stale), so the `write_text` lever is dead — focus the editor window / FileSystem dock to force a real scan instead. (The only MCP-reachable full scan left is `editor_reload_plugin`, which calls `fs.scan()` — `editor_handler.gd:1039` — but it reloads the godot-ai plugin itself; untested as a workaround.) **Never trust the `reimport` return value for a new dir** — verify with `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` (> 0).
 
 **Detect proactively:**
 - Any time a new `class_name`-declaring script is created via tooling (not the editor's New Script dialog), assume the cache is stale until proven otherwise.
@@ -395,7 +395,7 @@ Because the write silently fails, the value must be **hand-edited into the `.tsc
 
 **Symptom:** godot-ai adds a brand-new script node to a scene (`node_create` + `script_attach` + `scene_save`) and the saved `[ext_resource type="Script" ...]` line in the `.tscn` is written WITHOUT its `uid=` attribute — even though sibling script ext_resources have `uid="uid://..."`. It still resolves by `path=` (so it works at runtime), but it's inconsistent with the other entries and breaks if the script is later renamed/moved outside the editor.
 
-**Cause:** godot-ai serializes the ext_resource with whatever it knows at save time. The UID isn't available until the editor imports the freshly-written `.gd` and generates its `.uid` sidecar — which hasn't happened yet at the moment of the save.
+**Cause:** godot-ai serializes the ext_resource with whatever it knows at save time. The UID isn't available until the editor imports the freshly-written `.gd` and generates its `.uid` sidecar — which hasn't happened yet at the moment of the save. *(Re-validated against the v2.7.2 source: the save path is still a bare `EditorInterface.save_scene()` passthrough with no uid handling — `scene_handler.gd:244-247`; zero `ResourceUID` references in plugin or server.)*
 
 **Fix:** Do NOT hand-edit the `.tscn`. Instead:
 
@@ -417,7 +417,7 @@ The same `reimport` trick force-generates a `.uid` for a new script (e.g. so it 
 - There's no path through godot-ai to instantiate/save a `.tres` for a custom Resource subclass (any `class_name X extends Resource`).
 - Built-in engine resource types (`Curve`, `Environment`, `Gradient`, physics shapes, etc.) DO work via `resource_manage`.
 
-**Cause:** godot-ai's `resource_manage` resource handler resolves type names against the engine's built-in ClassDB only; it does not consult the script-registered global-class cache (the `class_name` cache). So a custom Resource type name is "unknown" to it even though the editor and GDScript resolve it fine.
+**Cause:** godot-ai's `resource_manage` resource handler resolves type names against the engine's built-in ClassDB only; it does not consult the script-registered global-class cache (the `class_name` cache). So a custom Resource type name is "unknown" to it even though the editor and GDScript resolve it fine. *(Re-validated against the v2.7.2 source: `resource_handler.gd:207-209` still rejects via `ClassDB.class_exists` → `Unknown resource type`, instantiates via `ClassDB.instantiate` — no script-class fallback on the create path.)*
 
 **Fix:**
 
@@ -437,7 +437,7 @@ The same `reimport` trick force-generates a `.uid` for a new script (e.g. so it 
 
 **Symptom:** Creating `Skeleton3D` bones via godot-ai fails — bones are neither child nodes nor settable properties. `node_set_property bones/0/name` → `PROPERTY_NOT_ON_CLASS` ("not found on Skeleton3D"): the dynamic `bones/N/*` properties don't exist until the bone exists, and there's no bone-count setter to bootstrap one. `batch_execute` has create-node/set-property/delete/attach-script commands but NO method-call command, so it can't call `add_bone`/`set_bone_parent`/`set_bone_rest` either.
 
-**Cause:** godot-ai exposes nodes + properties + a few batch verbs, but no `Skeleton3D` bone-authoring API and no general method-call path. The bone array is engine-internal state reached only through methods (`add_bone`, …) that godot-ai can't invoke.
+**Cause:** godot-ai exposes nodes + properties + a few batch verbs, but no `Skeleton3D` bone-authoring API and no general method-call path. The bone array is engine-internal state reached only through methods (`add_bone`, …) that godot-ai can't invoke. *(Re-validated against the v2.7.2 source: `set_property` still gates names on the node's `get_property_list()` → `PROPERTY_NOT_ON_CLASS` — `node_handler.gd:194-202`; `batch_execute` still has no method-call verb — `batch_handler.gd:39-55`.)*
 
 **Fix:** Hand-write the bone array into the `[node ... type="Skeleton3D"]` block of the `.tscn`. Per bone, 7 lines: `bones/N/name`, `bones/N/parent` (int; must reference a lower index), `bones/N/rest` (`Transform3D`), `bones/N/enabled = true`, `bones/N/position` (`Vector3` = rest origin), `bones/N/rotation` (`Quaternion` = identity `(0,0,0,1)` for a translation-only rest), `bones/N/scale = Vector3(1,1,1)`. **Include the pose triple** (`position`/`rotation`/`scale`) — omitting it leaves bones at pose=identity, not rest, collapsing the rig.
 
@@ -450,20 +450,17 @@ The same `reimport` trick force-generates a `.uid` for a new script (e.g. so it 
 
 ---
 
-## godot-ai `node_set_property` sets a `Vector2i` to the container's LENGTH, not its values
+## godot-ai `node_set_property` can't write a `Vector2i` — v2.5.x sets the container's LENGTH; v2.7.2 silently no-ops
 
-**Symptom:** Setting a `Vector2i` property via godot-ai (e.g. `SubViewport.size`) silently produces the wrong value:
-- dict `{"x":256,"y":256}` → `Vector2i(2, 2)` (took the dict's **key count**).
-- array `[256, 256]` → `Vector2i(2, 2)` (took the array **length**).
-- string `"Vector2i(256, 256)"` → **no-op** (value unchanged; couldn't coerce).
+**Symptom:** Setting a `Vector2i` property via godot-ai (e.g. `SubViewport.size`) silently produces the wrong result. Version-dependent:
+- **v2.5.x:** dict `{"x":256,"y":256}` → `Vector2i(2, 2)` (took the dict's **key count**); array `[256, 256]` → `Vector2i(2, 2)` (took the array **length**); string `"Vector2i(256, 256)"` → **no-op**. A 2-element container of any shape becomes `(2, 2)` regardless of the values you passed.
+- **v2.7.2:** the length mangling is gone — every form should now **silently no-op** (the property keeps its old value) while the tool still reports success. The one tell: the response echoes the live property value (`node_handler.gd:280`), so a response `value` ≠ what you sent reveals the rejected write.
 
-A 2-element container of any shape becomes `(2, 2)` regardless of the values you passed.
-
-**Cause:** godot-ai's value-coercion path for `Vector2i` is broken — it appears to use the container length instead of reading the `x`/`y` components. **`Vector3` is unaffected** — `{"x":0,"y":1.6,"z":4}` set a `Camera3D.position` correctly in the same session — so this is specific to the `Vector2i` coercion.
+**Cause:** godot-ai's value-coercion path doesn't handle `Vector2i`. In v2.5.x the broken branch coerced to the container length. In v2.7.2 (verified in source) the coercion table has **no `Vector2i`/`Vector3i`/`Vector4i` branch at all** (`_coerce_value`, `node_handler.gd:657-762`) and the check step waves integer-vector targets through (`_check_coerced` wildcard, `:546-572`), so the raw JSON dict/array reaches the engine un-coerced and the assignment is rejected (engine-side rejection inferred from source, not yet reproduced live). Element-wise `Vector2i` coercion exists in v2.7.2 only on the UI `build_layout` path (`ui_handler.gd:484-491`), not `node_set_property`. **`Vector3` is unaffected** — `{"x":0,"y":1.6,"z":4}` set a `Camera3D.position` correctly in the same session — the gap is specific to the integer-vector types.
 
 **Fix:** Hand-edit the `Vector2i` line in the `.tscn` (`size = Vector2i(256, 256)`). If the scene is open, the editor holds a stale copy — apply the same close+reopen+save resync discipline as the other open-scene gotchas (don't `scene_save` over your hand-edit before the reload).
 
-**Detect proactively:** When a godot-ai `node_set_property` targets a `Vector2i`-typed property (`SubViewport.size`, `size_2d_override`, TileMap cell coords, etc.), assume it will be mangled — set it by hand and read back the `.tscn`. Sibling to the godot-mcp `Rect2` no-op above: both are struct-coercion gaps, different MCP server.
+**Detect proactively:** When a godot-ai `node_set_property` targets a `Vector2i`-typed property (`SubViewport.size`, `size_2d_override`, TileMap cell coords, etc.), assume it won't land — set it by hand and read back the `.tscn`. Sibling to the godot-mcp `Rect2` no-op above: both are struct-coercion gaps, different MCP server.
 
 ---
 
@@ -471,7 +468,7 @@ A 2-element container of any shape becomes `(2, 2)` regardless of the values you
 
 **Symptom:** Building an `AnimationTree` via godot-ai, there's no verb for the graph. `animation_manage` is **AnimationPlayer-only** (`player_create`, `add_property_track`, `preset_*`…) — no `AnimationNodeBlendTree` / `AnimationNodeStateMachine` / `AnimationNodeBlendSpace1D` / `AnimationNodeAnimation` authoring, and `add_property_track` is **value-track-only** (bone clips need `rotation_3d`/`position_3d` transform tracks it can't make). Sibling to the skeleton-bones gotcha above.
 
-**Cause:** godot-ai's writer surface covers AnimationPlayer ops and ordinary property/value tracks; the `tree_root` sub-resource graph and transform-track clips are outside its verb set (same class of gap as the custom-resource and Vector2i gotchas above).
+**Cause:** godot-ai's writer surface covers AnimationPlayer ops and ordinary property/value tracks; the `tree_root` sub-resource graph and transform-track clips are outside its verb set (same class of gap as the custom-resource and Vector2i gotchas above). *(Re-validated against the v2.7.2 source: `animation_manage` still exposes only 15 AnimationPlayer ops — `src/godot_ai/tools/animation.py:113-129`, no BlendTree/StateMachine/BlendSpace verbs — and `add_property_track` still hardcodes `Animation.TYPE_VALUE` — `animation_handler.gd:295`.)*
 
 **Fix — hand-write into the `.tscn`** (same discipline as the bones block):
 - **Clips** as `[sub_resource type="Animation"]`: `tracks/N/type = "rotation_3d"`, `path = NodePath("Skeleton3D:bone_name")`, `interp = 0` (nearest = stepped), `keys = PackedFloat32Array(time, transition, qx,qy,qz,qw, …)` (6 floats/key for rotation_3d; 5 for position_3d: time,transition,x,y,z). Bundle in `[sub_resource type="AnimationLibrary"] _data = { &"RESET": …, &"idle": …, … }`; AnimationPlayer `libraries = { "": SubResource("…lib") }`. AnimationPlayer `root_node` defaults `NodePath("..")` (its parent) → bone paths are `Skeleton3D:bone`, **NOT** `../Skeleton3D:bone`.

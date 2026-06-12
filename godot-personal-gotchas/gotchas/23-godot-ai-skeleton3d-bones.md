@@ -14,3 +14,5 @@ Any task needing `Skeleton3D` bones (or `BoneAttachment3D` rigs) with godot-ai a
 
 **Confirmed by**
 2026-06-02 — `circle-combat-prototype` animation slice Task 3 (`scenes/character_puppet.tscn`, `cf77418`), godot-ai 2.5.13 / Godot 4.6.2. See memory `gotcha-godot-ai-skeleton-bones.md`.
+
+2026-06-12 — UNCHANGED, re-validated against the godot-ai v2.7.2 source: `set_property` still gates names on the node's `get_property_list()` → `PROPERTY_NOT_ON_CLASS` (`node_handler.gd:194-202`); `batch_execute` still has no method-call verb (`batch_handler.gd:39-55`); no skeleton/bone command among the registered commands (`plugin.gd:268-395`).
