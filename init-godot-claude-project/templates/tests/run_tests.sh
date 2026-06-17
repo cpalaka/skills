@@ -5,8 +5,11 @@
 # lie"): a parse failure exits 0 having run nothing, and a mid-_run abort exits per the
 # truncated summary. A file PASSES iff, in its captured output:
 #   - the "N/M checks passed, K failures" summary line is present, with K == 0
-#   - no "SCRIPT ERROR" line (parse or runtime abort)
-#   - no "Failed to load script" line
+#   - no line STARTING with "SCRIPT ERROR" (parse or runtime abort) — anchored to ^ on purpose:
+#     --path . loads project autoloads, whose output is prepended to every run; a benign autoload
+#     print() containing the substring "SCRIPT ERROR" would false-FAIL an unanchored grep. Godot
+#     always emits real errors at column 0, so ^ still catches every genuine failure.
+#   - no line starting with "Failed to load script" (same ^-anchoring rationale)
 #   - and the run finished before the per-file timeout (perl alarm; macOS has no timeout)
 # The EXPECTED_CHECKS pin inside each test (see tests/scene_tree_test.gd) covers what
 # output greps cannot: silent truncation with no error text.
@@ -32,8 +35,8 @@ verdict() {
 	code=$?
 	summary="$(grep -E '^[0-9]+/[0-9]+ checks passed, [0-9]+ failures$' "$out" | tail -1)"
 	if [ "$code" -eq 142 ] && [ -z "$summary" ]; then echo "TIMEOUT after ${TIMEOUT}s — $out"; return 1; fi
-	if grep -q 'SCRIPT ERROR' "$out"; then echo "FAIL SCRIPT ERROR in output — $out"; return 1; fi
-	if grep -q 'Failed to load script' "$out"; then echo "FAIL script failed to load — $out"; return 1; fi
+	if grep -qE '^SCRIPT ERROR' "$out"; then echo "FAIL SCRIPT ERROR in output — $out"; return 1; fi
+	if grep -qE '^(ERROR: )?Failed to load script' "$out"; then echo "FAIL script failed to load — $out"; return 1; fi
 	if [ -z "$summary" ]; then echo "FAIL no summary line — $out"; return 1; fi
 	# pin-mechanism enforcement: a file not on the test base prints a valid summary but no
 	# pin-check line — it must not pass silently (the requiredness lives in the base, so a

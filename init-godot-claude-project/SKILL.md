@@ -197,6 +197,8 @@ tests/run_tests.sh --selftest
 
 Expected output ends with `selftest: 8/8 verdicts correct`. Suite mode (`tests/run_tests.sh`) with no `test_*.gd` files yet exits 2 with "no tests match" — expected until the first real test lands. If no Godot binary is reachable from the CLI yet, defer the selftest to the step-9 handoff instead of skipping it silently.
 
+**This is a PRE-AUTOLOAD smoke-check.** It proves the harness (runner + fixtures) copied correctly, but it does NOT reflect the project's end state: step 8 registers the cache-dependent `MCPGameBridge` autoload, which makes the runner false-FAIL `fixture_pass.gd` until the project is imported. Step 8 (Edit C) ends with a *second* `--selftest` run that is the authoritative verification — don't treat this early 8/8 as the final word.
+
 ### 6. Update or create `CLAUDE.md`
 
 `templates/CLAUDE.md.snippet` is a short list of markdown bullets (starts with `- **For the project's domain vocabulary...`). Treat it as a bullet list, not a section. If step 5B was skipped for an existing test framework, drop the test-suite bullet (`- **Run the headless test suite...`) before inserting — and if creating from `CLAUDE.md.full` in that case, drop the `tests/run_tests.sh` paragraph from its `## Running` section too.
@@ -265,9 +267,30 @@ The plugin enable looks like `enabled=PackedStringArray("res://addons/foo/plugin
   ```
 - If section exists, add the `MCPGameBridge=` line if not already present. Don't disturb other autoloads.
 
-**Do NOT manually write a `[godot_mcp]` section.** When the user opens the editor with the plugin enabled (step 9), Godot writes default values for the addon's project settings (`bind_mode`, `port_override`, etc.) into `project.godot` automatically. Your edit happens before that — leave the section to be auto-created.
+**Do NOT manually write a `[godot_mcp]` section.** When the project is imported (the Edit C import sub-step below) — or, failing that, when the user first opens the editor with the plugin enabled (step 9) — Godot writes default values for the addon's project settings (`bind_mode`, `port_override`, etc.) into `project.godot` automatically. Your hand-edits happen before that — leave the section to be auto-created.
 
 Sections in `project.godot` are top-level INI-style. When creating new sections, match Godot's existing alphabetical-ish ordering: `[application]` first, then `[autoload]`, `[editor_plugins]`, `[input]`, `[physics]`, `[rendering]`, etc. Godot will reorder cleanly on next save anyway.
+
+**Edit C — import the project so the harness validates its real end state (do this AFTER Edit B):**
+
+The `MCPGameBridge` autoload references the addon's `class_name` types (`MCPFrameProfiler`, `MCPRuntimeStateSampler`, `MCPLog`, …). Those resolve only from `.godot/global_script_class_cache.cfg`, which a never-opened project hasn't written yet — so until the project is imported, the autoload fails to parse during project init. Because `tests/run_tests.sh` runs `godot --headless --path .` (which instantiates project autoloads on every test), those parse errors get prepended to EVERY test's captured output and trip the runner's `SCRIPT ERROR` / `Failed to load script` greps — flipping the green `fixture_pass.gd` to a false FAIL. A plain `--script` run never builds the cache, so the harness cannot self-heal; only an editor-lifecycle pass (`--import` or opening the editor) writes it.
+
+Populate the cache once, now, using the editor binary from the Prerequisites (the same one step 5B resolves):
+
+```
+godot --headless --path . --import          # editor-build-only flag; imports resources, writes .godot/global_script_class_cache.cfg, then quits
+grep -c MCPFrameProfiler .godot/global_script_class_cache.cfg   # must be > 0
+```
+
+If only an export-template / headless-server Godot is reachable (no `--import` — it is flagged editor-builds-only), defer this to the step-9 handoff: opening the editor once has the same effect. This import is also what auto-writes the `[godot_mcp]` settings section (see the note above) — expected; leave it.
+
+Then RE-RUN the selftest against the real end state and require 8/8 THERE:
+
+```
+tests/run_tests.sh --selftest               # must end with: selftest: 8/8 verdicts correct
+```
+
+If this reds with `SCRIPT ERROR in output` on `fixture_pass.gd`, the class cache did not populate — re-run the import (or open the editor). This post-autoload run, not the step-5B one, is the authoritative harness verification.
 
 ### 9. Hand off to the user
 
@@ -278,7 +301,7 @@ Tell the user:
 3. In Claude Code, run `/mcp` to (re)connect the MCP servers to the now-running bridge.
 4. Verify with: `mcp__godot-mcp__godot_project addon_status` — should return `connected: true`.
 
-**If this project was set up by cloning an already-bootstrapped repo** (rather than a fresh init), first run `npm ci --prefix tools/mcp` to materialize the lockfile-frozen MCP launchers — `node_modules/` is gitignored. Also note `.mcp.json` changes only take effect after a Claude Code restart.
+**If this project was set up by cloning an already-bootstrapped repo** (rather than a fresh init), first run `npm ci --prefix tools/mcp` to materialize the lockfile-frozen MCP launchers — `node_modules/` is gitignored. Likewise, a clone has no `.godot/` (also gitignored), so the global class cache is empty and `tests/run_tests.sh` will false-FAIL `fixture_pass.gd` with a `SCRIPT ERROR` (the `MCPGameBridge` autoload can't resolve its `class_name`s headless) until the project is imported — opening the editor (handoff step 1 above) imports it, or run `godot --headless --path . --import` once before any CLI test run. Same class of fresh-clone gap as the `node_modules/` one. Also note `.mcp.json` changes only take effect after a Claude Code restart.
 
 If the user's `~/.claude/settings.json` (user-level) does NOT already allow the godot-mcp tools, also mention they may get permission prompts until those are added. The user-level perms are out of scope for this skill — it only sets project-level perms.
 
@@ -307,6 +330,7 @@ All files listed + both grep echoes + all `test` echoes = green. (The `test runn
 - **Hand-editing `project.godot`** is fragile. After your edits, ask the user to open the editor and check the Project → Project Settings UI to make sure the plugin shows enabled and the autoload appears — Godot will rewrite the file cleanly on save.
 - **If `CLAUDE.md` is heavily customized**, ask the user where to slot the godot-mcp-guide pointer rather than guessing.
 - **Fresh clone, godot-mcp/minimal tools won't load:** `tools/mcp/node_modules/` is gitignored, so a clone has only the lockfile. Run `npm ci --prefix tools/mcp` once (integrity-verified against the committed lock) to materialize the frozen launchers, then `/mcp`. Expected, not a bug.
+- **`tests/run_tests.sh` false-FAILs `fixture_pass.gd` with `SCRIPT ERROR` on a never-imported project:** the cache-dependent `MCPGameBridge` autoload can't parse headless until `.godot/global_script_class_cache.cfg` exists. Step 8's Edit C import sub-step fixes this at bootstrap; on a fresh clone (`.godot/` gitignored) run `godot --headless --path . --import` once, or open the editor. The runner's error greps are also anchored to line-start so a benign autoload `print()` containing the substring can't trip them. See `docs/godot-gotchas.md`.
 
 ## After running
 

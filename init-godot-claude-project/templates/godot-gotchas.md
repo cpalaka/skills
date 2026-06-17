@@ -275,16 +275,16 @@ The damping bound is tighter — it's violated *before* the frequency bound. At 
 
 | Has typed variants | Variant-only — no `*f` |
 |---|---|
-| `clamp`, `min`, `max`, `abs`, `sign`, `floor`, `ceil`, `round` | `exp`, `log`, `sqrt`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `pow`, `lerp`, `inverse_lerp`, `remap`, `smoothstep`, `move_toward`, `ease`, `snapped`, `posmod`, `fposmod`, ... |
+| `clamp`, `min`, `max`, `abs`, `sign`, `floor`, `ceil`, `round`, `lerp` | `exp`, `log`, `sqrt`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `pow`, `inverse_lerp`, `remap`, `smoothstep`, `move_toward`, `ease`, `snapped`, `posmod`, `fposmod`, ... |
 
-Note the rare exception: `wrap` is Variant, `wrapf` exists — so don't blanket-assume the lack of typed variants either.
+Note the rare exceptions: `wrap` is Variant but `wrapf` exists, and `lerp` has a typed `lerpf` (it's in the left column above) — so don't blanket-assume the lack of typed variants either. Both confirmed against Godot 4.6.2 via `--check-only` (`lerpf` parses clean; `sqrtf`/`expf`/`move_towardf` error `Function "…()" not found`).
 
 **Fix:**
-- Use the bare global: `exp(x)`, `sqrt(x)`, `sin(x)`, `pow(x, y)`, `lerp(a, b, t)`.
+- Use the bare global: `exp(x)`, `sqrt(x)`, `sin(x)`, `pow(x, y)`, `move_toward(a, b, d)`.
 - If you need a typed float result, annotate the receiver: `var k: float = exp(-rate * dt)`. The Variant return coerces.
-- Do NOT invent `expf`, `sqrtf`, `sinf`, `cosf`, `powf`, `logf`, `lerpf`, etc. — none exist.
+- Do NOT invent `expf`, `sqrtf`, `sinf`, `cosf`, `powf`, `logf`, etc. — none exist. (But `lerpf` and `wrapf` DO exist — see the typed-variant column / exceptions note above; don't flag them.)
 
-**Detect proactively:** Before writing any `<math>f(` form, mentally check the whitelist above. Grep heuristic for review: `grep -nE '\b(expf|sqrtf|sinf|cosf|tanf|powf|logf|asinf|acosf|atanf|atan2f|lerpf|smoothstepf|move_towardf|easef)\(' scripts/` — any hit is a parse error waiting at F5. Sibling-but-inverse to the `clamp`/`clampf` entry above: that one says "the typed variant DOES exist, prefer it"; this one says "the typed variant does NOT exist, don't write it by analogy."
+**Detect proactively:** Before writing any `<math>f(` form, mentally check the whitelist above. Grep heuristic for review: `grep -nE '\b(expf|sqrtf|sinf|cosf|tanf|powf|logf|asinf|acosf|atanf|atan2f|smoothstepf|move_towardf|easef)\(' scripts/` — any hit is a parse error waiting at F5. (`lerpf`/`wrapf` deliberately excluded — they exist.) Sibling-but-inverse to the `clamp`/`clampf` entry above: that one says "the typed variant DOES exist, prefer it"; this one says "the typed variant does NOT exist, don't write it by analogy."
 
 ---
 
@@ -313,6 +313,7 @@ It's a **LOAD-time** parse error (fires at F5 / game boot / when the script load
 **Fix:**
 - **Preferred when the editor is open + godot-ai MCP is connected** (e.g. an agent session where you can't reliably focus the editor window): `mcp__godot-ai__filesystem_manage` with `op=reimport`, `params={"paths": ["res://scripts/your_new_class.gd", ...]}`. Runs `EditorFileSystem.update_file` — registers the `class_name` in the cache AND generates the `.uid` sidecar, no window focus needed. Works from a subagent too (`ToolSearch` `select:mcp__godot-ai__filesystem_manage` first). **Caveat — reimport is a NO-OP for a script in a BRAND-NEW directory** (a dir the editor's `EditorFileSystem` has not yet scanned; e.g. created via the Write tool / `cat` / Finder). `update_file` updates an *already-recognized* file; if the parent dir was never scanned, there's nothing to update — so reimport **falsely reports success** (`{"reimported_count":1,"not_found":[]}`) while adding NO cache entry and generating NO `.uid`, leaving the class unresolvable headless. The success report means "the op executed," not "the class registered." See trap (3) below for the new-dir fix.
 - Otherwise: focus the editor window (or click anywhere in the FileSystem dock) to trigger a scan. This rewrites `.godot/global_script_class_cache.cfg` with the new `class_name` entries.
+- **Editor not running at all** (CI, a freshly-bootstrapped project never yet opened, any headless-only box where there's no window to focus): `godot --headless --path . --import` does a full filesystem scan + global-class registration with no GUI — it rewrites `.godot/global_script_class_cache.cfg` from scratch, brand-new directories included (so it sidesteps the new-dir no-op trap below, unlike targeted reimport). This is the CLI counterpart to focusing the editor; use it before any headless run when no editor session exists to focus. (`--import` is an editor-build-only flag; an export-template/headless-server binary lacks it — open the editor once instead.)
 - Verify before retrying headless: `grep -c "<ClassName>" .godot/global_script_class_cache.cfg` must return `> 0`.
 - Then re-run the headless command.
 
@@ -325,6 +326,7 @@ It's a **LOAD-time** parse error (fires at F5 / game boot / when the script load
 - Any time a new `class_name`-declaring script is created via tooling (not the editor's New Script dialog), assume the cache is stale until proven otherwise.
 - Before any headless GUT / `--check-only` / CLI invocation that exercises a freshly-added `class_name`, grep the cache: `grep -c "<NewClassName>" .godot/global_script_class_cache.cfg`. Zero hits → focus the editor first.
 - Do NOT trust `mcp__godot__get_diagnostics` clean output as evidence the headless run will pass — the LSP parses on demand and does not consult the cache.
+- **Bootstrap / fresh-clone:** a never-imported project (just bootstrapped, or freshly cloned — `.godot/` is gitignored) false-FAILs `tests/run_tests.sh`'s `fixture_pass.gd` with `SCRIPT ERROR`, because the project's `MCPGameBridge` autoload (registered in `project.godot`) can't resolve its `class_name`s headless and its parse errors are prepended to every test's output. The `init-godot-claude-project` skill's step 8 (Edit C) runs `godot --headless --path . --import` at bootstrap to prevent this; on a fresh clone, run that once (or open the editor) before any CLI test run. The runner's error greps are anchored to `^` so a *benign* autoload `print()` containing the substring won't trip them — but the unresolved-autoload case is a real parse failure that genuinely needs the import.
 
 ---
 
@@ -570,6 +572,23 @@ Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == 
 
 ---
 
+## `--check-only --script` falsely fails any autoload-referencing script with `Identifier not found: <AutoloadName>` (Godot 4.6.2)
+
+**Symptom:** `godot --headless --check-only --script <file.gd> --quit --path .` fails with `SCRIPT ERROR: Compile Error: Identifier not found: <AutoloadName>` (plus `Failed to compile depended scripts` for its dependents) on a script that references a project autoload (e.g. a call to one of your `[autoload]` singletons) — even though the autoload IS correctly registered in `project.godot` and the same script compiles and runs flawlessly in a real game boot. The error is a false negative of the check-only harness, not a real defect.
+
+**Cause:** Autoload singletons are registered as compile-time-resolvable globals only when the full game/SceneTree initializes. `--check-only --script` parses/compiles the one script WITHOUT registering project autoloads, so any autoload identifier fails to resolve in that mode.
+
+**Fix — correct verification routes for autoload-referencing scripts:**
+- Bounded full headless boot of a scene that loads the script: `godot --headless --path . res://<your main scene>.tscn --quit-after 30 2>&1 | grep -E "SCRIPT ERROR|Failed to load"` — empty output = clean.
+- Or read the open editor's log: `mcp__godot-mcp__godot_editor get_log_messages source="editor"`.
+- Keep `--check-only --script` for autoload-FREE scripts only (pure-logic files) — there it remains a fast, reliable parse check.
+
+**Detect proactively:** Before reaching for `--check-only --script` on a file, check it for references to any name in `project.godot`'s `[autoload]` section — any hit means check-only will false-fail; route through the bounded-boot check instead. Don't confuse with the `op=reimport` stale-log entry below: same `Identifier not found: <AutoloadName>` text, but that one is transient append-only editor-log noise after a reimport, while this one is structural to check-only mode and fires on every run.
+
+**Confirmed by:** Godot 4.6.2 — the headless `--check-only --script` harness does not register `[autoload]` singletons; an autoload-referencing script that fails check-only with `Identifier not found: <AutoloadName>` still passes a bounded full headless boot and F5.
+
+---
+
 ## godot-ai `op=reimport` logs STALE fatal-looking errors — autoload `Identifier not found` in dependents + preload `no resource loaders` on just-written assets (transient; read the log in deltas)
 
 **Symptom:** After `mcp__godot-ai__filesystem_manage op=reimport` of a GDScript, `logs_read source="editor"` shows fatal-looking errors that are actually stale/transient:
@@ -659,6 +678,126 @@ Identical behavior for real clicks, correct for injected ones.
 - For rigid bodies interacting with agitated fluid, set `continuous_cd = RigidBody2D.CCD_MODE_CAST_SHAPE` as a containment backstop.
 
 **Detect proactively:** Before lowering `fluid_particle_radius_2d` or adding a tall faucet drop, compute kernel radius (`smoothing_factor × particle_radius`) and the per-step travel at expected impact speed (speed / physics fps) — travel > kernel radius means leaks. At runtime, sample `Fluid2D.points` extrema: any |coordinate| in the tens of thousands means particles already escaped.
+
+---
+
+## godot-ai MCP server won't launch on Intel macOS — `cryptography` 49 has no x86_64 wheel + ancient Rust
+
+**Symptom:** The godot-ai editor dock shows:
+
+> The server exited before the WebSocket handshake, even after a `uvx --refresh` retry. If this is a brand-new release, PyPI's index may still be propagating (~10 min). Wait a moment and click Reload Plugin to retry, or check Godot's output log for Python's traceback. Target: godot-ai==2.7.5.
+
+godot-ai never connects (`/mcp` shows it disconnected); ports 8000 (HTTP/MCP) and 9500 (WebSocket) stay free because the Python server process never starts. The error's own hypothesis ("brand-new release / PyPI propagating") and "downgrade the godot-ai version" are BOTH red herrings — see Cause.
+
+**Cause:** A three-part environment trap, and it is **version-INDEPENDENT**:
+
+1. The machine is Intel / x86_64 macOS.
+2. `cryptography==49.0.0` ships **NO x86_64-macOS wheel**. Verified with uv's resolver on Python 3.11/3.12/3.13/3.14 — all report "cryptography==49.0.0 has no usable wheels." So uv is forced to build it from source on EVERY Python (the "use a newer/older Python" angle is a dead end — wheel availability is gated on the platform, not the Python).
+3. Building from source needs Rust, but the toolchain here is `cargo/rustc 1.43.1` (May 2020) — older than Cargo workspace inheritance (added in cargo 1.64, Sept 2022), which cryptography 49's vendored `src/rust/Cargo.toml` uses. So `cargo metadata` fails with `invalid type: map, expected a sequence for key 'package.authors'`, maturin's `build_wheel` returns non-zero, uv aborts the install, and the server never starts. (cryptography 49's real MSRV is far above 1.43 regardless.)
+
+Dependency chain: the dock runs `uvx --from godot-ai==<ver> godot-ai`; godot-ai → `fastmcp` 3.4.2 → `fastmcp-slim[client]` → `authlib` 1.7.2 → `cryptography` 49.0.0 (uv picks the newest cryptography satisfying authlib, and godot-ai declares only a range `fastmcp>=3.0.0,!=3.3.*,<3.5.0`).
+
+**Version-independent:** godot-ai 2.7.4 fails identically — `pyproject.toml` is byte-identical between 2.7.4 and 2.7.5 except the version string, so downgrading the addon does nothing. (For reference, the only functional change in godot-ai 2.7.5 was PR #558 "Capture exact GDScript write diagnostics" — unrelated to deps/networking.)
+
+**Fix (verified end-to-end):** Constrain cryptography to `<49`. uv then resolves `cryptography==48.0.1` — the last version WITH an x86_64-macOS wheel — still satisfying authlib 1.7.2 + fastmcp 3.4.2. The whole 67-package tree installs from wheels: no Rust, no native build. Verified: `Installed 67 packages in 152ms`; the server boots and binds `127.0.0.1:8000` (HTTP/MCP) + `127.0.0.1:9500` (WebSocket), logging "Application startup complete."
+
+The dock spawns `uvx` as a child of the editor and uvx honors the `UV_CONSTRAINT` env var. So:
+
+1. Create a constraints file (e.g. `~/.config/godot-ai/constraints.txt`) containing `cryptography<49`.
+2. Launch the editor with `UV_CONSTRAINT` set so the dock's uvx child inherits it:
+
+   ```bash
+   UV_CONSTRAINT="$HOME/.config/godot-ai/constraints.txt" /Applications/Godot.app/Contents/MacOS/Godot --path . -e
+   ```
+
+   A terminal launch (or a wrapper/alias) scopes the var to just the Godot process tree.
+3. In the dock, click Reload Plugin (or it starts fresh on launch), then `/mcp` to reconnect.
+
+**WARNING:** do NOT `export UV_CONSTRAINT` globally in `~/.zshrc` or via `launchctl setenv` — that forces `cryptography<49` on EVERY uv operation machine-wide, which can break an unrelated Python project that needs cryptography ≥49. Keep it scoped to the editor launch.
+
+Alternative fixes (heavier): `rustup update` (+ likely Homebrew OpenSSL + env) so cryptography 49 builds from source natively (slow, recompiles each bump); or move to Apple Silicon (has wheels). Drop the constraint if you do either.
+
+**Detect proactively:**
+- Any `uvx`/`uv`-launched Python tool with a native (Rust/C) extension on Intel macOS: before blaming a version bump, check whether the offending transitive dep actually has a wheel for this platform — `uv venv /tmp/t --python 3.13 && uv pip install --python /tmp/t/bin/python --only-binary :all: '<pkg>==<ver>' --dry-run` ("has no usable wheels" = no wheel → forced source build). If a source build is forced, check Rust age (`cargo --version`) — anything pre-1.64 can't build modern crates.
+- "Server exited before the WebSocket handshake" / "exits before handshake" from an MCP dock almost always means the install/spawn failed, not a networking issue — read the actual `uvx` build output (run the dock's command by hand) before touching ports/firewall/version.
+
+This is an environment (per-machine, Intel mac) gotcha, not a code one — unlike the other godot-ai entries above (`uid`-omission, `class_name` cache, custom-resource, Vector2i, Skeleton3D bones, AnimationTree), which are about godot-ai's writer/RPC surface. Cross-references `docs/godot-mcp-guide.md` for the godot-ai server surface.
+
+**Confirmed by:** Diagnosed and verified end-to-end on Intel/x86_64 macOS — uv resolves `cryptography==48.0.1` (last x86_64-mac wheel), the whole 67-package tree installs wheel-only (no Rust, no native build), and the server boots and binds 8000/9500.
+
+---
+
+## godot-ai MCP server won't launch on Apple Silicon — `uvx` resolves x86_64 wheels because the Python interpreter is x86_64
+
+**Symptom:** The godot-ai editor dock shows:
+
+> The server exited before the WebSocket handshake, even after a `uvx --refresh` retry. If this is a brand-new release, PyPI's index may still be propagating (~10 min). Wait a moment and click Reload Plugin to retry, or check Godot's output log for Python's traceback. Target: godot-ai==<ver>.
+
+godot-ai never connects (`/mcp` shows it disconnected); ports 8000 (HTTP/MCP) and 9500 (WebSocket) stay free because the Python server process never starts. The dock log (or a direct `uvx` run) shows `Building cryptography==49.0.0` then `Failed to build` — maturin / `cargo metadata` errors with `invalid type: map, expected a sequence for key 'package.authors'`.
+
+This is the **Apple Silicon (arm64) variant** of the Intel-mac `cryptography`-wheel gotcha above: same symptom, same dependency chain (`fastmcp` 3.4.x → `authlib` → `cryptography>=49`), but a different root cause and a different fix. Here the box is arm64 yet `uvx` is resolving x86_64 wheels.
+
+**Cause:** The dock launches its Python server with `uvx --from godot-ai==<ver> godot-ai` (the `uvx` binary is resolved by godot-ai's `CliFinder`, which checks `~/.local/bin` → `~/.cargo/bin` → `/opt/homebrew/bin` → `/usr/local/bin`, in that order). **uv resolves wheels for the Python INTERPRETER's architecture, not uv's own.** If `uvx` selects an x86_64 Python, it resolves x86_64-macOS wheels. `cryptography>=49` dropped its x86_64-macOS wheel, so uv falls back to building from source, which needs a modern Rust toolchain. On a machine whose toolchain is x86_64 — the classic case is Intel Homebrew at `/usr/local` running under Rosetta on Apple Silicon (often inherited via Migration Assistant, sometimes with a years-old Rust) — the source build fails, the server never installs, and the dock reports "exited before the WebSocket handshake."
+
+Two red herrings the error (and instinct) lead you to, both WRONG:
+
+1. **"Brand-new release / PyPI propagating"** and **"downgrade the godot-ai version"** — godot-ai's deps are version-independent *ranges*, so an older godot-ai (e.g. 2.7.4) resolves the exact same `fastmcp`/`cryptography` and fails identically. The addon version is not the variable.
+2. **Installing a native arm64 `uv` is NECESSARY BUT NOT SUFFICIENT** — uv still resolves for the *Python's* arch, so an x86_64 Python under an arm64 uv still fails.
+
+**Fix (verified end-to-end: `Installed 67 packages`, server boots and binds `127.0.0.1:8000` + `127.0.0.1:9500`):**
+
+1. **Install a NATIVE arm64 `uv` into `~/.local/bin`** (`CliFinder` checks it first): `curl -LsSf https://astral.sh/uv/install.sh | sh`, run from a native arm64 shell. Verify `arch` = `arm64` and `file ~/.local/bin/uvx` reports arm64.
+2. **Force a managed (non-system) Python** via `~/.config/uv/uv.toml`:
+
+   ```toml
+   python-preference = "only-managed"
+   ```
+
+   This makes `uvx` use a uv-managed Python rather than the x86_64 system/Homebrew one. `uvx` reads user config for this. (Note: `uvx` does NOT honor `constraint-dependencies` from config, but DOES honor `python-preference` — so the `UV_CONSTRAINT` approach in the Intel-mac entry above is the lever there, `python-preference` is the lever here.)
+3. **Gotcha-within-the-gotcha — curate the managed Python pool to arm64-only.** `only-managed` selects the **highest-VERSION** managed Python, regardless of architecture. A leftover uv-managed *x86_64* Python that is higher-version than your arm64 one will be chosen and reintroduce the failure. Fix the pool:
+
+   ```bash
+   uv python uninstall <the x86_64 managed python>
+   uv python install <current>      # a native arm64 uv fetches an aarch64 build
+   uv python list --only-installed | grep python   # must show ONLY ...aarch64...
+   ```
+4. Click **Reload Plugin** in the godot-ai dock (its retry re-runs `uvx` and now succeeds). No full editor restart needed once the pool is arm64-only.
+
+**Verification discipline (this caused a false "fixed" during diagnosis):** ALWAYS verify with `--refresh`. A bare `uvx` (no `--refresh`) reuses any cached env and gives a FALSE pass — and the dock's retry uses `--refresh`, so a bare-`uvx` pass does not predict the dock:
+
+```bash
+~/.local/bin/uvx --refresh --from godot-ai==<ver> godot-ai --version
+# must print "godot-ai <ver>" with NO "Building cryptography"
+```
+
+**Detect proactively:**
+- "Server exited before the WebSocket handshake" from the godot-ai dock = the `uvx` INSTALL/spawn failed, not a network/port/firewall issue. Reproduce by running the dock's command directly and reading the traceback: `~/.local/bin/uvx --refresh --from godot-ai==<ver> godot-ai --version`.
+- On Apple Silicon, check toolchain arch before blaming godot-ai: `arch` (should be `arm64`), `file "$(command -v uv)"`, `file "$(python3 -c 'import sys;print(sys.executable)')"`. An x86_64 `uv`/`python3` (e.g. resolved under `/usr/local` = Intel Homebrew) is the tell. The same class of failure hits ANY `uvx`/`uv`-launched tool with a native (Rust/C) extension that lacks an x86_64-mac wheel.
+- Cross-check a suspect transitive dep's wheel availability without installing — in a throwaway venv: `uv pip install --only-binary :all: '<pkg>==<ver>' --python-platform aarch64-apple-darwin --dry-run` (arm64) vs the default. "No usable wheels" for x86_64 but "Would install" for arm64 confirms the arch is the variable.
+
+Sibling to the Intel-mac `cryptography`-wheel entry above (same symptom + dependency chain). There the box is genuinely x86_64 and the fix is `UV_CONSTRAINT=cryptography<49`; here the box is arm64 and the fix is a native arm64 uv + a managed arm64 Python. Both are environment (per-machine) gotchas, not code ones. Cross-references `docs/godot-mcp-guide.md` for the godot-ai server surface.
+
+**Confirmed by:** Diagnosed and verified end-to-end on Apple Silicon — `Installed 67 packages`, server boots and binds `127.0.0.1:8000` + `127.0.0.1:9500`.
+
+---
+
+## godot-ai script `ext_resource` `uid=` won't materialize for a BRAND-NEW script until the editor's FS watcher scans it — `reimport` no-ops; on macOS `osascript`-activate the window FIRST, then reimport, then save
+
+**Symptom:** After creating a brand-new `.gd` script (via the Write tool), attaching it to a node, and `scene_save` via godot-ai, the saved `.tscn` `[ext_resource type="Script" ...]` line for that script has **no `uid=`** (path-only, inconsistent with sibling scripts, fragile on later rename/move). Calling `mcp__godot-ai__filesystem_manage op=reimport` on the script — even repeatedly — does **NOT** fix it: the `.uid` sidecar / `uid_cache.bin` stays unpopulated (the reimport reports success), and a second `scene_save` still emits the `ext_resource` without `uid=`.
+
+**Cause:** For a brand-new script file, the editor's filesystem watcher hasn't yet scanned the file into its `EditorFileSystem`, so `reimport` operates on an unscanned entry and **silently no-ops** the UID materialization while reporting success. The reimport can only generate the `.uid` / populate `uid_cache.bin` once the editor's FS watcher has registered the file. This is the concrete root of the `uid=`-omission entry above ("`.uid` sidecar doesn't exist yet at save time") and a specific instance of the brand-new-directory `reimport` no-op trap (trap 3 of the `class_name` cache-stale entry above) — as of godot-ai v2.7.2, `write_text` no longer forces a scan either, so the only remedy is to wake the watcher.
+
+**Fix (verified — wake the FS watcher FIRST, then reimport, then save):** On macOS, **activating the editor window triggers the rescan**. Sequence:
+
+1. `osascript` to activate the Godot app/window (forces the FS watcher to scan the new file).
+2. `mcp__godot-ai__filesystem_manage op=reimport` on the script — now operates on a scanned entry, generates the `.uid` / populates `uid_cache.bin`.
+3. `mcp__godot-ai__scene_save` — godot-ai now writes a clean one-line `uid=` on the `ext_resource`.
+
+In practice the `uid=` appeared only on the **THIRD** save: (1) first save → no uid; (2) reimport + second save → still no uid (unscanned entry, reimport no-op); (3) osascript-activate + reimport + third save → `uid="uid://..."` present. The `osascript`-activate → reimport → scene_save ordering is the new, concrete lever; mere repeated reimport is not enough.
+
+**Detect proactively:** After any godot-ai scene edit that attaches a freshly-Written script, grep the saved `.tscn` for that script's `ext_resource` line — if it has `path=` but no `uid=` while siblings do, the FS watcher hasn't scanned it: `osascript`-activate the editor window, reimport, re-save, then re-grep to confirm `uid=` is present. Do NOT trust a `reimport` success report on a brand-new script as proof the UID materialized. See the `uid=`-omission entry and the `class_name` cache-stale entry (trap 3) above; also `docs/godot-mcp-guide.md` for the godot-ai writer surface.
+
+**Confirmed by:** godot-ai MCP server v2.7.2, Godot 4.6.2-stable, macOS — `uid=` materialized only on the THIRD save (osascript-activate → reimport → scene_save).
 
 ---
 
