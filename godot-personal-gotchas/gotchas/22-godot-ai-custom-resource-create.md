@@ -16,3 +16,5 @@ Before reaching for godot-ai `resource_manage` on a `.tres`, check whether the `
 2026-06-02 — `circle-combat-prototype` player-SM Phase E.1 (`8e8d231`), godot-ai v2.5.13 / Godot 4.6.2; the 13-`MoveDef` `library.tres` was hand-written inline. See memory `gotcha-godot-ai-custom-resource-create.md`.
 
 2026-06-12 — UNCHANGED, re-validated against the godot-ai v2.7.2 source: type resolution still ClassDB-only (`resource_handler.gd:207-209` rejects via `ClassDB.class_exists` → `Unknown resource type`; `ClassDB.instantiate` at `:185`; the global script-class list is consulted only by read-only `api_handler.gd`, and only to emit a WRONG_TYPE error).
+
+2026-06-18 — UNCHANGED, re-anchored to godot-ai **v2.7.5** on Godot **4.7**: the create-path gate is still ClassDB-only — `_validate_resource_class` (`resource_handler.gd:207`) → `ClassDB.class_exists` → `VALUE_OUT_OF_RANGE: Unknown resource type` (`:208-209`), instantiate via `ClassDB.instantiate` (`:185`). No 4.7 change touches ClassDB / `class_name` resolution.

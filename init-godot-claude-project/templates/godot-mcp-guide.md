@@ -43,7 +43,7 @@ Three editor MCPs run side by side — use them by role, not interchangeably. go
 
 ## Multi-editor / worktree sessions (godot-ai)
 
-godot-ai is multi-editor/multi-session **by design** (verified in the v2.7.2 source): the Python server keeps a per-session registry, each editor plugin registers a session id `<dir-slug>@<4hex>` (the hex suffix exists to disambiguate same-project twins), and a second editor instance finding a compatible running server *adopts* it rather than fighting for the port. "One writer per editor instance" is the real constraint — commands run serially on each editor's main thread; a second editor on a worktree is a second independent writer.
+godot-ai is multi-editor/multi-session **by design** (verified in the v2.7.5 source): the Python server keeps a per-session registry (`server.py` adoption guard + `orphan_reaper.py`), each editor plugin registers a session id `<dir-slug>@<4hex>` (`connection.gd:_make_session_id` → `"%s@%s" % [slug, _rand_hex(4)]`) (the hex suffix exists to disambiguate same-project twins), and a second editor instance finding a compatible running server *adopts* it rather than fighting for the port. "One writer per editor instance" is the real constraint — commands run serially on each editor's main thread; a second editor on a worktree is a second independent writer.
 
 Rules when running two editor-writing agents:
 

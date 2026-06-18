@@ -25,3 +25,5 @@ Any `op=reimport` batch that touches an autoload script, or a script `preload()`
 
 **Confirmed by**
 2026-06-11 — `godsquish-prototype`, three occurrences (Godot 4.6.2, godot-ai MCP v2.5.13, macOS): `feel.gd` reimport → transient `Identifier not found: Feel` in `fruit.gd`/`tuning_panel.gd` (twice; settled clean on re-reimport with log-delta check); `squelch_03..08.wav` preload race → `no resource loaders` parse errors while `tests/run_tests.sh` passed 15/15 and the subsequent boot was clean.
+
+2026-06-18 — re-validated against godot-ai **v2.7.5** on Godot **4.7** (the 2026-06-11 anchor stays as observed on v2.5.13): same behavior — `reimport` still calls `efs.update_file()` synchronously without awaiting import completion, so the races persist (`filesystem_handler.gd:78-112`); the editor log buffer (`utils/editor_log_buffer.gd`) is still append-only, exposing `total_count()` + `get_range(offset, count)`. No 4.7 change to EditorFileSystem import timing or the log buffer.
