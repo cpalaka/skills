@@ -337,7 +337,18 @@ const researchResults = (await parallel(researchBriefs.map(b => () =>
 ))).filter(Boolean)
 
 const briefs = Object.fromEntries( // FILL: key names must match what downstream stages reference
-  researchBriefs.map((b, i) => [b.key, researchResults[i] ? String(researchResults[i]) : ''])
+  researchBriefs.map((b, i) => {
+    const r = researchResults[i]
+    if (!r) return [b.key, '']
+    // Serialize each research object to readable markdown, mirroring the golden's researchDigest construction
+    // (moms-curry-tournament.js lines 118-120): summary as heading + findings as bullet list
+    // FILL: r.summary and r.findings match RESEARCH_SCHEMA; if you rename those fields, update here too
+    const heading = `### ${r.summary || '(no summary)'}`
+    const bullets = Array.isArray(r.findings)
+      ? r.findings.map(f => `- (${f.confidence}) ${f.topic}: ${f.detail}`).join('\n')
+      : ''
+    return [b.key, bullets ? `${heading}\n${bullets}` : heading]
+  })
 )
 ```
 
@@ -358,6 +369,7 @@ const VERIFY_LENSES = [
 ]
 
 let claims = []
+// ASSEMBLY NOTE: researchResults must be in scope from the web-search context variant (Variant B). Do NOT add a standalone const here; do NOT rename researchResults.
 researchResults.forEach((r, ri) => (r && r.claimsToVerify || []).forEach((c, ci) =>
   claims.push({ id: `R${ri}-${ci}`, claim: c.claim, whyDubious: c.whyDubious })
 ))
@@ -422,7 +434,7 @@ const seedDevs = await parallel(seedPrompts.map((prompt, si) => () =>
 
 const candidates = []
 const seedIndices = []
-for (const r of genResults.filter(Boolean)) for (const c of (r.candidates || [])) candidates.push(c)
+for (const r of genResults.filter(Boolean)) for (const c of (r.candidates || [])) candidates.push(c) // FILL: r.candidates must match the top-level array key in CANDIDATE_SCHEMA; if you rename that key, update this access
 for (const r of seedDevs.filter(Boolean)) for (const c of (r.candidates || [])) { seedIndices.push(candidates.length); candidates.push(c) }
 ```
 
