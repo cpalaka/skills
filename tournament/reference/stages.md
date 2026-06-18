@@ -677,3 +677,225 @@ const board = judged.sort((a, b) => b.score - a.score)
 const winner = board[0].index
 log(`Leaderboard: ${board.map(b => `${b.name} ${b.score.toFixed(1)}`).join(' | ')}. Winner: ${board[0].name}.`)
 ```
+
+---
+
+## Verify-Champion Stage
+
+Normalized verbatim from `incremental-concept-tournament.js` lines 272–294. Runs skeptic lenses in `parallel` (genuine barrier — all skeptics must complete before consensus). Produces `skeptics` (`object[]`) and `fatalCount` (`number`). Slot: SKEPTIC_LENSES array + refute threshold for swap-to-runner-up rule (default: swap if `fatalCount >= 2`).
+
+```js
+// Verify-champion stage
+// Normalized from incremental-concept-tournament.js lines 272-294
+// Consumes: candidates (Candidate[]), champion (number/index), briefs, renderConcept, SKEPTIC_SCHEMA
+// Produces: skeptics (object[]), fatalCount (number)
+// FILL: replace SKEPTIC_LENSES with lenses appropriate for your domain
+// SWAP RULE (default): if fatalCount >= 2, downstream synthesize should recommend runnerUp instead
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by generate stage
+const champion = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/bracket stage
+const renderConcept = (c) => JSON.stringify(c) // STANDALONE PARSE ONLY — DELETE at assembly
+const SKEPTIC_SCHEMA = { type: 'object', properties: { refuted: { type: 'boolean' }, severity: { type: 'string', enum: ['fatal','serious','minor'] }, concerns: { type: 'array', items: { type: 'string' } }, fixes: { type: 'array', items: { type: 'string' } } }, required: ['refuted','severity','concerns','fixes'] } // STANDALONE PARSE ONLY — DELETE at assembly; produced by Schema Builders section
+const agent = async () => null // STANDALONE PARSE ONLY — DELETE at assembly
+const parallel = async (fns) => Promise.all(fns.map(f => f())) // STANDALONE PARSE ONLY — DELETE at assembly
+const log = () => {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const DOMAIN = 'your domain here' // FILL: one-phrase description (already declared at assembly; here for standalone parse)
+const HARD = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints here]` // FILL: replace (already declared at assembly; here for standalone parse)
+const briefs = {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const SKEPTIC_LENSES = [ // FILL: replace with lenses for your domain; each has key, brief(), and instr
+  { key: 'lens-a', brief: () => briefs.topicA || '', instr: 'Attack DIMENSION A: [describe the adversarial angle for this skeptic lens]' }, // FILL: replace
+  { key: 'lens-b', brief: () => briefs.topicB || '', instr: 'Attack DIMENSION B: [describe the adversarial angle for this skeptic lens]' }, // FILL: replace
+  { key: 'lens-c', brief: () => briefs.topicC || '', instr: 'Attack DIMENSION C: [describe the adversarial angle for this skeptic lens]' }, // FILL: replace
+]
+
+const skepticResults = await parallel(SKEPTIC_LENSES.map(s => () =>
+  agent(
+    `You are a professional skeptic. Your job is to REFUTE this champion before committing to it. Default to refuted=true only for genuinely FATAL flaws; use severity for the rest. Always propose concrete fixes where they exist.\n\n${HARD}\n\n${s.instr}\n\nREFERENCE BRIEF:\n${s.brief()}\n\nTHE CHAMPION:\n${renderConcept(candidates[champion])}`,
+    { label: `skeptic:${s.key}`, phase: 'Verify', schema: SKEPTIC_SCHEMA }
+  )
+))
+const skeptics = SKEPTIC_LENSES.map((s, k) => ({ lens: s.key, result: skepticResults[k] })).filter(x => x.result)
+const fatalCount = skeptics.filter(x => x.result.refuted).length
+log(`Skeptic verdicts: ${skeptics.map(x => `${x.lens}=${x.result.severity}${x.result.refuted ? ' (REFUTED)' : ''}`).join(', ')}`)
+// SWAP RULE: if fatalCount >= 2, the synthesize stage should recommend runnerUp instead of champion // FILL: adjust threshold (default: 2 of 3 lenses)
+```
+
+---
+
+## Synthesize Stage
+
+Two variants — pick the one matching your tournament mode. Both graft winner + runner-up ideas + skeptic fixes into a final recommendation.
+
+### Variant A — Text report (bracket mode → `report`)
+
+Normalized from `incremental-concept-tournament.js` lines 296–324. Produces `report` (`string`). No schema; the agent's final message IS the report. Sections are fully slotted for your domain.
+
+```js
+// Synthesize stage — text report variant (bracket mode)
+// Normalized from incremental-concept-tournament.js lines 296-324
+// Consumes: candidates (Candidate[]), champion (number), runnerUp (number), seedIndices (number[]),
+//           matchLog (object[]), skeptics (object[]), fatalCount (number), briefs, renderConcept
+// Produces: report (string)
+// FILL: replace HARD, brief references, and section prompts for your domain
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by generate stage
+const champion = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/bracket stage
+const runnerUp = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/bracket stage
+const seedIndices = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by generate stage
+const matchLog = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/bracket stage
+const skeptics = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const fatalCount = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const renderConcept = (c) => JSON.stringify(c) // STANDALONE PARSE ONLY — DELETE at assembly
+const agent = async () => null // STANDALONE PARSE ONLY — DELETE at assembly
+const log = () => {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const DOMAIN = 'your domain here' // FILL: one-phrase description (already declared at assembly; here for standalone parse)
+const HARD = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints here]` // FILL: replace (already declared at assembly; here for standalone parse)
+const briefs = {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+log('Writing final recommendation...')
+const report = await agent(
+  `You are the synthesis lead for a tournament deciding: ${DOMAIN}. Write the FINAL RECOMMENDATION REPORT in markdown. Your final message IS the report — no meta-commentary.\n\n${HARD}\n\nCHAMPION:\n${renderConcept(candidates[champion])}\n(user-seed concept: ${seedIndices.includes(champion)})\n\nRUNNER-UP:\n${renderConcept(candidates[runnerUp])}\n(user-seed concept: ${seedIndices.includes(runnerUp)})\n\nFULL MATCH LOG (judge reasoning):\n${JSON.stringify(matchLog, null, 1)}\n\nADVERSARIAL SKEPTIC FINDINGS ON CHAMPION (${fatalCount}/${skeptics.length} voted fatal):\n${JSON.stringify(skeptics, null, 1)}\n\nWrite these sections:\n1. **Recommendation** — the choice to make and the one-paragraph case. If ${skeptics.length >= 2 ? 2 : skeptics.length}+ skeptics voted fatal, recommend the runner-up instead and say why.\n2. **The winner in full** — refined pitch incorporating skeptic FIXES and the best grafts from runner-up (name each graft and its source).\n3. **Why it beat the field** — the decisive judge arguments, honestly including close calls.\n4. **Skeptic findings & mitigations** — every serious+ concern with its concrete mitigation.\n5. **Scope sketch** — milestone outline against your time/budget yardstick, with the hardest constraint explicitly budgeted.\n6. **Kill criteria** — 3 testable conditions early in execution that should kill/pivot the project.\n7. **The full bracket** — one-line results of every match.`, // FILL: adjust section list, scope yardstick, and kill-criteria framing for your domain
+  { label: 'synthesis', phase: 'Synthesize' }
+)
+```
+
+### Variant B — Schema synth (scoreboard mode → `synth`)
+
+Normalized from `moms-curry-tournament.js` lines 193–196. Produces `synth` (`object`, typed by `SYNTH_SCHEMA`). Grafts winner + runner-up ideas + all judge mustFix items into a structured output.
+
+```js
+// Synthesize stage — schema synth variant (scoreboard mode)
+// Normalized from moms-curry-tournament.js lines 193-196
+// Consumes: candidates (Candidate[]), board ({index,score,...}[]), winner (number/index),
+//           skeptics (object[]), fatalCount (number), SYNTH_SCHEMA
+// Produces: synth (object — typed by SYNTH_SCHEMA)
+// FILL: replace SHARED, board field references, and prompt body for your domain
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by generate stage
+const board = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/scoreboard stage
+const winner = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/scoreboard stage
+const skeptics = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const fatalCount = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const SYNTH_SCHEMA = { type: 'object', properties: { summaryMarkdown: { type: 'string' }, parametersMarkdown: { type: 'string' }, changeLog: { type: 'array', items: { type: 'object', properties: { change: { type: 'string' }, why: { type: 'string' } }, required: ['change','why'] } }, graftedFrom: { type: 'array', items: { type: 'string' } } }, required: ['summaryMarkdown','changeLog'] } // STANDALONE PARSE ONLY — DELETE at assembly; produced by Schema Builders section
+const agent = async () => null // STANDALONE PARSE ONLY — DELETE at assembly
+const log = () => {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const DOMAIN_SYNTH = 'your domain here' // FILL: one-phrase description (already declared at assembly as DOMAIN; rename at assembly)
+const SHARED_SYNTH = `[shared background context for ${DOMAIN_SYNTH}]` // FILL: compose from briefs/verifiedDigest at assembly
+
+log('Producing final synthesized output...')
+const synth = await agent(
+  `${SHARED_SYNTH}\n\nTOURNAMENT RESULTS (best first):\n${board.map(b => `- ${candidates[b.index].name}: ${b.score.toFixed(1)} | judges: ${(b.judges || []).map(j => `[${j.persona}] score ${j.score}, critique: ${j.critique} (mustFix: ${j.mustFix})`).join('  ||  ')}`).join('\n')}\n\nWINNER: ${candidates[winner].name}\n\nADVERSARIAL SKEPTIC FINDINGS ON WINNER (${fatalCount}/${skeptics.length} voted fatal):\n${JSON.stringify(skeptics, null, 1)}\n\nALL CANDIDATES (for grafting the best ideas):\n${board.map(b => `\n===== ${candidates[b.index].name} (${b.score.toFixed(1)}) =====\n${JSON.stringify(b.generated || candidates[b.index], null, 1)}`).join('\n')}\n\nNow produce the FINAL synthesized output. Start from the WINNER, GRAFT IN the best verified ideas from other candidates, and resolve EVERY judge mustFix. Output summaryMarkdown (complete, detailed, ready-to-use), parametersMarkdown (key tunable parameters), changeLog (each change with why and what it came from), and graftedFrom (source concept names). If ${fatalCount >= 2 ? fatalCount : 0}+ skeptics voted fatal, address their concerns explicitly in the changeLog.`, // FILL: tailor prompt — replace field names (b.thesis, b.generated etc.) to match your scoreboard-mode tournament's actual output shape
+  { label: 'synthesize', phase: 'Synthesize', schema: SYNTH_SCHEMA, effort: 'max' }
+)
+```
+
+---
+
+## QA Stage (optional)
+
+Normalized from `moms-curry-tournament.js` lines 198–204. Red-team the synthesized output, then patch it. Produces `qa` (`object`, typed by `QA_SCHEMA`) and `patched` (`string`). Use only when correctness/safety gates are worth the extra call.
+
+```js
+// QA stage (optional)
+// Normalized from moms-curry-tournament.js lines 198-204
+// Consumes: synth (object from synthesize/schema variant), QA_SCHEMA
+// NOTE: for text-report (bracket) mode, replace synth.summaryMarkdown with report
+// Produces: qa (object — typed by QA_SCHEMA), patched (string)
+// FILL: replace CONSTRAINTS, QA checks list, and synth field references for your domain
+const synth = { summaryMarkdown: '', parametersMarkdown: '', changeLog: [], graftedFrom: [] } // STANDALONE PARSE ONLY — DELETE at assembly; produced by synthesize/schema stage
+const QA_SCHEMA = { type: 'object', properties: { gatesPassed: { type: 'boolean' }, issues: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string' }, issue: { type: 'string' }, fix: { type: 'string' } }, required: ['severity','issue','fix'] } }, verdict: { type: 'string' } }, required: ['gatesPassed','issues','verdict'] } // STANDALONE PARSE ONLY — DELETE at assembly; produced by Schema Builders section
+const agent = async () => null // STANDALONE PARSE ONLY — DELETE at assembly
+const log = () => {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const DOMAIN_QA = 'your domain here' // FILL: one-phrase description (already declared at assembly as DOMAIN; rename at assembly)
+const CONSTRAINTS_QA = `[hard constraints for ${DOMAIN_QA}]` // FILL: replace with your domain's hard constraints (already declared at assembly; here for standalone parse)
+
+log('QA red-team + patch...')
+const qa = await agent(
+  `Red-team this final output BEFORE it ships. Be ruthless.\n\nCONSTRAINTS:\n${CONSTRAINTS_QA}\n\nFINAL OUTPUT:\n${synth.summaryMarkdown}\n\nPARAMETERS:\n${synth.parametersMarkdown || '(none)'}\n\nCheck HARD for: (1) domain-specific hard gates (${DOMAIN_QA}); (2) internal contradictions, missing quantities, or ambiguous steps; (3) does it overshoot the constraint budget?; (4) any claims that contradict verified findings; (5) is every judge mustFix actually resolved? List every issue with a concrete fix.`, // FILL: replace checklist items with your domain's QA gates
+  { label: 'qa-redteam', phase: 'QA', schema: QA_SCHEMA, effort: 'high' }
+)
+
+const patched = await agent(
+  `Apply these QA fixes to the output, changing as LITTLE as possible and preserving its structure, formatting, and voice. Return ONLY the corrected full output markdown (no preamble).\n\nQA VERDICT: ${qa.verdict}\nQA ISSUES:\n${JSON.stringify(qa.issues, null, 2)}\n\nCURRENT FINAL OUTPUT:\n${synth.summaryMarkdown}`, // FILL: replace synth.summaryMarkdown with the correct field for your synth output (e.g. report for text-mode)
+  { label: 'qa-patch', phase: 'QA', effort: 'medium' }
+)
+```
+
+---
+
+## Result Shape
+
+The final top-level `return {...}` that exposes all outputs. Two variants matching the tournament modes. Pick the one that matches your tournament.
+
+### Variant A — Bracket mode result shape
+
+Normalized from `incremental-concept-tournament.js` lines 326–335. Exposes `champion` (object), `runnerUp` (name string), `bracket` (array), `matchLog`, `skeptics`, `fatalCount`, `report`.
+
+```js
+// Result shape — bracket mode
+// Normalized from incremental-concept-tournament.js lines 326-335
+// Consumes all upstream bindings: candidates, champion, runnerUp, seedIndices, bracket, totals,
+//          matchLog, skeptics, fatalCount, report
+// FILL: add/remove fields as your spec requires; keep binding names verbatim
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by generate stage
+const champion = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/bracket stage
+const runnerUp = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/bracket stage
+const seedIndices = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by generate stage
+const bracket = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by filter/bracket stage
+const totals = new Map() // STANDALONE PARSE ONLY — DELETE at assembly; produced by filter stage
+const matchLog = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/bracket stage
+const skeptics = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const fatalCount = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const report = '' // STANDALONE PARSE ONLY — DELETE at assembly; produced by synthesize/text stage
+
+return {
+  champion: candidates[champion],
+  championIsUserSeed: seedIndices.includes(champion),
+  runnerUp: candidates[runnerUp].name,
+  bracket: bracket.map(i => ({ name: candidates[i].name, screenScore: totals.get(i), isSeed: seedIndices.includes(i) })),
+  matchLog,
+  skeptics,
+  fatalCount,
+  report,
+}
+```
+
+### Variant B — Scoreboard mode result shape
+
+Normalized from `moms-curry-tournament.js` lines 206–225. Exposes `leaderboard` (array), `winner` (name string), `candidates` (full detail array), `skeptics`, `fatalCount`, `synth` (fields), `qa`, `patched`.
+
+```js
+// Result shape — scoreboard mode
+// Normalized from moms-curry-tournament.js lines 206-225
+// Consumes all upstream bindings: candidates, board, winner, skeptics, fatalCount, synth, qa, patched
+// FILL: adjust field names/shapes to match your scoreboard tournament's actual judge/generated output shape
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by generate stage
+const board = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/scoreboard stage
+const winner = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by tournament/scoreboard stage
+const skeptics = [] // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const fatalCount = 0 // STANDALONE PARSE ONLY — DELETE at assembly; produced by verify-champion stage
+const synth = { summaryMarkdown: '', parametersMarkdown: '', changeLog: [], graftedFrom: [] } // STANDALONE PARSE ONLY — DELETE at assembly; produced by synthesize/schema stage
+const qa = { gatesPassed: true, issues: [], verdict: '' } // STANDALONE PARSE ONLY — DELETE at assembly; produced by QA stage
+const patched = '' // STANDALONE PARSE ONLY — DELETE at assembly; produced by QA stage
+
+return {
+  leaderboard: board.map(b => ({ name: candidates[b.index].name, score: Number(b.score.toFixed(1)) })),
+  winner: candidates[winner].name,
+  candidates: board.map(b => ({
+    name: candidates[b.index].name,
+    score: Number(b.score.toFixed(1)),
+    judges: (b.judges || []).map(j => ({ persona: j.persona, score: j.score, critique: j.critique, mustFix: j.mustFix, wouldChoose: j.wouldChoose })), // FILL: match judge field names to your JUDGE_SCHEMA (curry golden uses score_0_50, wouldCook)
+    generated: b.generated || null, // FILL: replace with the actual generated-output field name from your scoreboard tournament stage
+  })),
+  skeptics,
+  fatalCount,
+  summaryMarkdown: synth.summaryMarkdown,
+  parametersMarkdown: synth.parametersMarkdown,
+  changeLog: synth.changeLog,
+  graftedFrom: synth.graftedFrom,
+  qa,
+  patched,
+}
+```
