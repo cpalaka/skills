@@ -629,14 +629,14 @@ log(`CHAMPION: ${candidates[champion].name}`)
 // Consumes: candidates (Candidate[]), shortlist (number[], indices), renderConcept, JUDGE_SCHEMA
 // Produces: board ({index,score,...}[], sorted desc), winner (number/index = board[0].index)
 // FILL: replace JUDGES with judge personas/rubrics for your domain; adjust score scale comment
+// NOTE: pipeline(items, stage1, stage2, ...) passes every stage callback (prevResult, originalItem, index).
+// So pipeline(shortlist, genFn, judgeFn) gives each stage the candidate index as originalItem — no outer map needed.
 const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly
 const shortlist = [] // STANDALONE PARSE ONLY — DELETE at assembly
 const renderConcept = (c) => JSON.stringify(c) // STANDALONE PARSE ONLY — DELETE at assembly
 const JUDGE_SCHEMA = { type: 'object', properties: { persona: { type: 'string' }, score: { type: 'number' }, breakdown: { type: 'string' }, critique: { type: 'string' }, mustFix: { type: 'string' }, wouldChoose: { type: 'boolean' } }, required: ['persona','score','critique','mustFix','wouldChoose'] } // STANDALONE PARSE ONLY — DELETE at assembly
-const CANDIDATE_SCHEMA = { type: 'object', properties: { candidates: { type: 'array', items: { type: 'object' } } }, required: ['candidates'] } // STANDALONE PARSE ONLY — DELETE at assembly
 const agent = async () => null // STANDALONE PARSE ONLY — DELETE at assembly
 const parallel = async (fns) => Promise.all(fns.map(f => f())) // STANDALONE PARSE ONLY — DELETE at assembly
-const pipeline = async (arr, ...fns) => { let out = Array.isArray(arr) ? arr : [arr]; for (const fn of fns) out = await Promise.all(out.map((x, i) => fn(x, i))); return Array.isArray(arr) ? out : out[0] } // STANDALONE PARSE ONLY — DELETE at assembly
 const log = () => {} // STANDALONE PARSE ONLY — DELETE at assembly
 
 const DOMAIN_SB = 'your domain here' // FILL: one-phrase description (already declared at assembly as DOMAIN; rename at assembly)
@@ -648,29 +648,30 @@ const JUDGES = [ // FILL: replace with judge personas + rubrics for your domain
   { key: 'judge-c', persona: '[Judge C role]', rubric: 'AXIS C: [what this judge scores on, 0–10]' },
 ]
 
-const judged = (await Promise.all(shortlist.map(idx => {
-  const c = candidates[idx]
-  return pipeline(
-    c,
-    (ci) => agent(
-      `${SHARED_SB}\n\nYou are developing ONE tournament candidate.\nCANDIDATE: ${ci.name}\n\nProduce a complete, detailed output for this candidate. Put full content in the appropriate schema fields.`, // FILL: tailor prompt for your domain
-      { label: `gen:${ci.name}`, phase: 'Tournament', schema: CANDIDATE_SCHEMA, effort: 'high' }
-    ),
-    (generated) => {
-      if (!generated) throw new Error('generation failed')
-      return parallel(JUDGES.map(j => () =>
-        agent(
-          `${SHARED_SB}\n\nYou are judging a tournament candidate. YOUR ROLE: ${j.persona}.\n${j.rubric}\n\nCANDIDATE NAME: ${c.name}\nCANDIDATE OUTPUT:\n${renderConcept(generated)}\n\nScore it 0-10 through YOUR lens only. Be tough, specific, and do NOT inflate. Give a breakdown, a sharp critique, the single most important fix (mustFix), and whether YOU personally would choose it.`, // FILL: adjust score scale in prompt to match JUDGE_SCHEMA (0-10)
-          { label: `judge:${c.name}:${j.key}`, phase: 'Tournament', schema: JUDGE_SCHEMA, effort: 'high' }
-        )
-      )).then(js => {
-        const jj = js.filter(Boolean)
-        const score = jj.length ? jj.reduce((s, x) => s + (x.score || 0), 0) / jj.length : 0
-        return { index: idx, name: c.name, generated, judges: jj, score }
-      })
-    }
-  )
-}))).filter(Boolean)
+const judged = (await pipeline(
+  shortlist,
+  (idx) => {
+    const c = candidates[idx]
+    return agent(
+      `${SHARED_SB}\n\nYou are developing ONE tournament candidate.\nCANDIDATE: ${c.name}\n\nProduce a complete, detailed output for this candidate. Put full content in the appropriate schema fields.`, // FILL: tailor prompt for your domain
+      { label: `gen:${c.name}`, phase: 'Tournament', schema: { type: 'object', properties: { candidates: { type: 'array', items: { type: 'object' } } }, required: ['candidates'] }, effort: 'high' } // FILL: replace inline schema with your domain's generation schema (e.g. CANDIDATE_SCHEMA)
+    )
+  },
+  (generated, idx) => {
+    const c = candidates[idx]
+    if (!generated) throw new Error('generation failed for candidate ' + idx)
+    return parallel(JUDGES.map(j => () =>
+      agent(
+        `${SHARED_SB}\n\nYou are judging a tournament candidate. YOUR ROLE: ${j.persona}.\n${j.rubric}\n\nCANDIDATE NAME: ${c.name}\nCANDIDATE OUTPUT:\n${renderConcept(generated)}\n\nScore it 0-10 through YOUR lens only. Be tough, specific, and do NOT inflate. Give a breakdown, a sharp critique, the single most important fix (mustFix), and whether YOU personally would choose it.`, // FILL: adjust score scale in prompt to match JUDGE_SCHEMA (0-10)
+        { label: `judge:${c.name}:${j.key}`, phase: 'Tournament', schema: JUDGE_SCHEMA, effort: 'high' }
+      )
+    )).then(js => {
+      const jj = js.filter(Boolean)
+      const score = jj.length ? jj.reduce((s, x) => s + (x.score || 0), 0) / jj.length : 0
+      return { index: idx, name: c.name, generated, judges: jj, score }
+    })
+  }
+)).filter(Boolean)
 
 const board = judged.sort((a, b) => b.score - a.score)
 const winner = board[0].index
