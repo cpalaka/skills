@@ -286,3 +286,249 @@ const renderConcept = (c) =>
 // renderIndexed: normalized verbatim from incremental-concept-tournament.js line 162
 const renderIndexed = (idxs) => idxs.map(i => `[${i}] ${renderConcept(candidates[i])}`).join('\n\n')
 ```
+
+---
+
+## Context Stage
+
+Normalized from `incremental-concept-tournament.js` lines 93–107 (local-file variant) and `moms-curry-tournament.js` lines 106–127 (web-search variant). Pick ONE slot variant; both produce `briefs` (`Record<string,string>`).
+
+### Variant A — Local-file distillation
+
+Each brief key calls `agent()` to read local research files and distill them. Slot values are from the incremental-concept golden; replace all `// FILL:` items for your domain.
+
+```js
+// Context stage — local-file distillation variant
+// Normalized from incremental-concept-tournament.js lines 93-107
+// FILL: replace briefSpec, parallel entries, and briefs key names for your domain
+const briefSpec = 'Return ONLY a dense, design-actionable brief of AT MOST 600 words: terse bullets, concrete numbers/examples preserved, no fluff or meta-commentary. Your final message IS the brief.' // FILL: adjust word-count and style instructions
+
+const DOMAIN = 'your domain here' // FILL: one-phrase description of what is being decided (used in prompts)
+const ROOT = '/path/to/research' // FILL: absolute path to the research corpus root
+
+const briefResults = await parallel([
+  () => agent(`Read ${ROOT}/research/topic-a.md. Extract everything relevant to ${DOMAIN}. ${briefSpec}`, { label: 'brief:topic-a', phase: 'Context' }), // FILL: replace file path, topic, and extraction goal
+  () => agent(`Read ${ROOT}/research/topic-b.md. Extract everything relevant to ${DOMAIN}. ${briefSpec}`, { label: 'brief:topic-b', phase: 'Context' }), // FILL: replace file path, topic, and extraction goal
+])
+
+const briefs = { // FILL: key names must match what downstream generate/filter stages reference
+  topicA: briefResults[0] || '',
+  topicB: briefResults[1] || '',
+}
+```
+
+### Variant B — Web-search research
+
+Each brief key calls `agent()` with web-search instructions to ground findings in live sources. Slot values are from the moms-curry golden; replace all `// FILL:` items for your domain.
+
+```js
+// Context stage — web-search research variant
+// Normalized from moms-curry-tournament.js lines 106-127
+// FILL: replace researchBriefs entries and briefs key names for your domain
+const DOMAIN = 'your domain here' // FILL: one-phrase description of what is being decided
+
+const researchBriefs = [
+  { key: 'subtopic-a', prompt: `You are an expert in ${DOMAIN}. Use WebSearch/WebFetch (first run ToolSearch with query "select:WebSearch,WebFetch" to load the schemas) to research subtopic A. Return concrete findings (with confidence levels) and flag your most load-bearing or dubious claims for adversarial verification.` }, // FILL: replace subtopic-a and prompt body
+  { key: 'subtopic-b', prompt: `You are an expert in ${DOMAIN}. Use WebSearch/WebFetch (first run ToolSearch with query "select:WebSearch,WebFetch" to load the schemas) to research subtopic B. Return concrete findings (with confidence levels) and flag your most load-bearing or dubious claims for adversarial verification.` }, // FILL: replace subtopic-b and prompt body
+]
+
+const researchResults = (await parallel(researchBriefs.map(b => () =>
+  agent(b.prompt, { label: `research:${b.key}`, phase: 'Context', effort: 'high' })
+))).filter(Boolean)
+
+const briefs = Object.fromEntries( // FILL: key names must match what downstream stages reference
+  researchBriefs.map((b, i) => [b.key, researchResults[i] ? String(researchResults[i]) : ''])
+)
+```
+
+---
+
+## Claim-Verify Stage (optional)
+
+Normalized from `moms-curry-tournament.js` lines 129–153. Run this only when the context stage uses web-search and returns `claimsToVerify` arrays. Consumes `researchResults` (from the web-search context variant). Produces `verifiedDigest` (`string`).
+
+```js
+// Claim-verify stage (optional — use with web-search context variant only)
+// Normalized from moms-curry-tournament.js lines 129-153
+// FILL: replace LENSES if your domain calls for different skeptic perspectives
+const VERIFY_LENSES = [
+  'peer-reviewed literature or authoritative primary sources (cite real findings)', // FILL: adjust for your domain's primary-evidence type
+  'a practitioner giving a real-world reality-check',
+  'a skeptical myth-buster actively hunting for overstatement, folk wisdom, or hidden nuance that makes the naive claim wrong',
+]
+
+let claims = []
+researchResults.forEach((r, ri) => (r && r.claimsToVerify || []).forEach((c, ci) =>
+  claims.push({ id: `R${ri}-${ci}`, claim: c.claim, whyDubious: c.whyDubious })
+))
+claims = claims.slice(0, 12) // FILL: raise/lower cap as budget allows
+
+const verified = (await parallel(claims.map(c => () =>
+  parallel(VERIFY_LENSES.map((lens, li) => () =>
+    agent(
+      `A research agent (working on: ${DOMAIN}) asserted this claim:\n"${c.claim}"\nWhy it was flagged as dubious: ${c.whyDubious}\n\nVERIFY IT THROUGH THIS LENS: ${lens}. Use WebSearch/WebFetch (load via ToolSearch "select:WebSearch,WebFetch") to ground your check in real sources where you can. Be ADVERSARIAL — actively try to refute the claim or surface the nuance that makes it misleading. If evidence is thin, default to skepticism. Then give your verdict (confirmed / refuted / partly / unknown), a corrected precise statement of what is actually true, and your single strongest piece of evidence.`,
+      { label: `verify:${c.id}:${li}`, phase: 'Verify', schema: VERDICT_SCHEMA, effort: 'medium' }
+    )
+  )).then(vs => {
+    const v = vs.filter(Boolean)
+    const count = k => v.filter(x => x.verdict === k).length
+    const consensus = count('refuted') >= 2 ? 'REFUTED' : count('confirmed') >= 2 ? 'CONFIRMED' : 'NUANCED'
+    return { id: c.id, claim: c.claim, consensus, verdicts: v }
+  })
+))).filter(Boolean)
+
+const verifiedDigest = verified.map(x => {
+  const corrected = x.verdicts.map(d => d.correctedStatement).filter(Boolean)
+  const ev = x.verdicts.map(d => d.keyEvidence).filter(Boolean).join(' | ')
+  return `[${x.consensus}] CLAIM: ${x.claim}\n   TRUTH: ${corrected.join(' / ').slice(0, 600)}\n   EVIDENCE: ${ev.slice(0, 500)}`
+}).join('\n\n')
+```
+
+---
+
+## Generate Stage
+
+Normalized from `incremental-concept-tournament.js` lines 109–159. Produces `candidates` (`Candidate[]`) and `seedIndices` (`number[]`). The golden called this array `concepts`; it is renamed to `candidates` here to match the binding contract. The `// FILL:` slots cover: domain context strings, LENSES array, per-lens prompt body, and seed prompts.
+
+```js
+// Generate stage
+// Normalized from incremental-concept-tournament.js lines 109-159
+// FILL: replace DOMAIN, genContext, LENSES, lens prompts, seedPrompts for your domain
+// DOMAIN is declared in the context stage; reference it here directly.
+
+const genContext = `${DOMAIN}
+
+` + Object.entries(briefs).map(([k, v]) => `${k.toUpperCase()} BRIEF:\n${v}`).join('\n\n') // FILL: adjust key labels if brief keys have non-obvious names
+
+const LENSES = [ // FILL: replace lens keys and prompts for your domain
+  { key: 'lens-a', prompt: 'Lens: DIMENSION A. [Describe the creative angle through which candidates should be generated through this lens.]' }, // FILL: replace
+  { key: 'lens-b', prompt: 'Lens: DIMENSION B. [Describe the creative angle for this lens.]' }, // FILL: replace
+]
+
+const genResults = await parallel(LENSES.map(l => () =>
+  agent(
+    `You are an expert generating candidates for a tournament deciding: ${DOMAIN}. ${l.prompt}\n\n${genContext}\n\nGenerate exactly 4 DISTINCT candidates through your lens. Each must satisfy all hard constraints and have one undeniably strong differentiator.`, // FILL: adjust count and constraint framing
+    { label: `gen:${l.key}`, phase: 'Generate', schema: CANDIDATE_SCHEMA }
+  )
+))
+
+// FILL: add seed prompts below — one entry per user-supplied seed idea; delete this block if no seeds
+const seedPrompts = [
+  `You are an expert. Develop this user-supplied seed idea into its STRONGEST single tournament-ready candidate for: ${DOMAIN}.\n\nSEED: [describe the seed idea here]\n\n${genContext}\n\nReturn exactly 1 candidate.`, // FILL: replace seed description
+]
+const seedDevs = await parallel(seedPrompts.map((prompt, si) => () =>
+  agent(prompt, { label: `gen:seed-${si}`, phase: 'Generate', schema: CANDIDATE_SCHEMA })
+))
+
+const candidates = []
+const seedIndices = []
+for (const r of genResults.filter(Boolean)) for (const c of (r.candidates || [])) candidates.push(c)
+for (const r of seedDevs.filter(Boolean)) for (const c of (r.candidates || [])) { seedIndices.push(candidates.length); candidates.push(c) }
+```
+
+---
+
+## Filter Stage
+
+Normalized from `incremental-concept-tournament.js` lines 164–217. Consumes `candidates`, `seedIndices`, `briefs`, `renderIndexed`. Produces `kept` (`number[]`), `totals` (`Map<number,number>`), `ranked` (`number[]` desc), and either `bracket` (`number[]` seeded, bracket mode) **or** `shortlist` (`number[]`, scoreboard mode). Seeds are force-kept in both modes.
+
+### Bracket mode (select a fixed-size bracket for head-to-head tournament)
+
+```js
+// Filter stage — bracket mode
+// Normalized from incremental-concept-tournament.js lines 164-217
+// FILL: replace AXES, DOMAIN, HARD, bracket size (default 8), and prompt bodies
+const DOMAIN = 'your domain here' // FILL: one-phrase description (already declared at assembly; here for standalone parse)
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const seedIndices = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const briefs = {} // STANDALONE PARSE ONLY — DELETE at assembly
+const renderIndexed = (idxs) => idxs.map(i => `[${i}] ${JSON.stringify(candidates[i])}`).join('\n\n') // STANDALONE PARSE ONLY — DELETE at assembly
+
+const HARD = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints here]` // FILL: replace with your domain's hard constraints
+
+const allIdx = candidates.map((_, i) => i)
+const dedup = await agent(
+  `You are the gatekeeper for a tournament deciding: ${DOMAIN}. Below are ${candidates.length} candidates, each with an index.\n\n${HARD}\n\nTASKS:\n1. KILL any candidate that violates a hard constraint.\n2. MERGE near-duplicates: when two candidates share the same core idea, keep only the better-articulated one.\n3. Indices ${JSON.stringify(seedIndices)} are the user's own seed ideas — they MUST be kept regardless (flag concerns in notes instead of killing).\n\nReturn the indices to keep.\n\n${renderIndexed(allIdx)}`,
+  { label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA }
+)
+
+let kept = (dedup && dedup.keep ? dedup.keep : allIdx).filter(i => i >= 0 && i < candidates.length)
+for (const s of seedIndices) if (!kept.includes(s)) kept.push(s)
+kept = [...new Set(kept)]
+
+const AXES = [ // FILL: replace axes for your domain; each axis has key, brief (context string), and instr (scoring instruction)
+  { key: 'axis-a', brief: briefs.topicA || '', instr: 'AXIS A: [describe what to score on this axis]' }, // FILL: replace
+  { key: 'axis-b', brief: briefs.topicB || '', instr: 'AXIS B: [describe what to score on this axis]' }, // FILL: replace
+]
+
+const screeningResults = await parallel(AXES.map(a => () =>
+  agent(
+    `You are a tournament screener scoring candidates on ONE axis: ${a.instr}\n\nCONTEXT: ${DOMAIN}\n\nREFERENCE BRIEF:\n${a.brief}\n\nScore EVERY candidate below 0-10 on your axis ONLY. Use the full range — be a harsh discriminator, no clustering at 7. One sentence of reasoning each.\n\n${renderIndexed(kept)}`,
+    { label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA }
+  )
+))
+
+const totals = new Map(kept.map(i => [i, 0]))
+for (const res of screeningResults.filter(Boolean)) for (const s of (res.scores || [])) {
+  if (totals.has(s.index)) totals.set(s.index, totals.get(s.index) + s.score)
+}
+const ranked = [...kept].sort((x, y) => totals.get(y) - totals.get(x))
+
+// bracket: seeds guaranteed + top-scoring others fill remaining slots
+const BRACKET_SIZE = 8 // FILL: adjust bracket size (must be a power of 2 for standard single-elimination)
+const bracket = []
+for (const s of seedIndices) bracket.push(s)
+for (const i of ranked) { if (bracket.length >= BRACKET_SIZE) break; if (!bracket.includes(i)) bracket.push(i) }
+bracket.sort((x, y) => totals.get(y) - totals.get(x))
+```
+
+### Scoreboard mode (rank all survivors for a scoring-panel tournament)
+
+```js
+// Filter stage — scoreboard mode
+// Normalized from incremental-concept-tournament.js lines 164-210 (dedup + screening identical to bracket mode)
+// FILL: same slots as bracket mode above; delete bracket block, add shortlist
+const DOMAIN = 'your domain here' // FILL: one-phrase description (already declared at assembly; here for standalone parse)
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const seedIndices = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const briefs = {} // STANDALONE PARSE ONLY — DELETE at assembly
+const renderIndexed = (idxs) => idxs.map(i => `[${i}] ${JSON.stringify(candidates[i])}`).join('\n\n') // STANDALONE PARSE ONLY — DELETE at assembly
+
+const HARD_SB = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints here]` // FILL: replace (renamed to HARD_SB to avoid collision in standalone parse)
+
+const allIdxSB = candidates.map((_, i) => i)
+const dedupSB = await agent(
+  `You are the gatekeeper for a tournament deciding: ${DOMAIN}. Below are ${candidates.length} candidates, each with an index.\n\n${HARD_SB}\n\nTASKS:\n1. KILL any candidate that violates a hard constraint.\n2. MERGE near-duplicates: keep only the better-articulated one.\n3. Indices ${JSON.stringify(seedIndices)} are user seeds — keep regardless.\n\nReturn the indices to keep.\n\n${renderIndexed(allIdxSB)}`,
+  { label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA }
+)
+
+let keptSB = (dedupSB && dedupSB.keep ? dedupSB.keep : allIdxSB).filter(i => i >= 0 && i < candidates.length)
+for (const s of seedIndices) if (!keptSB.includes(s)) keptSB.push(s)
+keptSB = [...new Set(keptSB)]
+
+const AXES_SB = [ // FILL: replace axes for your domain
+  { key: 'axis-a', brief: briefs.topicA || '', instr: 'AXIS A: [describe what to score on this axis]' },
+  { key: 'axis-b', brief: briefs.topicB || '', instr: 'AXIS B: [describe what to score on this axis]' },
+]
+
+const screeningResultsSB = await parallel(AXES_SB.map(a => () =>
+  agent(
+    `You are a tournament screener scoring candidates on ONE axis: ${a.instr}\n\nCONTEXT: ${DOMAIN}\n\nREFERENCE BRIEF:\n${a.brief}\n\nScore EVERY candidate below 0-10 on your axis ONLY. Use the full range — no clustering at 7. One sentence of reasoning each.\n\n${renderIndexed(keptSB)}`,
+    { label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA }
+  )
+))
+
+const totalsSB = new Map(keptSB.map(i => [i, 0]))
+for (const res of screeningResultsSB.filter(Boolean)) for (const s of (res.scores || [])) {
+  if (totalsSB.has(s.index)) totalsSB.set(s.index, totalsSB.get(s.index) + s.score)
+}
+const rankedSB = [...keptSB].sort((x, y) => totalsSB.get(y) - totalsSB.get(x))
+
+// Export scoreboard-mode bindings (alias to contract names for assembly)
+const kept = keptSB
+const totals = totalsSB
+const ranked = rankedSB
+
+// shortlist: seeds guaranteed + all ranked survivors (scoreboard tournament needs all)
+const shortlist = [...new Set([...seedIndices, ...ranked])]
+```
