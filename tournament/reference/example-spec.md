@@ -16,7 +16,7 @@ claimVerifyLensCount: 3
 researchBriefKeys: [heat-science, hyderabadi-technique, garam-blend, effort-mealprep]
 judgeKeys: [authenticity, heatscience, mealprep]
 axisKeys: [authenticity, heatscience, mealprep]
-candidateNames: [Lean & Fierce, Rich Punch-Through, Balanced All-Rounder, Control (Mom + Minimal)]
+candidateNames: [Lean & Fierce, "Rich, Punch-Through", Balanced All-Rounder, Control (Mom + Minimal)]
 ---
 
 # Mom's Curry Tournament
@@ -29,7 +29,7 @@ Improve a mother's simple nut-thickened Hyderabadi-style chicken curry into a pr
 
 MARINADE (1.5 lb boneless skinless chicken thighs, 1–2 hrs): oil, yogurt, salt, red chili powder, turmeric, garam masala (currently PRE-GROUND), ginger-garlic paste.
 
-TEMPERING / POPU (~1 min): bay leaf, cloves, star anise, cinnamon, green cardamom, whole cumin (jeera).
+TEMPERING / POPU (little oil, ~1 min): bay leaf, cloves, star anise, cinnamon, green cardamom, whole cumin (jeera).
 
 BASE: green chili sautéed ~1 min → onions + pinch salt cooked to transparent → ginger-garlic paste ~2–3 min till raw smell gone.
 
