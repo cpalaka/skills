@@ -53,7 +53,7 @@ export const meta = {
 
 ### buildCandidateSchema — generalized from conceptProps → CONCEPTS_SCHEMA
 
-The `fields` argument is a plain object mapping field name to `{ type, description }` (same shape as JSON Schema property definitions). The function returns a CONCEPTS_SCHEMA-equivalent wrapping those fields in an array of objects.
+The `fields` argument is a plain object mapping field name to `{ type, description }` (same shape as JSON Schema property definitions). The function returns a `CANDIDATE_SCHEMA`-equivalent (the golden uses `concepts` as the array key; this catalog normalizes it to `candidates` to match the binding contract) wrapping those fields in an array of objects.
 
 ```js
 // buildCandidateSchema: generalized from incremental-concept-tournament.js conceptProps (lines 27-47)
@@ -276,7 +276,7 @@ Generalized from `incremental-concept-tournament.js` lines 161–162. The golden
 ```js
 // renderConcept: generalized from incremental-concept-tournament.js line 161
 // Golden was hardcoded to 9 game-concept fields; this iterates any candidate's fields.
-const candidates = [] // FILL: replaced at runtime by the generate stage
+const candidates = [] // STANDALONE PARSE ONLY — DELETE this line at assembly; the generate stage declares candidates
 
 const renderConcept = (c) =>
   Object.entries(c)
