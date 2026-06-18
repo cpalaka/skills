@@ -1,6 +1,6 @@
 ---
 name: godot-architecture-review
-description: Convergent, re-runnable architecture review & refactor campaign for Godot projects — applies A Philosophy of Software Design (deep modules, depth-as-leverage, information hiding) without fighting Godot idioms, orchestrating the improve-codebase-architecture skill under Godot guardrails and leaving durable convergence artifacts (CONTEXT.md, docs/adr/, docs/architecture/system-map.md). Use when a Godot project needs an architecture review, a refactor or deepening campaign, or the user says "architecture review", "refactor process", "find shallow modules", "APoSD review", "set up the review loop".
+description: Convergent, re-runnable architecture review & refactor campaign for Godot projects — applies A Philosophy of Software Design (deep modules, depth-as-leverage, information hiding) without fighting Godot idioms, applying the codebase-design deep-module vocabulary under Godot guardrails and leaving durable convergence artifacts (CONTEXT.md, docs/adr/, docs/architecture/system-map.md). Use when a Godot project needs an architecture review, a refactor or deepening campaign, or the user says "architecture review", "refactor process", "find shallow modules", "APoSD review", "set up the review loop".
 ---
 
 # Godot Architecture Review (APoSD-aligned)
@@ -13,11 +13,12 @@ session** ([PHASES.md](PHASES.md) has copy-paste kickoff prompts).
 
 ## Layering — orchestrate, don't duplicate
 
-- **Survey engine**: the `improve-codebase-architecture` skill — vocabulary
-  (`improve-codebase-architecture/LANGUAGE.md`), deletion test, HTML-report format, grilling
-  discipline, `improve-codebase-architecture/DEEPENING.md` + `INTERFACE-DESIGN.md` at dive time.
-- **Artifact formats**: the `grill-with-docs` skill — `grill-with-docs/CONTEXT-FORMAT.md`,
-  `grill-with-docs/ADR-FORMAT.md`.
+- **Survey engine**: the `codebase-design` skill — vocabulary (its `SKILL.md` glossary), the
+  deletion test, and `codebase-design/DEEPENING.md` + `codebase-design/DESIGN-IT-TWICE.md` at dive
+  time. Grilling discipline: the `grilling` skill. HTML-report format: vendored here as
+  [HTML-REPORT.md](HTML-REPORT.md).
+- **Artifact formats**: the `domain-modeling` skill — `domain-modeling/CONTEXT-FORMAT.md`,
+  `domain-modeling/ADR-FORMAT.md`.
 - **Godot realization idiom** at dive time: the `godot-gdscript-patterns` skill; engine quirks per
   the project's gotchas catalog and the `godot-personal-gotchas` skill.
 
@@ -43,7 +44,7 @@ project's `docs/architecture/campaign.md` (the thin project-parameters file — 
 
 ## Vocabulary
 
-Speak `improve-codebase-architecture/LANGUAGE.md` throughout: **module** · **interface**
+Speak the `codebase-design` vocabulary throughout: **module** · **interface**
 (*everything a caller must know* — invariants, ordering, error modes, implicit facts like "must
 be a child of `Player`", not just the signature) · **depth-as-leverage** (reject depth-as-ratio —
 it rewards padding) · **seam** (say "seam", not "boundary") · **deletion test** (imagine deleting

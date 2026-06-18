@@ -26,7 +26,7 @@ Created at campaign start. Holds *only* what is project-specific (everything els
 
 ## CONTEXT.md — domain glossary
 
-Format: `grill-with-docs/CONTEXT-FORMAT.md` (opinionated; 1–2 sentence what-it-IS definitions;
+Format: `domain-modeling/CONTEXT-FORMAT.md` (opinionated; 1–2 sentence what-it-IS definitions;
 `_Avoid_:` synonym bans; project-specific terms only). Campaign additions that have proven out:
 
 - **Deep-reference pointer**: entries carry a `§N` tag into the project's deeper design doc(s)
@@ -38,7 +38,7 @@ Format: `grill-with-docs/CONTEXT-FORMAT.md` (opinionated; 1–2 sentence what-it
 
 ## ADRs — rejection memory
 
-Format + the 3-gate creation test: `grill-with-docs/ADR-FORMAT.md` (lazy; 1–3 sentences;
+Format + the 3-gate creation test: `domain-modeling/ADR-FORMAT.md` (lazy; 1–3 sentences;
 hard-to-reverse **and** surprising-without-context **and** real-trade-off). Campaign conventions on top:
 
 - **Rejections are recorded as accepted decisions-not-to-do-X** ("keep X as-is — no Y wrapper");
@@ -91,7 +91,7 @@ refs; explicit "dormant / deferred / by design" qualifiers so intentional gaps a
 
 ## runs/ — frozen history
 
-The survey engine (`improve-codebase-architecture`) generates its HTML report to `$TMPDIR` by
+The Phase-1 survey generates its HTML report (format: [HTML-REPORT.md](HTML-REPORT.md)) to `$TMPDIR` by
 design — nothing lands in the repo. This campaign **adds an archive step**: copy each report to
 `docs/architecture/runs/YYYY-MM-DD-<phase>-review.html`, frozen.
 

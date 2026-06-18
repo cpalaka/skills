@@ -20,19 +20,20 @@ ultracode. Invoke the godot-architecture-review skill and read docs/architecture
 then execute Phase 0 (domain language → CONTEXT.md). Fan out parallel readers over the
 subsystems listed in campaign.md plus docs/ and project memory; produce an opinionated, deduped
 glossary (term → what-it-IS + _Avoid_); write CONTEXT.md at repo root per
-grill-with-docs/CONTEXT-FORMAT.md (terse, points into <DEEP-DESIGN-DOC>, project-specific terms
+domain-modeling/CONTEXT-FORMAT.md (terse, points into <DEEP-DESIGN-DOC>, project-specific terms
 only). Then show me the glossary for review before finalizing.
 ```
 
 ## Phase 1 — Whole-game survey → map + friction report · WORKFLOW · exploration
 
-Invoke `improve-codebase-architecture` as the engine (vocabulary, deletion test, HTML-report
-format, grilling discipline), but fan out per-subsystem analysts that apply the APoSD lens
+Use the `codebase-design` skill for vocabulary + the deletion test, the `grilling` skill for
+grilling discipline, and this skill's [HTML-REPORT.md](HTML-REPORT.md) for the friction-report
+format — then fan out per-subsystem analysts that apply the APoSD lens
 **under the Godot guardrails** and the **pre-labeled populations** from `campaign.md`.
 **Adversarially verify** every "shallow module" claim (a skeptic that tries to refute it) before
 it survives. Synthesize into: (a) the populations table, (b) the whole-game
 `docs/architecture/system-map.md` (skeleton in ARTIFACTS.md), (c) the HTML friction report
-(generated to `$TMPDIR` per the engine, then **archived frozen** to `docs/architecture/runs/`).
+(generated to `$TMPDIR` per [HTML-REPORT.md](HTML-REPORT.md), then **archived frozen** to `docs/architecture/runs/`).
 Inspect Population-D (throwaway) modules for smells they surface **against A/B/C** — node-name
 coupling, interface-widening of a deepen-target — and log those in the friction report even
 though D itself stays out of scope. End by ranking candidate deep-dives, recommending one
@@ -43,8 +44,8 @@ dives). Read `CONTEXT.md` and any `docs/adr/` first; suppress settled items.
 
 ```
 ultracode. Invoke the godot-architecture-review skill and read docs/architecture/campaign.md and
-CONTEXT.md, then execute Phase 1 (whole-game survey). Use the improve-codebase-architecture
-skill as the engine, but apply the Godot guardrails and the pre-labeled populations from
+CONTEXT.md, then execute Phase 1 (whole-game survey). Use the codebase-design skill for vocabulary
+and this skill's HTML-REPORT.md for the report format, but apply the Godot guardrails and the pre-labeled populations from
 campaign.md, scrutinize scene-node-name coupling, and adversarially verify every shallow-module
 claim. Produce: the populations table, a regenerated docs/architecture/system-map.md, and an
 HTML friction report (generated to $TMPDIR, then archived frozen to docs/architecture/runs/).
@@ -57,7 +58,7 @@ ranked, recommending one, and offer to record the run's load-bearing refutations
 1. **Orient on `docs/adr/` first** — ADRs are scope-fences; surface any conflict for an explicit
    amend/supersede decision *before* the grill locks the thread. Sweep for candidate-adjacent
    ADRs, not just exact-name matches.
-2. **Grill the design** (`grill-me` / the engine's Step-3 loop): walk the seam, the shape of the
+2. **Grill the design** (the `grilling` skill): walk the seam, the shape of the
    deepened module, what sits behind it, what tests survive.
 3. **Run the realization through `godot-gdscript-patterns`** so the idiom is right (signal vs
    setter vs `.tres` vs `NodePath`).
@@ -75,7 +76,7 @@ ranked, recommending one, and offer to record the run's load-bearing refutations
 ```
 Invoke the godot-architecture-review skill and read docs/architecture/campaign.md, CONTEXT.md,
 and docs/adr/ (ADRs are scope-fences — surface any conflict for an amend/supersede decision
-before locking it). Deep-dive on <CANDIDATE>. Use grill-me to walk the seam and the
+before locking it). Deep-dive on <CANDIDATE>. Use the grilling skill to walk the seam and the
 deepened-module shape; run the Godot realization through godot-gdscript-patterns; implement
 solo + TDD, surgical only. Update CONTEXT.md for any new term and offer an ADR for any
 load-bearing rejection. Dispatch the adversarial cross-module review before committing. Verify

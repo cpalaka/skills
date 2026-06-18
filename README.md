@@ -58,7 +58,7 @@ A manually-invoked meta-skill that checks every installed Claude skill for upstr
 
 ### godot-architecture-review
 
-A convergent, re-runnable architecture review & refactor campaign for Godot projects — applies *A Philosophy of Software Design* (deep modules, depth-as-leverage, information hiding) without fighting Godot idioms, orchestrating `improve-codebase-architecture` under Godot guardrails and leaving durable convergence artifacts (`CONTEXT.md`, `docs/adr/`, `docs/architecture/system-map.md`).
+A convergent, re-runnable architecture review & refactor campaign for Godot projects — applies *A Philosophy of Software Design* (deep modules, depth-as-leverage, information hiding) without fighting Godot idioms, applying the `codebase-design` deep-module vocabulary under Godot guardrails and leaving durable convergence artifacts (`CONTEXT.md`, `docs/adr/`, `docs/architecture/system-map.md`).
 
 **When to use:** A Godot project needs an architecture review, a refactor or deepening campaign, or the user says "architecture review" / "refactor process" / "find shallow modules" / "APoSD review".
 
@@ -107,21 +107,22 @@ Skills I have installed locally and use as part of my workflow. Grouped by upstr
 
 ### From [mattpocock/skills](https://github.com/mattpocock/skills)
 
-- `caveman` — Ultra-compressed communication mode. Cuts token usage ~75% by dropping filler, articles, and pleasantries while keeping full technical accuracy. Use when user says "caveman mode", "talk like caveman", "use caveman", "less tokens", "be brief", or invokes /caveman.
-- `diagnose` — Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
-- `grill-me` — Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions "grill me".
-- `grill-with-docs` — Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+- `codebase-design` — Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.
+- `diagnosing-bugs` — Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
+- `domain-modeling` — Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an architectural decision, or when another skill needs to maintain the domain model.
+- `grill-me` — A relentless interview to sharpen a plan or design.
+- `grill-with-docs` — A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.
+- `grilling` — Interview the user relentlessly about a plan or design. Use when the user wants to stress-test a plan before building, or uses any 'grill' trigger phrases.
 - `handoff` — Compact the current conversation into a handoff document for another agent to pick up.
-- `improve-codebase-architecture` — Find deepening opportunities in a codebase, informed by the domain language in CONTEXT.md and the decisions in docs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.
+- `improve-codebase-architecture` — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 - `prototype` — Build a throwaway prototype to flesh out a design before committing to it. Routes between two branches — a runnable terminal app for state/business-logic questions, or several radically different UI variations toggleable from one route.
-- `setup-matt-pocock-skills` — Sets up an `## Agent skills` block in AGENTS.md/CLAUDE.md and `docs/agents/` so the engineering skills know this repo's issue tracker (GitHub or local markdown), triage label vocabulary, and domain doc layout.
-- `tdd` — Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development.
+- `resolving-merge-conflicts` — Use when you need to resolve an in-progress git merge/rebase conflict.
+- `setup-matt-pocock-skills` — Configure this repo for the engineering skills — set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.
+- `tdd` — Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions "red-green-refactor", or wants integration tests.
 - `teach` — Teach the user a new skill or concept, within this workspace.
 - `to-issues` — Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
 - `to-prd` — Turn the current conversation context into a PRD and publish it to the project issue tracker. Use when user wants to create a PRD from the current context.
-- `triage` — Triage issues through a state machine driven by triage roles. Use when user wants to create an issue, triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow.
-- `write-a-skill` — Create new agent skills with proper structure, progressive disclosure, and bundled resources. Use when user wants to create, write, or build a new skill.
-- `zoom-out` — Tell the agent to zoom out and give broader context or a higher-level perspective. Use when you're unfamiliar with a section of code or need to understand how it fits into the bigger picture.
+- `triage` — Move issues through a state machine of triage roles — categorise, reproduce, grill if needed, and write agent-ready briefs.
 
 ### From [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)
 
