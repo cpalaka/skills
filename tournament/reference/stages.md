@@ -544,3 +544,135 @@ const ranked = rankedSB
 // shortlist: seeds guaranteed + all ranked survivors (scoreboard tournament needs all)
 const shortlist = [...new Set([...seedIndices, ...ranked])]
 ```
+
+---
+
+## Tournament Stage
+
+### Bracket mode (single-elimination, 8-slot default)
+
+```js
+// Tournament stage — bracket mode
+// Normalized from incremental-concept-tournament.js lines 219-270
+// Consumes: candidates (Candidate[]), bracket (number[], seeded desc), renderConcept, MATCH_SCHEMA
+// Produces: champion (number/index), runnerUp (number/index), matchLog (object[])
+// FILL: replace JUDGE_LENSES with judge lenses appropriate for your domain; each lens has key/brief/instr
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const bracket = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const renderConcept = (c) => JSON.stringify(c) // STANDALONE PARSE ONLY — DELETE at assembly
+const MATCH_SCHEMA = { type: 'object', properties: { winner: { type: 'string', enum: ['A','B'] }, reason: { type: 'string' } }, required: ['winner','reason'] } // STANDALONE PARSE ONLY — DELETE at assembly
+const agent = async () => null // STANDALONE PARSE ONLY — DELETE at assembly
+const parallel = async (fns) => Promise.all(fns.map(f => f())) // STANDALONE PARSE ONLY — DELETE at assembly
+const log = () => {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const DOMAIN = 'your domain here' // FILL: one-phrase description (already declared at assembly; here for standalone parse)
+const HARD = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints here]` // FILL: replace with your hard constraints (already declared at assembly; here for standalone parse)
+const briefs = {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const JUDGE_LENSES = [ // FILL: replace with lenses for your domain
+  { key: 'lens-a', brief: () => briefs.topicA || '', instr: 'LENS A: [describe what this judge evaluates above all]' },
+  { key: 'lens-b', brief: () => briefs.topicB || '', instr: 'LENS B: [describe what this judge evaluates above all]' },
+  { key: 'lens-c', brief: () => briefs.topicC || '', instr: 'LENS C: [describe what this judge evaluates above all]' },
+]
+
+const matchLog = []
+const runMatch = async (ai, bi, round) => {
+  const a = candidates[ai], b = candidates[bi]
+  const votes = await parallel(JUDGE_LENSES.map(j => () =>
+    agent(
+      `You are one of three judges in a single-elimination tournament deciding: ${DOMAIN}.\n\n${HARD}\n\n${j.instr} The other must-haves are hard pass/fail criteria — a candidate that fails one loses regardless of your lens.\n\nREFERENCE BRIEF:\n${j.brief()}\n\nCANDIDATE A:\n${renderConcept(a)}\n\nCANDIDATE B:\n${renderConcept(b)}\n\nBe adversarial: hunt for the fatal flaw in each before weighing strengths. Pick the better CHOICE, not the more impressive idea on paper.`,
+      { label: `judge:${round}:${j.key}`, phase: 'Tournament', schema: MATCH_SCHEMA }
+    )
+  ))
+  const valid = votes.filter(Boolean)
+  const aVotes = valid.filter(v => v.winner === 'A').length
+  const winner = aVotes * 2 >= valid.length ? ai : bi // tie or majority-A → higher seed (A)
+  matchLog.push({
+    round,
+    a: a.name,
+    b: b.name,
+    winner: candidates[winner].name,
+    votes: JUDGE_LENSES.map((j, k) => votes[k]
+      ? `${j.key}: ${votes[k].winner === 'A' ? a.name : b.name} — ${votes[k].reason}`
+      : `${j.key}: (no vote)`)
+  })
+  log(`${round}: ${a.name} vs ${b.name} → ${candidates[winner].name} (${aVotes}/${valid.length} for A)`)
+  return winner
+}
+
+// pairings avoid top seeds meeting early: 1v8, 4v5, 3v6, 2v7 (bracket is sorted desc by score = seed 1 at index 0)
+log('Quarterfinals...')
+const [qf1, qf2, qf3, qf4] = await parallel([
+  () => runMatch(bracket[0], bracket[7], 'QF1'),
+  () => runMatch(bracket[3], bracket[4], 'QF2'),
+  () => runMatch(bracket[2], bracket[5], 'QF3'),
+  () => runMatch(bracket[1], bracket[6], 'QF4'),
+])
+log('Semifinals...')
+const [sf1, sf2] = await parallel([
+  () => runMatch(qf1, qf2, 'SF1'),
+  () => runMatch(qf3, qf4, 'SF2'),
+])
+log('Final...')
+const champion = await runMatch(sf1, sf2, 'FINAL')
+const runnerUp = champion === sf1 ? sf2 : sf1
+log(`CHAMPION: ${candidates[champion].name}`)
+```
+
+---
+
+### Scoreboard mode (generate → judge panel → average score → ranked board)
+
+```js
+// Tournament stage — scoreboard mode
+// Normalized from moms-curry-tournament.js lines 155-191
+// Consumes: candidates (Candidate[]), shortlist (number[], indices), renderConcept, JUDGE_SCHEMA
+// Produces: board ({index,score,...}[], sorted desc), winner (number/index = board[0].index)
+// FILL: replace JUDGES with judge personas/rubrics for your domain; adjust score scale comment
+const candidates = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const shortlist = [] // STANDALONE PARSE ONLY — DELETE at assembly
+const renderConcept = (c) => JSON.stringify(c) // STANDALONE PARSE ONLY — DELETE at assembly
+const JUDGE_SCHEMA = { type: 'object', properties: { persona: { type: 'string' }, score: { type: 'number' }, breakdown: { type: 'string' }, critique: { type: 'string' }, mustFix: { type: 'string' }, wouldChoose: { type: 'boolean' } }, required: ['persona','score','critique','mustFix','wouldChoose'] } // STANDALONE PARSE ONLY — DELETE at assembly
+const CANDIDATE_SCHEMA = { type: 'object', properties: { candidates: { type: 'array', items: { type: 'object' } } }, required: ['candidates'] } // STANDALONE PARSE ONLY — DELETE at assembly
+const agent = async () => null // STANDALONE PARSE ONLY — DELETE at assembly
+const parallel = async (fns) => Promise.all(fns.map(f => f())) // STANDALONE PARSE ONLY — DELETE at assembly
+const pipeline = async (arr, ...fns) => { let out = Array.isArray(arr) ? arr : [arr]; for (const fn of fns) out = await Promise.all(out.map((x, i) => fn(x, i))); return Array.isArray(arr) ? out : out[0] } // STANDALONE PARSE ONLY — DELETE at assembly
+const log = () => {} // STANDALONE PARSE ONLY — DELETE at assembly
+
+const DOMAIN_SB = 'your domain here' // FILL: one-phrase description (already declared at assembly as DOMAIN; rename at assembly)
+const SHARED_SB = `[shared background context for ${DOMAIN_SB}]` // FILL: compose from briefs/verifiedDigest/researchDigest at assembly
+
+const JUDGES = [ // FILL: replace with judge personas + rubrics for your domain
+  { key: 'judge-a', persona: '[Judge A role]', rubric: 'AXIS A: [what this judge scores on, 0–10]' }, // FILL: adjust scale (curry golden uses 0-50; normalized to 0-10 per JUDGE_SCHEMA)
+  { key: 'judge-b', persona: '[Judge B role]', rubric: 'AXIS B: [what this judge scores on, 0–10]' },
+  { key: 'judge-c', persona: '[Judge C role]', rubric: 'AXIS C: [what this judge scores on, 0–10]' },
+]
+
+const judged = (await Promise.all(shortlist.map(idx => {
+  const c = candidates[idx]
+  return pipeline(
+    c,
+    (ci) => agent(
+      `${SHARED_SB}\n\nYou are developing ONE tournament candidate.\nCANDIDATE: ${ci.name}\n\nProduce a complete, detailed output for this candidate. Put full content in the appropriate schema fields.`, // FILL: tailor prompt for your domain
+      { label: `gen:${ci.name}`, phase: 'Tournament', schema: CANDIDATE_SCHEMA, effort: 'high' }
+    ),
+    (generated) => {
+      if (!generated) throw new Error('generation failed')
+      return parallel(JUDGES.map(j => () =>
+        agent(
+          `${SHARED_SB}\n\nYou are judging a tournament candidate. YOUR ROLE: ${j.persona}.\n${j.rubric}\n\nCANDIDATE NAME: ${c.name}\nCANDIDATE OUTPUT:\n${renderConcept(generated)}\n\nScore it 0-10 through YOUR lens only. Be tough, specific, and do NOT inflate. Give a breakdown, a sharp critique, the single most important fix (mustFix), and whether YOU personally would choose it.`, // FILL: adjust score scale in prompt to match JUDGE_SCHEMA (0-10)
+          { label: `judge:${c.name}:${j.key}`, phase: 'Tournament', schema: JUDGE_SCHEMA, effort: 'high' }
+        )
+      )).then(js => {
+        const jj = js.filter(Boolean)
+        const score = jj.length ? jj.reduce((s, x) => s + (x.score || 0), 0) / jj.length : 0
+        return { index: idx, name: c.name, generated, judges: jj, score }
+      })
+    }
+  )
+}))).filter(Boolean)
+
+const board = judged.sort((a, b) => b.score - a.score)
+const winner = board[0].index
+log(`Leaderboard: ${board.map(b => `${b.name} ${b.score.toFixed(1)}`).join(' | ')}. Winner: ${board[0].name}.`)
+```
