@@ -8,7 +8,7 @@ Every stage snippet reads/writes these exact bindings, so composed stages wire t
 |---|---|---|
 | domain block | `DOMAIN` | `string` |
 | context stage | `briefs` | `Record<string,string>` |
-| claim-verify stage | `verifiedDigest` | `string` |
+| claim-verify stage | `verifiedDigest` | `string` (assembler threads this into the SHARED_* prompt strings by hand — not auto-referenced by downstream snippet bodies) |
 | generate stage | `candidates` | `Candidate[]` |
 | generate stage | `seedIndices` | `number[]` |
 | render helpers | `renderConcept(c)`, `renderIndexed(idxs)` | fns → `string` |
@@ -291,7 +291,7 @@ const renderIndexed = (idxs) => idxs.map(i => `[${i}] ${renderConcept(candidates
 
 ## Context Stage
 
-Normalized from `incremental-concept-tournament.js` lines 93–107 (local-file variant) and `moms-curry-tournament.js` lines 106–127 (web-search variant). Pick ONE slot variant; both produce `briefs` (`Record<string,string>`).
+Normalized from `incremental-concept-tournament.js` lines 93–107 (local-file variant) and `moms-curry-tournament.js` lines 106–127 (web-search variant). Pick ONE slot variant; both produce `briefs` (`Record<string,string>`). Brief keys (topicA, topicB, …) are illustrative — fill the lens/skeptic `briefs.<key>` accessors to match the spec's actual researchBriefKeys; the `|| ''` fallbacks keep an unmatched key harmless.
 
 ### Variant A — Local-file distillation
 
