@@ -14,3 +14,5 @@ A test pinning "this base is abstract / not instantiable" via `not script.can_in
 
 **Confirmed by**
 2026-06-04 — `circle-combat-prototype`, architecture deep-dive #3 (typed locomotion `drive(p)` seam), `tests/test_locomotion_seam.gd`'s `@abstract` pin. The `can_instantiate()` assertion failed against the genuinely-abstract base (`@abstract class_name LocomotionState`, where `can_instantiate() == true`, `is_abstract() == true`); the concrete leaf `grounded.gd` → `is_abstract() == false`. Switched to `is_abstract()` and it went green. First use of `@abstract` in this codebase, Godot 4.6.2. See memory `gotcha-script-abstract-can-instantiate.md`.
+
+2026-06-18 — re-confirmed on **Godot 4.7** (headless probe, `4.7.stable.official`): an `@abstract class_name` script → `can_instantiate() == true`, `is_abstract() == true`; a concrete subclass → `is_abstract() == false`. Identical to 4.6.2 — `is_abstract()` remains the correct signal.

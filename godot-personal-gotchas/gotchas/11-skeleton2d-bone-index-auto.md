@@ -16,3 +16,5 @@ When reviewing AI-generated or older-docs walkthroughs that describe `bone_index
 
 **Confirmed by**
 2026-05-27 — `2d-movement-prototype` Task 15 Step 1. Instructions told user "set bone index to <Head>, set bone2d_node to ../Head"; user observed `bone_index` auto-set when picking the `Head` Bone2D via the `bone2d_node` dropdown. Verified in saved `scenes/player/player_rig.tscn`: both fields present, index matches the Bone2D's array position.
+
+2026-06-18 — re-confirmed on **Godot 4.7** (live): picking a Bone2D via the `bone2d_node` dropdown still auto-populates `bone_index`; the integer field remains editable-but-computed; both serialize to the `.tscn` with a matching index. Unchanged from 4.6.2.

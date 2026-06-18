@@ -16,3 +16,5 @@ Any task that says "move/reorganize files": plan a USER dock-drag step plus a po
 
 **Confirmed by**
 2026-06-04 — `circle-combat-prototype` scripts/ reorg into system-map-mirrored subfolders (merge `7e857ae`, ADR-0019). The dock-drag rewrote all 14 uid-keyed `ext_resource` paths (main.tscn + library.tres, uids byte-identical); 26 bare `preload()` strings across 2 scripts + 10 test files needed hand-fixing; editor re-serialization dropped library.tres's optional `load_steps` hint. See memory `scripts-reorg-layout.md`.
+
+2026-06-18 — re-confirmed on **Godot 4.7** (live): the actionable trap holds — a FileSystem-dock drag leaves bare `preload("res://…")` strings **unrewritten** (they break; `grep` + hand-fix), and the `.uid` sidecar moves with the file. The 4.7 move confirmation is a plain "Move 1 selected item to …" dialog (Cancel/OK) — no separate "update dependencies" prompt. (The uid-keyed `ext_resource` auto-rewrite half wasn't directly re-opened this pass, but the move proceeded normally and the uid carried.)

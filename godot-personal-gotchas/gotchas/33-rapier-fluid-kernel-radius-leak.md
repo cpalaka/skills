@@ -19,3 +19,5 @@ Before lowering `fluid_particle_radius_2d` or adding a tall faucet drop, compute
 
 **Confirmed by**
 2026-06-10 — `juice-tests` fluid_faucet_test session, godot-rapier2d v0.8.32 at particle radius 10, Godot 4.6.2.
+
+2026-06-18 — Godot 4.7 note (from the 4.7 audit): godot-rapier2d **0.8.32** (`compatibility_minimum = 4.6`) loads on **Godot 4.7 without recompile**, so this SPH/fluid leak behavior is expected to apply unchanged on 4.7 (not re-tested live). The only 4.7 ABI caveat is orthogonal to the fluid leak: `PhysicsServer2DExtension._body_set_shape_as_one_way_collision()` gained a required `direction` param — if Rapier reimplements that virtual it would need a recompile for one-way-collision behavior, separate from this gotcha.

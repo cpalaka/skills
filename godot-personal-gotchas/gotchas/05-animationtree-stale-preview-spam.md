@@ -20,3 +20,5 @@ After a session of incremental AnimationTree dock work, if the Output panel is n
 
 **Confirmed by**
 Hit during the `3d-prototype-1` Step 5 AnimationTree build on 2026-05-26, after 10 incremental tasks on `scenes/player.tscn`. Output panel spamming both error types continuously. Animation track inspection via `mcp__godot-mcp__godot_animation get_details` confirmed clean Skeleton3D `position_3d`/`rotation_3d` tracks across all 12 clips — no value/bool/float tracks. Closing+reopening the player scene tab silenced the errors entirely; `git status` showed `.tscn` clean. Related (but distinct repro) Godot Forum thread: https://forum.godotengine.org/t/type-mismatch-between-initial-and-final-value/123942
+
+2026-06-18 — NOT reproduced on **Godot 4.7** in a synthetic incremental build (a StateMachine plus several added sub-nodes, no imported `.glb`-backed Skeleton3D clips). Left as a 4.6.x observation: this was always a finicky stale preview-cache artifact, and the original repro used imported `.glb` clips that this quick check didn't include — so it's suggestive, not a confirmed fix. If the two errors recur on 4.7, the close+reopen fix still applies.

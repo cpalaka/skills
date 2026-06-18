@@ -10,11 +10,11 @@ Each entry: **symptom → cause → fix**. Optional: how to detect proactively.
 
 **Symptom:** Calling `DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)` or `WINDOWED` from a running game produces no visible change — no error, no log entry, just nothing happens.
 
-**Cause:** Godot 4.6's editor embeds the running game inside the editor's "Game" tab by default. The embedded child viewport is not a real OS window, so window-mode operations no-op silently.
+**Cause:** Godot 4.6's editor embeds the running game inside the editor's "Game" tab by default. The embedded child viewport is not a real OS window, so window-mode operations no-op silently. *(Godot 4.7 reworked the embed control — see Fix; the no-op only applies when the game is actually embedded.)*
 
 **Fix:**
-- One-shot: click "Make Floating" on the Game tab during play to detach it into a real OS window.
-- Persistent: Editor Settings → Run → Embed Game On Next Play → uncheck.
+- One-shot: use the running-game view's **top-right** controls to **make floating** (Godot 4.7; "Make Floating" on the Game tab in 4.6) and detach it into a real OS window.
+- Persistent (Godot 4.7): Editor Settings → search "embed game" → set **`Game Embed Mode`** to **`Disabled`** (an enum, default `User Per-Project Configuration`). *(Godot 4.6.x: the `Run → Embed Game On Next Play` checkbox — uncheck it.)*
 
 **Detect proactively:** If a window-mode toggle binding "doesn't work" in the editor but the bound action fires correctly (verify via `print` in the input handler), check whether the game is embedded.
 
@@ -83,7 +83,7 @@ turn_rate_deg = null
 
 Current session works fine because the Inspector still holds live values. But on a fresh checkout / fresh editor session / fresh F5 by a different developer, the player's `max_speed` and `turn_rate_deg` load as `0.0`, freezing it.
 
-**Cause:** When the Inspector "clears" an override on an exported property (right-click → Reset, or manual deletion of the override entry), Godot may write back `property = null` instead of removing the line. The apparent intent is "fall back to script default," but the on-disk representation is a destructive `null` override. On scene load, Godot applies the override and silently coerces `null` to `0.0` for typed numeric exports — overriding the script default.
+**Cause:** When the Inspector "clears" an override on an exported property (right-click → Reset, or manual deletion of the override entry), Godot may write back `property = null` instead of removing the line. The apparent intent is "fall back to script default," but the on-disk representation is a destructive `null` override. On scene load, Godot applies the override and silently coerces `null` to `0.0` for typed numeric exports — overriding the script default. **Godot 4.7 (re-verified 2026-06-18, headless): the `null` is instead ignored on load — the typed export keeps its script default (tested root-node + instanced-override, `= null` confirmed still on disk; not coerced to 0.0). On 4.7 the danger is a silently-dropped override reverting to default, not a zero-out; the `grep ' = null'` detection still applies.**
 
 **Fix:** Hand-edit the `.tscn` to remove the `= null` lines entirely. The script's default then applies on load. (Alternative: set the property to its intended value rather than leaving it null.)
 
@@ -107,7 +107,7 @@ Hits are suspicious — investigate whether they're stale clear-overrides.
 Following stale instructions produces no error — the user just can't find the control, then improvises (or gets stuck).
 
 **Cause:** The AnimationTree dock UI was reworked in Godot 4.6.x. Specific 4.6.2 affordances:
-- **Enter a sub-editor**: each container node (`StateMachine`, `SubStateMachine`, `BlendTree`, `BlendSpace2D`, `BlendSpace1D`) has an **Open Editor** button inside its node header. Click that.
+- **Enter a sub-editor**: each container node (`StateMachine`, `SubStateMachine`, `BlendTree`, `BlendSpace2D`, `BlendSpace1D`) has an **Open Editor** button inside its node header. Click that. *(Godot 4.7: it's a small **pen / edit icon** on the node — same affordance, re-iconned. Re-confirmed 2026-06-18; the rest of the idioms below hold, and there is no node-specific right-click menu — right-click is the global add-node menu.)*
 - **Rename a node**: the node's name is an editable inline field — click into the field and type. No right-click menu, no F2.
 - **Set Start state of a StateMachine**: there is no "Set as Start" affordance. Instead, use the **Connect Nodes** tool (default cursor) and drag from the green `Start` node to the desired state. Godot serializes this as a transition `["Start", "<TargetState>", SubResource(...)]` with default `advance_mode = 2` (Enabled) and no condition — fires unconditionally on entry, functionally equivalent to "this is the Start state."
 
@@ -128,7 +128,7 @@ The errors fire even when `AnimationTree.active = false`. They fire even when th
 
 **Cause:** During a session where you incrementally build an AnimationTree topology — adding `StateMachine`, `SubStateMachine`, `BlendSpace2D`, `OneShot`, etc., one at a time, with saves in between — the editor's AnimationTree dock holds a preview/evaluation cache that can fall out of sync with the actual sub-resource tree. The dock's continuous preview tries to evaluate the stale cache against the newer tree, hitting type mismatches and missing sub-state playbacks.
 
-**Fix:** Close the scene tab (`Cmd+W` or right-click the tab → Close) and reopen it from the FileSystem dock. Forces the editor to rebuild its preview cache from the on-disk `.tscn`. Errors stop immediately. No `.tscn` change required — `git status` confirms the file is untouched.
+**Fix:** Close the scene tab (`Cmd+W` or right-click the tab → Close) and reopen it from the FileSystem dock. Forces the editor to rebuild its preview cache from the on-disk `.tscn`. Errors stop immediately. No `.tscn` change required — `git status` confirms the file is untouched. *(Godot 4.7: not reproduced in a synthetic incremental build on 2026-06-18 — possibly fixed, or needs the specific imported-`.glb`-clip stale-cache trigger; if it recurs, this fix still applies.)*
 
 **Detect proactively:** After a session of incremental AnimationTree dock work, if the Output panel is noisy, try closing+reopening the affected scene tab *before* hunting for a real type mismatch in the animation clips. (Real type mismatches in imported `.glb` clips do exist — see related forum threads — but a fresh first-import with clean Skeleton3D `position_3d`/`rotation_3d` tracks is unlikely to produce them.)
 
@@ -257,7 +257,7 @@ The damping bound is tighter — it's violated *before* the frequency bound. At 
 
 **Symptom:** Walkthroughs for `SkeletonModification2DLookAt` / `SkeletonModification2DTwoBoneIK` say "set `bone_index` to N, then set `bone2d_node` to the Bone2D path" — implying two independent steps. In Godot 4.6.2's Inspector, `bone_index` **auto-populates the moment you pick the Bone2D from the `bone2d_node` dropdown**. No manual integer entry needed. The field looks editable but is computed.
 
-**Cause:** The Skeleton2D modification UI in 4.6.x resolves the picked Bone2D's index in the Skeleton2D's bone array and writes it to `bone_index`. The integer ends up in the serialized `.tscn` but is populated by the UI, not user-entered.
+**Cause:** The Skeleton2D modification UI in 4.6.x resolves the picked Bone2D's index in the Skeleton2D's bone array and writes it to `bone_index`. The integer ends up in the serialized `.tscn` but is populated by the UI, not user-entered. *(Re-confirmed on Godot 4.7, 2026-06-18: unchanged — auto-fill works, the field stays editable-but-computed, both serialize.)*
 
 **Fix:**
 - Walkthroughs and docs should say: "Set `bone2d_node` to the Bone2D path. `bone_index` will auto-populate."
@@ -519,7 +519,7 @@ var leaf := load("res://scripts/concrete_state.gd")          # concrete
 assert_false(leaf.is_abstract())         # ✓ false for concrete subclasses
 ```
 
-Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == true`, `is_abstract() == true`; a concrete subclass → `is_abstract() == false`.
+Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == true`, `is_abstract() == true`; a concrete subclass → `is_abstract() == false`. Re-confirmed on **Godot 4.7** (2026-06-18, headless probe): identical — `@abstract` script → `can_instantiate() == true` / `is_abstract() == true`; concrete subclass → `is_abstract() == false`.
 
 **Detect proactively:** Grep tests for abstractness pins routed through the wrong method: `grep -nE 'can_instantiate\(\)' tests/`. Any assertion that treats `can_instantiate()` as a proxy for "is abstract / not instantiable" is inverted — switch it to `is_abstract()`.
 
@@ -567,6 +567,8 @@ Verified empirically (Godot 4.6.2): the abstract base → `can_instantiate() == 
 - The drag auto-rewrites all uid-keyed `ext_resource` `path=` entries across `.tscn` + `.tres` (uids stay byte-identical), carries the `.uid` sidecars, and re-points the `class_name` cache via the editor's own scan (no brand-new-dir reimport trap — the editor creates the dirs itself; see the `class_name` cache entry above).
 - It does **NOT** rewrite bare `preload("res://…")` string paths — afterwards run `grep -rn 'preload(' scripts/ tests/` and hand-fix any stale paths.
 - Benign side effect: the editor may re-serialize a touched `.tres` and drop optional `load_steps` hints — not corruption.
+
+*(Re-confirmed on Godot 4.7, 2026-06-18: bare `preload()` is still left unrewritten and the `.uid` moves with the file; the 4.7 move prompt is a plain "Move N selected item to …" with Cancel/OK.)*
 
 **Detect proactively:** Any task that says "move/reorganize files": plan the USER dock-drag step plus a post-move `preload(` grep up front; never `mv` referenced files out-of-editor.
 
@@ -627,6 +629,8 @@ Ordering that avoids most of it: reimport the autoload script alone first, then 
 
 **Detect proactively:** Before any `cp`/`mv`/unzip that lands a `.gdextension` under `addons/`, check for a running editor (`ps aux | grep -i godot`) and close it first. Also verify any GDExtension install/upgrade with a headless editor boot (`godot --headless -e --quit --path .`) before trusting it in the GUI editor.
 
+**Godot 4.7 migration note:** No general GDExtension ABI break in 4.7 — extensions built against an earlier 4.x minor load in later minors (forward-compat policy; `extension_api.json` only adds functions). E.g. godot-rapier2d 0.8.32 (`compatibility_minimum = 4.6`) loads on 4.7 without recompile. The hot-load *crash* mechanism above is architectural (server extensions register only at init) and is unchanged-expected on 4.7. Recompile only to USE new 4.7 APIs, or if the extension *reimplements* one of three 4.7-drifted virtuals (notably `PhysicsServer2DExtension._body_set_shape_as_one_way_collision()` gained a `direction` param).
+
 ---
 
 ## A fatal startup error in a `--headless` run hangs forever instead of exiting (macOS modal alert)
@@ -678,6 +682,8 @@ Identical behavior for real clicks, correct for injected ones.
 - For rigid bodies interacting with agitated fluid, set `continuous_cd = RigidBody2D.CCD_MODE_CAST_SHAPE` as a containment backstop.
 
 **Detect proactively:** Before lowering `fluid_particle_radius_2d` or adding a tall faucet drop, compute kernel radius (`smoothing_factor × particle_radius`) and the per-step travel at expected impact speed (speed / physics fps) — travel > kernel radius means leaks. At runtime, sample `Fluid2D.points` extrema: any |coordinate| in the tens of thousands means particles already escaped.
+
+**Godot 4.7 note:** godot-rapier2d 0.8.32 (`compatibility_minimum = 4.6`) loads on Godot 4.7 without recompile, so this SPH/fluid behavior is expected to apply unchanged (not re-tested live). See the GDExtension hot-load entry's 4.7 note for the one orthogonal ABI caveat (`_body_set_shape_as_one_way_collision()` gained a `direction` param).
 
 ---
 
