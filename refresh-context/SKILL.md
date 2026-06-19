@@ -35,7 +35,9 @@ Mode is automatic: no `CONTEXT.md` → **seed** the first glossary; `CONTEXT.md`
 
 4. **ADRs.** When a decision surfaces that passes the 3-gate test (hard-to-reverse + surprising-without-context + real trade-off), *offer* it. Don't auto-write; don't bulk-seed.
 
-5. **Close.** Summarize terms added/changed and any ADRs offered. Leave committing to the user.
+5. **Wire it into the repo (seed, or any run where the link is missing).** A `CONTEXT.md` only helps if something reads it — and your machine's global read-rule doesn't travel with the repo. Make the project's root `CLAUDE.md` name it: if it has no `CONTEXT.md` reference, append a one-line pointer — *"Read `CONTEXT.md` at the start of a task for the project's domain vocabulary (and `docs/adr/` when present)."* — creating a minimal `CLAUDE.md` if the repo has none. Idempotent: skip if it already references `CONTEXT.md`. This makes the repo self-describing for cloud agents, other machines, and contributors; the global read-rule only covers your own local sessions.
+
+6. **Close.** Summarize terms added/changed, any ADRs offered, and the `CLAUDE.md` wiring. Leave committing to the user.
 
 ## The glossary-only gate — apply PER ENTRY, before writing (not as a later cleanup)
 
