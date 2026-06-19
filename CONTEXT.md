@@ -96,10 +96,65 @@ new content.
 _Avoid_: rewrite, update (both too broad — Re-anchor preserves history).
 
 **Template**:
-A Skill-owned file copied into a *new* project at init time
+A Skill-owned file **copied** into a *new* project at init time
 (`init-godot-claude-project/templates/` → the project's `docs/` and `CLAUDE.md`),
-thereafter kept aligned with the Skill via parity checks.
-_Avoid_: scaffold, boilerplate.
+thereafter kept aligned with the Skill via parity checks — the
+*copied-and-customized* delivery mechanism, contrast **Chunk** (referenced,
+single-source). Reserved for artifacts a project genuinely edits after copy
+(godot `mcp.json`, the gotcha-catalog seed, the `settings.local.json` permission
+delta).
+_Avoid_: scaffold, boilerplate; Chunk (the referenced, single-source mechanism — they coexist).
+
+### Chunks & composition
+
+The vocabulary for the `@import`-from-home Chunk layer: reusable, single-source
+dev-process instruction files that projects reference rather than copy.
+
+**Chunk**:
+A single-source, invariant dev-process instruction file committed in
+`cpalaka-claude-skills/chunks/`, delivered to a project by `@import` (reference,
+not copy). Because exactly one copy exists, a Chunk has **no parity/propagate
+lifecycle** — editing it updates every importing project at next launch. Holds
+invariant content only; per-project variation is handled by knobs, fork
+selection, or inline-leaf, never by editing the Chunk. Discriminator vs
+**Template**: does the project edit the bytes after delivery? No → Chunk
+(referenced); yes → Template (copied + parity).
+_Avoid_: Template (the copied, parity-aligned mechanism — they coexist),
+snippet, include, partial, fragment.
+
+**dev-base**:
+The bundle Chunk every dev Profile imports: a single `chunks/dev-base.md` that
+recursively `@import`s the universal base Chunks (git-sync-branch-start,
+git-commit-format, git-confirm-destructive, sandbox-auto, settings-merge-contract,
+parallel-work, verify-gate, superpowers-default, codegraph, code-hygiene,
+init-scaffold-core). The git-flow fork and backlog-core are deliberately NOT in it
+— they vary by Profile, and `@import` cannot be undone.
+_Avoid_: base chunk (it is a *bundle* of Chunks), boilerplate.
+
+**Profile**:
+The declarative recipe for a project TYPE — which Chunks it imports (always
+**dev-base** plus its extras), which git-flow fork it selects, which Templates it
+stamps, and its per-project knob / inline-leaf prompts. Data consumed by the
+single `init-project` generator skill, not a skill itself. Adding a new project
+type = adding a Profile; the generator never changes.
+_Avoid_: project type (a Profile is the *recipe* for a type), generator (that is
+`init-project`; the Profile is its input), Template.
+
+**knob**:
+A per-project value for a *value-variant* Chunk (e.g. backlog version, plans dir,
+AC verify examples, DoD items), written by the `init-project` engine into a tagged
+inline block (`<!-- knobs:<chunk> --> … <!-- /knobs:<chunk> -->`) in the project's
+`CLAUDE.md` — never into the Chunk itself. Tagged so a generator re-run updates just
+that block idempotently. Pure-invariant Chunks have no knob block.
+_Avoid_: placeholder (`{{…}}` is the copied-Template substitution; a knob is an
+engine-written inline block beside a *referenced* Chunk), variable, config.
+
+**inline-leaf**:
+Free-form, hand-authored content in a project's `CLAUDE.md` that is genuinely
+specific to that one project and is never extracted into a Chunk (chaipalaka's
+Hetzner deploy, its React skill list, exact toolchain pins). The third zone of a
+generated project file, alongside Chunk `@import`s and engine-written knob blocks.
+_Avoid_: leaf (fine as shorthand), project section, custom.
 
 ### MCP tooling
 
