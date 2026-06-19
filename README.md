@@ -72,6 +72,14 @@ Bootstraps [backlog.md](https://github.com/MrLesk/Backlog.md) (the markdown-nati
 
 [`SKILL.md`](./init-backlog-project/SKILL.md)
 
+### refresh-context
+
+Builds or refreshes a project's `CONTEXT.md` domain glossary (and any ADRs) through an explore-first, docs-aware grilling session. A thin wrapper over the `grilling` + `domain-modeling` skills, adding automatic seed-vs-update mode detection, a git-derived change-set baseline on reruns (so you never supply a tag), a write-time glossary-only gate, and a first-class "nothing changed" exit. General-purpose — not Godot-specific.
+
+**When to use:** A project with no `CONTEXT.md` yet, or one that has drifted behind code changes; the user says "refresh the context" / "build/update the CONTEXT.md" / "seed domain docs", or invokes `/refresh-context`.
+
+[`SKILL.md`](./refresh-context/SKILL.md)
+
 ## 3rd-party skills I use
 
 Skills I have installed locally and use as part of my workflow. Grouped by upstream source.
