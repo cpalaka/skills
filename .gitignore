@@ -1,5 +1,5 @@
 .DS_Store
-docs/
+docs/scratch/
 __pycache__/
 
 # Claude Code workspace plumbing — never publish
