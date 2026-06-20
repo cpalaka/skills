@@ -58,8 +58,8 @@ lacked them — build the chunk from chaipalaka's evolved version): `propagate-d
 
 - [x] 1. Spec + ADRs (this session)
 - [x] 4.9. Promote chaipalaka lean (`6d18468`)
-- [ ] 2. Pilot `sandbox-auto` end-to-end (canonicalize → `~/.claude/chunks` symlink → `@import` scratch test → live-session verify)
-- [ ] 3. Build the rest of the library + `dev-base.md` (fan-out: author each from its rules, adversarially verify each preserves them)
+- [x] 2. Pilot `sandbox-auto` end-to-end — DONE 2026-06-19. Live-verified; surfaced the headless `@import` boundary: external imports load **interactively** (one-time per-project approval) but are refused in headless `claude -p` regardless of the approval flag — the lever is `--add-dir ~/.claude/chunks`. Recursive `dev-base` import proven (depth-2).
+- [x] 3. Build the rest of the library + `dev-base.md` — DONE 2026-06-19. 11 chunks authored from verified source + adversarially verified (10 clean, 2 single-line leaf fixes); fork-coherence (ADR-0002 triplet split, no cross-ship, backlog-core merge-agnostic) PASS.
 - [ ] 4. Build `init-project` SKILL.md + `profiles/{backlog,web,godot}.md` (+ godot template assets)
 - [ ] 5. Migrate `chaipalaka.com` to chunks — **gated** (see table)
 - [ ] 6. Migrate a godot project — **gated**
