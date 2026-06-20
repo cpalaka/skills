@@ -63,10 +63,15 @@ overwrite.
   `fork` (`@~/.claude/chunks/<fork>.md`), then each `imports` entry. If `CLAUDE.md` exists,
   merge into the existing import block with **exact-line dedup**; never duplicate or reorder
   hand-placed imports; never clobber the file.
-- **Zone 2 — knob blocks.** For each chunk in `knobs`, write a tagged block
+- **Zone 2 — knob blocks.** For each chunk in `knobs` **that is actually imported** (it rides
+  dev-base, it's the chosen `fork`, or it's in `imports`), write a tagged block
   `<!-- knobs:<id> -->` … `<!-- /knobs:<id> -->` carrying that chunk's values. On re-run,
   replace *only* the content between the tags (idempotent); insert the block if absent. Never
-  write knob values into a chunk file — they live in the project `CLAUDE.md`.
+  write knob values into a chunk file — they live in the project `CLAUDE.md`. **A chunk listed
+  in `knobs` but NOT imported** — a CONDITIONAL import, e.g. the godot profile's `backlog-core`
+  (imported only for board-driven projects) — gets its knob block written by the Profile's
+  conditional recipe step at the moment it adds the import, never by this default pass; a
+  board-less project must not be left with a dangling `<!-- knobs:backlog-core -->` block.
 - **Zone 3 — inline-leaf.** Hand-authored, project-specific (deploy, framework skill lists,
   toolchain pins). The engine **never** writes or edits this zone.
 

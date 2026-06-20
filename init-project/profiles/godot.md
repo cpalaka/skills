@@ -1,13 +1,22 @@
 ---
 type: godot
-imports:
-  - backlog-core            # Godot projects here are board-driven (single source of progress).
+imports: []                 # No UNCONDITIONAL imports beyond dev-base + the fork.
+                            # backlog-core is CONDITIONAL (like blender-mcp-guide): a board-driven
+                            # Godot project (a real game with a backlog/ board) imports it; a
+                            # prototype/sketch with no board skips it — backlog-core actively
+                            # instructs board ops ("session start: check the board"), so it is NOT
+                            # safe-when-unused. Decided at apply time: default board-ON for a real
+                            # game project, OFF for a prototype. See "### Board (conditional)" in the
+                            # recipe. Re-running init-project later with the board enabled
+                            # idempotently ADDS the backlog wiring (import line + knob block + init).
 fork: git-flow-squash       # The default (ADR-0002). git-flow-noff is the opt-in alternative.
-                            # MIGRATION: an existing Godot repo may currently integrate with
-                            # `--no-ff` (the old init-godot template's model). When migrating
-                            # such a repo, import git-flow-noff to PRESERVE its actual model —
-                            # do NOT flip a project to squash as a side effect of scaffolding.
-                            # Pick the fork from the repo's real history, not from this default.
+                            # MIGRATION: pick the fork from the repo's REAL git history, not this
+                            # default. The old init-godot-claude-project skill prescribed NO git-flow
+                            # model at all, so a pre-chunk Godot repo has whatever its history shows:
+                            # linear / squash-merged history → git-flow-squash; genuine `--no-ff`
+                            # merge commits → git-flow-noff. Never flip a project's integration model
+                            # as a scaffolding side effect. (The `--no-ff` default was the old BACKLOG
+                            # init template's model, NOT the godot one — ADR-0002.)
 
 # Template assets under profiles/godot/templates/ are already copied in; this manifest enumerates
 # the ones to STAMP, with DEST (engine step 3: copy src→dest, skip-if-exists unless refresh:true).
@@ -72,7 +81,8 @@ settings:                 # merged into .claude/settings.local.json by the engin
   enabled_mcp_servers: [ godot-mcp, godot, godot-ai ]
 
 knobs:
-  backlog-core:
+  backlog-core:             # CONDITIONAL — written ONLY when backlog-core is imported (board-driven
+                            # project); skipped entirely for a board-less prototype.
     VERSION: "<pin the installed backlog CLI version>"
     PLANS_DIR: "docs/superpowers/plans/"
     VERIFY_EXAMPLES: "tests/run_tests.sh green via the headless runner; an in-editor F5 / interactive verification of the affected surface; a godot-gotcha-reviewer scan of the diff"
@@ -96,9 +106,15 @@ knobs:
     env: "GODOT=<editor binary>  # $GODOT → /Applications/Godot.app/Contents/MacOS/Godot → godot on PATH"
   superpowers-default:
     # test-roster: where the authoritative list of required-coverage modules lives.
-    test_roster: "the project board (backlog) + any PRD/spec under docs/; new gameplay systems with verifiable runtime behaviour get a tests/test_<topic>.gd before implementation"
+    test_roster: "the project board (backlog) if present, else the design docs under docs/superpowers/; new gameplay systems with verifiable runtime behaviour get a tests/test_<topic>.gd before implementation"
     # spec-verify: the source surface a spec's [reuse] claims are checked against.
     spec_verify_src: "the project's GDScript/scene tree (res://) + addons/"
+  parallel-work:
+    # parallel-work rides dev-base (value-variant): the engine writes these into the project's
+    # <!-- knobs:parallel-work --> block. Solo prototypes rarely fan out, but the chunk is always
+    # imported via dev-base, so it needs values, not an empty block.
+    worktree_path_prefix: "../<proj>-task-NNN-<slug>"   # where `git worktree add` puts each tree
+    install: "npm ci --prefix tools/mcp (rehydrate the frozen MCP launcher tree), then import once (open the editor or `godot --headless --path . --import`) so the global class cache exists — else tests/run_tests.sh false-FAILs fixture_pass.gd"
 ---
 
 ## Bespoke setup
@@ -110,10 +126,15 @@ lockfile-freeze MECHANIC, verify-after-write, and the handoff. Do **not** re-run
 This recipe supplies only what the manifest can't express: the MCP install, the `project.godot`
 edits, the freeze PAYLOAD, and the load-bearing WHYs. Run the numbered steps in order.
 
-**Board setup:** this profile imports `backlog-core` but does not duplicate the board's
-init steps. For populating/seeding the board and the backlog CLI install, follow
-`profiles/backlog.md` → `## Bespoke setup`. (Seeding still needs an explicit go-ahead per
-`backlog-core`.)
+**Board (conditional):** backlog-core is NOT imported unconditionally (see the `imports:`
+note). Decide at apply time whether this project is board-driven: if `backlog/` already exists,
+or the user wants a board (default **yes** for a real game project, **no** for a
+prototype/sketch), then (a) add `@~/.claude/chunks/backlog-core.md` to the CLAUDE.md import
+block, (b) write the `<!-- knobs:backlog-core -->` block from the manifest knobs, and (c) run
+the board init + seeding from `profiles/backlog.md` → `## Bespoke setup` (seeding still needs an
+explicit go-ahead per `backlog-core`). If board-less, skip all three — the project keeps its
+task-tracking guidance as inline-leaf instead. Re-running init-project later with the board
+enabled adds exactly this wiring (the engine is idempotent: import-line dedup + knob insert).
 
 **Reference docs:** the engine always stamps `docs/godot-mcp-guide.md`, `docs/asset-pipeline.md`,
 and `docs/godot-gotchas.md`. **Blender is opt-in** — only if the project uses a Blender→Godot
@@ -128,7 +149,12 @@ live MCP tool reality / Blender API drift).
   (`echo $PATH | tr ':' '\n' | grep -q '\.local/bin'`; if not, tell the user to add
   `export PATH="$HOME/.local/bin:$PATH"` to their shell rc). It encapsulates the single
   legitimate `kill` use case (orphan node MCP servers hogging the editor's single-client
-  bridge slot) — which is **why `Bash(kill:*)` stays OFF the allowlist**.
+  bridge slot) — which is **why `Bash(kill:*)` stays OFF the allowlist**. **Scope:** it reaps
+  ONLY orphaned `node …godot-mcp` servers (not godot-ai's uv server, not minimal-godot), so its
+  value tracks how often you actually hit the :6550 single-client lock — a break-glass helper,
+  low-frequency by design (re-decided KEEP at step 6), not dead weight. If a project ever drops
+  godot-mcp entirely (godot-ai-only), drop `godot-mcp-clean` AND its `Bash(godot-mcp-clean)`
+  allowlist line together.
 - **`godot-gdscript-patterns` skill** (global, idempotent):
   `test -d ~/.agents/skills/godot-gdscript-patterns && echo installed || npx -y skills add wshobson/agents@godot-gdscript-patterns -g -y`
 - **`godot-animation-tree-mastery` skill** (global, idempotent — narrower, AnimationTree-only;

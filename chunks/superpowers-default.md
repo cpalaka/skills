@@ -29,7 +29,9 @@ bloat trivial work with ceremony. Match the planning method to the uncertainty:
 fuzzy idea → `brainstorming`; data-model / state-machine doubt → `prototype`;
 feel/look doubt → build minimal + an `agent-browser` screenshot loop;
 codebase-bound, clear-what / unclear-how → plan mode. (The verify step is
-`verify-gate`; the sign-off step is the human Done-gate in `backlog-core`.)
+`verify-gate`; the sign-off step is the human Done-gate — in `backlog-core` for board-driven
+projects, or the project's own "Done needs explicit user sign-off" inline-leaf rule for
+board-less ones.)
 
 **Ask before brainstorming or writing-plans.** These skills spawn multiple
 subagents and are token-expensive, so do not auto-enter them. When work would

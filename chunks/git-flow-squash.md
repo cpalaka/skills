@@ -10,6 +10,13 @@ squash-merge, the typed branch prefix, and no-SHA-in-notes. Do not import this a
 a correctly-named branch per `git-sync-branch-start`; write commit subjects/footers per
 `git-commit-format`.)
 
+**Board-less projects** (no `backlog-core` imported — e.g. a prototype with no `backlog/`):
+there are no task ids, so use `<type>/<slug>` branches (e.g. `feat/vacuum-suction`) and omit
+every `task-NNN` reference below — the branch-name id, the `Refs task-NNN` footer, the
+`<area>/task-NNN` commit scope, and (c)'s notes policy (no board notes exist to write). The
+integration mechanics — squash-merge to `main`, local diff review, no PRs, push only on
+approval — apply unchanged. The rest of this chunk assumes a board.
+
 **(a) Integration = squash-merge — code + Done collapse into ONE commit on `main`.**
 After the diff is approved (see below), mark the task Done **on the branch** and commit
 that there, then squash-merge so the code change and the Done-stamp become a single commit:
