@@ -9,9 +9,9 @@ ONE engine, many **Profiles**. The engine is a uniform apply-algorithm; a Profil
 (`profiles/<type>.md`) is the *data* for one project type. Adding a project type = adding
 a Profile. The engine and `dev-base` bundle are stable; only Profiles grow. (ADR-0003.)
 
-This replaces the per-type init skills (`init-backlog-project`, `init-godot-claude-project`),
-which are retired only after a real backlog project and a real godot project are migrated
-and signed off (build-plan step 7). Until then, do not delete them.
+This replaces the per-type init skills `init-backlog-project` and `init-godot-claude-project`,
+both **retired in step 7** (2026-06-19) once chaipalaka (backlog/web) and a godot project
+proved the replacement. Adding a project type is now adding a Profile, not a skill.
 
 ## What a Profile is (the manifest contract)
 

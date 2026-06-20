@@ -1,6 +1,6 @@
 ---
 name: sync-godot-skills
-description: Audit and propagate learnings from a Godot project's docs and per-project memory back to the source skills (init-godot-claude-project, godot-personal-gotchas, godot-personal-preferences, godot-architecture-review). Identifies drift, presents a parity table for user approval, applies surgical updates to skill files only. Direction is always project → skill, never the reverse. Use when wanting to run a parity check between project docs/memory and skills, sync new Godot gotchas to the godot-personal-gotchas skill, sync new workflow feedback to the godot-personal-preferences skill, propagate doc updates to the init-godot-claude-project templates, sync architecture-process learnings to the godot-architecture-review skill, or when the user says "audit godot skill parity", "sync godot skills", or invokes /sync-godot-skills.
+description: Audit and propagate learnings from a Godot project's docs and per-project memory back to the source skills (the init-project godot profile, godot-personal-gotchas, godot-personal-preferences, godot-architecture-review). Identifies drift, presents a parity table for user approval, applies surgical updates to skill files only. Direction is always project → skill, never the reverse. Use when wanting to run a parity check between project docs/memory and skills, sync new Godot gotchas to the godot-personal-gotchas skill, sync new workflow feedback to the godot-personal-preferences skill, propagate doc updates to the init-project godot-profile templates, sync architecture-process learnings to the godot-architecture-review skill, or when the user says "audit godot skill parity", "sync godot skills", or invokes /sync-godot-skills.
 ---
 
 # Sync Godot Skills
@@ -16,18 +16,18 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 - Project root: cwd.
 - Project docs: `docs/` under cwd.
 - Project memory: `~/.claude/projects/<slug>/memory/` where `<slug>` = the cwd with slashes replaced by hyphens (leading hyphen). Verify by listing `~/.claude/projects/` and matching the directory whose name encodes the cwd.
-- Skill 1 (init template): `~/.claude/skills/init-godot-claude-project/templates/`.
+- Skill 1 (init template): `~/.claude/skills/init-project/profiles/godot/templates/`.
 - Skill 2 (personal gotchas): `~/.claude/skills/godot-personal-gotchas/` — split layout: `SKILL.md` = symptom index; `gotchas/NN-<slug>.md` = full entry bodies. Check both.
 - Skill 3 (personal preferences): `~/.claude/skills/godot-personal-preferences/` — split layout: `SKILL.md` = preference index; `preferences/N-<slug>.md` = full entry bodies. Check both.
 - Skill 4 (architecture review): `~/.claude/skills/godot-architecture-review/` (SKILL.md, ARTIFACTS.md, PHASES.md).
 
 ## File pairs to diff
 
-1. `docs/godot-mcp-guide.md`   ↔ `init-godot-claude-project/templates/godot-mcp-guide.md`
-2. `docs/godot-gotchas.md`     ↔ `init-godot-claude-project/templates/godot-gotchas.md`
-3. `docs/blender-mcp-guide.md` ↔ `init-godot-claude-project/templates/blender-mcp-guide.md`
-4. `docs/asset-pipeline.md`    ↔ `init-godot-claude-project/templates/asset-pipeline.md`
-5. `CLAUDE.md`                 ↔ `init-godot-claude-project/templates/CLAUDE.md.full`
+1. `docs/godot-mcp-guide.md`   ↔ `init-project/profiles/godot/templates/godot-mcp-guide.md`
+2. `docs/godot-gotchas.md`     ↔ `init-project/profiles/godot/templates/godot-gotchas.md`
+3. `docs/blender-mcp-guide.md` ↔ `init-project/profiles/godot/templates/blender-mcp-guide.md`  (conditional — only if the project stamped the Blender guide)
+4. `docs/asset-pipeline.md`    ↔ `init-project/profiles/godot/templates/asset-pipeline.md`
+5. `CLAUDE.md` — **no doc-parity pair in the chunk era.** A migrated project's CLAUDE.md is the 3-zone chunk shape (`@import`s + knob blocks + inline-leaf), not a copy of `CLAUDE.md.full`. Godot guidance that used to live in `CLAUDE.md.full` now lives in the relevant **chunk** (single-source) — propagate it by editing `cpalaka-claude-skills/chunks/`, not a template. (`CLAUDE.md.full` is now only the starter for a project that has no CLAUDE.md yet.)
 6. `docs/godot-gotchas.md` entries ↔ entries in `godot-personal-gotchas/` (index row in SKILL.md + `gotchas/NN-<slug>.md` body; match by symptom keyword or section title). Only Godot-engine gotchas belong in the personal-gotchas skill. (Memory `gotcha-*.md` files exist only for gotchas with no doc counterpart — include any found.)
 7. Memory `feedback_*.md` files ↔ entries in `godot-personal-preferences/` (index row in SKILL.md + `preferences/N-<slug>.md` body; match by topic keyword or section title). Only generalizable workflow preferences propagate; project-specific feedback stays in memory only (see Rules below).
 8. `docs/architecture/refactor-process.md` (or `docs/architecture/campaign.md`) ↔ entries in `godot-architecture-review/` (SKILL.md / ARTIFACTS.md / PHASES.md — match by section title). Only generalizable process knowledge propagates (guardrails, gates, artifact conventions, phase mechanics); project parameters (drivers, anchor tasks, population labels, candidates, run log) stay in the project.

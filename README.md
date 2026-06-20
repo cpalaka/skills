@@ -24,19 +24,19 @@ A personal index of Godot 4.x editor and engine gotchas. It maps symptoms — si
 
 [`SKILL.md`](./godot-personal-gotchas/SKILL.md)
 
-### init-godot-claude-project
+### init-project
 
-Bootstraps a Godot project to work with Claude Code via the godot-mcp tools, or adds the MCP scaffolding (`.mcp.json`, `addons/godot_mcp/`, the `docs/godot-mcp-guide.md` / `docs/blender-mcp-guide.md` / `docs/asset-pipeline.md` guides, project Claude perms) to an existing Godot project that lacks them.
+The single engine that scaffolds (or migrates) a dev project onto the **Chunk library** — it writes the chunk `@import`s, knob blocks, stamps Templates, merges `settings.local.json`, and runs a project-type **Profile**'s bespoke recipe. Replaces the old per-type `init-backlog-project` + `init-godot-claude-project` skills: adding a project type is adding a `profiles/<type>.md`, and the engine never changes. Ships `backlog`, `web`, and `godot` profiles (the godot profile owns the MCP scaffolding + reference-doc templates).
 
-**When to use:** A Godot project without `.mcp.json`, godot-mcp tools aren't loading, or the user says "set up godot for claude" / "add godot-mcp to this project" / "init godot project".
+**When to use:** Setting up a new dev project, adopting the chunk library in an existing one, or adding a new project type.
 
-[`SKILL.md`](./init-godot-claude-project/SKILL.md)
+[`SKILL.md`](./init-project/SKILL.md)
 
 ### sync-godot-skills
 
-Audits and propagates learnings from a Godot project's docs and per-project memory back to the source skills (`init-godot-claude-project`, `godot-personal-gotchas`, `godot-personal-preferences`). Identifies drift, presents a parity table for user approval, applies surgical updates to skill files only. Direction is always project → skill, never the reverse.
+Audits and propagates learnings from a Godot project's docs and per-project memory back to the source skills (the `init-project` godot profile, `godot-personal-gotchas`, `godot-personal-preferences`). Identifies drift, presents a parity table for user approval, applies surgical updates to skill files only. Direction is always project → skill, never the reverse.
 
-**When to use:** Running a parity check between project docs/memory and skills, syncing new Godot gotchas or workflow feedback back to their skills, propagating doc updates to the `init-godot-claude-project` templates, or the user says "audit godot skill parity" / "sync godot skills" / invokes `/sync-godot-skills`.
+**When to use:** Running a parity check between project docs/memory and skills, syncing new Godot gotchas or workflow feedback back to their skills, propagating doc updates to the `init-project` godot-profile templates, or the user says "audit godot skill parity" / "sync godot skills" / invokes `/sync-godot-skills`.
 
 [`SKILL.md`](./sync-godot-skills/SKILL.md)
 
@@ -63,14 +63,6 @@ A convergent, re-runnable architecture review & refactor campaign for Godot proj
 **When to use:** A Godot project needs an architecture review, a refactor or deepening campaign, or the user says "architecture review" / "refactor process" / "find shallow modules" / "APoSD review".
 
 [`SKILL.md`](./godot-architecture-review/SKILL.md)
-
-### init-backlog-project
-
-Bootstraps [backlog.md](https://github.com/MrLesk/Backlog.md) (the markdown-native task-board CLI) into a dev project with locked personal conventions: CLI-only/no-MCP, no generated agent instructions, Definition-of-Done defaults ending in a user-sign-off gate, and the board as the single source of progress (replacing roadmap-in-agent-memory). Includes a CLAUDE.md section template with per-project verification placeholders.
-
-**When to use:** Adopting backlog.md in a project ("add backlog to this project", "set up the task board", "port the backlog conventions"), or re-orienting on the conventions themselves (DoD vs AC, sign-off rule, plan-doc linkage, seeding).
-
-[`SKILL.md`](./init-backlog-project/SKILL.md)
 
 ### refresh-context
 

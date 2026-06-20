@@ -97,7 +97,7 @@ _Avoid_: rewrite, update (both too broad — Re-anchor preserves history).
 
 **Template**:
 A Skill-owned file **copied** into a *new* project at init time
-(`init-godot-claude-project/templates/` → the project's `docs/` and `CLAUDE.md`),
+(`init-project/profiles/godot/templates/` → the project's `docs/` and `CLAUDE.md`),
 thereafter kept aligned with the Skill via parity checks — the
 *copied-and-customized* delivery mechanism, contrast **Chunk** (referenced,
 single-source). Reserved for artifacts a project genuinely edits after copy

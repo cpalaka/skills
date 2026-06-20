@@ -11,7 +11,7 @@ imports: []                 # No UNCONDITIONAL imports beyond dev-base + the for
                             # idempotently ADDS the backlog wiring (import line + knob block + init).
 fork: git-flow-squash       # The default (ADR-0002). git-flow-noff is the opt-in alternative.
                             # MIGRATION: pick the fork from the repo's REAL git history, not this
-                            # default. The old init-godot-claude-project skill prescribed NO git-flow
+                            # default. Pre-chunk Godot bootstrapping prescribed NO git-flow
                             # model at all, so a pre-chunk Godot repo has whatever its history shows:
                             # linear / squash-merged history → git-flow-squash; genuine `--no-ff`
                             # merge commits → git-flow-noff. Never flip a project's integration model
