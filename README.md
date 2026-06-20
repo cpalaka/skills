@@ -72,6 +72,22 @@ Builds or refreshes a project's `CONTEXT.md` domain glossary (and any ADRs) thro
 
 [`SKILL.md`](./refresh-context/SKILL.md)
 
+### audit-improvements
+
+A manually-invoked meta-skill that audits and cleans up `~/Claude/improvements.md` (the cross-session behavior-improvements log) — the recurring "is this log still clean and useful?" pass, run roughly monthly as entries accumulate.
+
+**When to use:** The user says "audit the improvements log" / "clean up improvements.md" / "check improvements for stale entries", or invokes `/audit-improvements`.
+
+[`SKILL.md`](./audit-improvements/SKILL.md)
+
+### tournament
+
+Authors and runs a generate → judge → verify → synthesize **tournament** workflow in any domain — interviews for the spec, assembles a self-contained Workflow script from a stage catalog, lints + smoke-runs it, then launches and relays results. Persists a reusable spec for re-runs.
+
+**When to use:** The user wants to "run a tournament", do a "generate-and-judge" pass, "pick the best X via fan-out", build a "bracket/scoreboard of candidates", or set up a "tournament workflow".
+
+[`SKILL.md`](./tournament/SKILL.md)
+
 ## 3rd-party skills I use
 
 Skills I have installed locally and use as part of my workflow. Grouped by upstream source.
