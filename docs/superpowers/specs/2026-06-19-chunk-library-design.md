@@ -95,8 +95,12 @@ Hetzner deploy …, React skill list …, exact toolchain pins …
   then run the Profile's bespoke recipe. Carries the `init-scaffold-core` mechanic.
 - **Profile** (`init-project/profiles/<type>.md`): frontmatter manifest
   (`imports`, fork, `templates`, `knobs`) + an optional `## Bespoke setup` recipe.
-  `backlog` and `web` have empty recipes; `godot` carries MCP install + project.godot
-  edits and owns its Template assets under `profiles/godot/templates/`.
+  `web` has an empty recipe (it *references* the `backlog` recipe for board setup rather
+  than duplicating it — profiles do not compose); `backlog` carries the real Backlog.md
+  setup recipe (install + `init` + config DoD + seed), ported from `init-backlog-project`
+  — the design's earlier "empty recipe" claim was wrong, since init-project must replace
+  init-backlog (ADR-0003); `godot` carries MCP install + project.godot edits and owns its
+  Template assets under `profiles/godot/templates/`.
 
 ## Storage & bootstrap
 

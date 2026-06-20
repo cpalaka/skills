@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# godot-mcp-clean — kill orphan godot-mcp MCP server processes.
+#
+# These leak when a Claude Code session ends without a clean MCP shutdown.
+# Because the godot_mcp WebSocket bridge inside the editor accepts only ONE
+# active client at a time, leaked servers hog the slot and block new Claude
+# sessions ("Another MCP server connected and replaced this one").
+#
+# Safe to run anytime: the Claude CLI respawns its own MCP server on the
+# next tool call. Doesn't touch the Godot editor itself.
+#
+# Usage:  godot-mcp-clean
+
+set -u
+
+pids=$(pgrep -f "node .*godot-mcp" 2>/dev/null || true)
+
+if [ -z "$pids" ]; then
+  echo "godot-mcp-clean: no leaked processes found."
+  exit 0
+fi
+
+echo "godot-mcp-clean: killing the following:"
+ps -p $(echo "$pids" | tr '\n' ',') -o pid,etime,command 2>/dev/null
+# shellcheck disable=SC2086
+kill $pids 2>/dev/null
+echo "godot-mcp-clean: done. Use /mcp in Claude Code to reconnect, or just make any MCP call."

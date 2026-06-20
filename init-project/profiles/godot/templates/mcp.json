@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "godot-mcp": {
+      "command": "node",
+      "args": ["tools/mcp/node_modules/@satelliteoflove/godot-mcp/dist/cli.js"]
+    },
+    "godot": {
+      "command": "node",
+      "args": ["tools/mcp/node_modules/@ryanmazzolini/minimal-godot-mcp/dist/index.js"]
+    },
+    "godot-ai": {
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}

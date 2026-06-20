@@ -1,0 +1,11 @@
+# tests/fixtures/fixture_parse_error.gd.txt — selftest fixture: gotcha mode (a).
+# Kept INERT as .txt at rest (a parse-broken .gd in the repo would permanently redden
+# --check-only and the editor's problem panel). run_tests.sh --selftest stages it as a
+# transient .gd, runs it, and removes it on exit. A parse failure runs NOTHING — Godot
+# prints SCRIPT ERROR / "Failed to load script" and exits 0 (the original lie). The
+# runner must verdict FAIL from output alone.
+extends "res://tests/scene_tree_test.gd"
+const EXPECTED_CHECKS := 1
+func _run() -> void:
+	var x := this_identifier_does_not_exist
+	_assert(true, "never reached — the file never parses")
