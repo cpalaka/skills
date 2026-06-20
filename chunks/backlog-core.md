@@ -11,9 +11,17 @@ backlog **VERSION**, the plan-doc directory (**PLANS_DIR**), the **VERIFY_EXAMPL
 illustrate AC, and the standing **DoD items** — live in this project's `<!-- knobs:backlog-core -->`
 block, not in this chunk.
 
-**CLI-only, `--plain`, NO MCP.** Drive the board through the `backlog` CLI exclusively; the
-MCP server resolves repo root once at startup and writes task files to the wrong repo from a
-worktree, so it is off. Always pass `--plain` when listing/viewing. Never hand-edit files
+**Session start: check the board, set your task In Progress.** At the start of a session, list
+the board (`backlog task list --plain`, or `backlog board`) to orient, then move the task you
+are about to work on to **In Progress** (`backlog task edit <id> -s "In Progress"`). Because the
+board is the single source of progress, this status transition is part of the process, not
+optional — a task silently worked while still "To Do" is invisible to the board.
+
+**CLI-only, `--plain`, NO MCP, no generated agent instructions.** Drive the board through the
+`backlog` CLI exclusively; the MCP server resolves repo root once at startup and writes task
+files to the wrong repo from a worktree, so it is off. Backlog's generated agent-instruction
+files are off too — these chunks are the agent's instructions, not a backlog-emitted guide.
+Always pass `--plain` when listing/viewing. Never hand-edit files
 under `backlog/` — the CLI owns IDs, naming, and frontmatter. (`backlog/config.yml` is the
 one file fine to hand-edit; `backlog config set` does not expose `definition_of_done`.)
 
@@ -52,8 +60,16 @@ one task-file change per code commit). Whether the `--notes` summary carries a c
 **a merge-model decision — follow your imported git-flow variant's notes-SHA policy**
 (`git-flow-squash` vs `git-flow-noff`); this chunk states no SHA rule of its own. Merging
 never auto-closes a task — Done is set by `task edit` only, after sign-off. The task↔commit
-link is the commit subject's `task-NNN` scope plus a `Refs task-NNN` footer
-(`git log --grep "task-NNN"`); see `git-commit-format`.
+link is the commit subject's **`<area>/task-NNN`** scope (the slice/subsystem `<area>` plus the
+owning task id) and a **`Refs task-NNN`** footer — together `git log --grep "task-NNN"` resolves
+task↔commit. Always put the owning task in the scope so it shows on every `git log --oneline`
+line; **zero-pad the task id to 3 digits everywhere it appears — scope and footer alike
+(`task-019`, never `task-19`)**. (Subject/footer mechanics: `git-commit-format`.)
+
+**Board grooming not owned by one task takes a plain area scope.** Pure board maintenance that
+no single task owns — new milestones, drafts, cross-task guardrail pins — uses a plain
+`chore(backlog): …` subject with **no `task-NNN`**; batch such grooming into one commit rather
+than one commit per edit.
 
 **Propagate downstream findings onto the board.** When a task — especially a spike or any
 decision-bearing task — produces a result that constrains or informs *other* tasks, do not

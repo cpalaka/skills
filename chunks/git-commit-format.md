@@ -7,10 +7,11 @@
 `<type>(<scope>): <imperative summary>`. Pick the one `<type>` that matches the
 *dominant* change (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`). Keep the
 whole subject ≤~72 chars including the scope — tighten the summary rather than
-overflow. The `<scope>` is the slice/subsystem the change lives in; on a
-task-tracked project it also carries the owning task id (see `backlog-core` for
-the `<area>/task-NNN` scope convention and the `Refs task-NNN` footer that links
-commit ↔ task).
+overflow, and on a task-tracked project **never drop the task id to make room**
+(tighten the summary instead). The `<scope>` is the slice/subsystem the change
+lives in; on a task-tracked project it also carries the owning task id (see
+`backlog-core` for the `<area>/task-NNN` scope convention and the `Refs task-NNN`
+footer that links commit ↔ task).
 
 **Body — what and why.** State what changed and, more importantly, *why*. Call
 out notable deviations from the plan/spec (and the reason) so a reviewer is not

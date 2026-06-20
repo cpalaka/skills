@@ -17,7 +17,9 @@ knobs:
     VERSION: "1.45.2"                         # chaipalaka's pin; confirm/derive at apply time
     PLANS_DIR: "docs/superpowers/plans/"      # specs in docs/superpowers/specs/; plans/ created lazily
     VERIFY_EXAMPLES: "typecheck/test/build green, dev smoke of the affected route, screenshot where visual"
-    DoD:                                      # standing gates in backlog/config.yml; ALWAYS ends in sign-off
+    DoD:                                      # EXAMPLES ONLY — at apply time, mirror the project's ACTUAL
+                                              # backlog/config.yml definition_of_done verbatim (it often has more
+                                              # items; e.g. chaipalaka has 6). The list ALWAYS ends in a user sign-off item.
       - "Verify gate clean (typecheck/test/build/smoke + secret-scan)"
       - "Docs synced (PRD.md / CONTEXT.md / docs/adr/ for new language or decisions)"
       - "User sign-off received"
@@ -35,6 +37,11 @@ knobs:
   superpowers-default:
     test_roster: "PRD.md '### Modules with tests' section (the authoritative required-coverage roster)"
     spec_verify_src: "web/src"                # the source tree specs' [reuse] claims are grep/CodeGraph-verified against
+  parallel-work:
+    # parallel-work rides dev-base and is value-variant: it names two knobs the
+    # engine writes into <!-- knobs:parallel-work --> in the project CLAUDE.md.
+    worktree_path_prefix: "../<proj>-task-NNN-<slug>"   # where `git worktree add` puts each tree (chaipalaka: ../cp-task-NNN-<slug>)
+    install: "the fresh-worktree install command (chaipalaka: npm install in web/)"
 ---
 ## Bespoke setup
 
@@ -67,3 +74,7 @@ The engine never writes Zone 3; these are hand-authored in the project's own
 - **Exact toolchain / version pins** — `vite`, `react-router-dom`,
   `vite-react-ssg`, `react`/`react-dom`, `typescript` pinned by
   `vite-react-ssg`'s peer deps; the pin table + bump policy (`docs/process/toolchain-pins.md`).
+- **Large files** — files above the repo's size threshold (e.g. ~1 MB) are never
+  committed to git; they live in a gitignored assets dir and ship via the deploy
+  asset-sync target (chaipalaka: `assets/` + `make assets-sync`). Project-specific,
+  never a chunk.

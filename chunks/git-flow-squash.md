@@ -43,4 +43,7 @@ file** — under this variant the policy is: omit it.
   one** squash-merge to `main` and the accompanying push of `main` — nothing more.
 - Never push to `main` without that per-branch approval; never merge a branch that has not
   been reviewed. Force-pushing `main` is never OK (see `git-confirm-destructive`).
+- **Pushing the feature branch to origin is optional** (backup / multi-machine) — it is **not**
+  part of the review flow: review happens on the local diff, and the only required push is
+  `main` after approval.
 - **Delete the feature branch after merge** (locally, and remotely if it was pushed).

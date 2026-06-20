@@ -19,7 +19,7 @@ repos and are **gated on explicit user authorization** — do NOT autonomously s
 |---|---|---|
 | 1–4 (chunks, `dev-base`, engine, profiles) | `cpalaka-claude-skills` only | proceed |
 | 4.9 promote chaipalaka lean | `chaipalaka.com` | **DONE 2026-06-19** (commit `6d18468`) |
-| 5 migrate chaipalaka to chunks | `chaipalaka.com` | **explicit user go required**, AND follow `chaipalaka.com/CLAUDE.md` process in full (sync main → branch → verify gate → diff review → sign-off → squash-merge). Read that CLAUDE.md first — it is NOT auto-loaded in a skills-repo session. |
+| 5 migrate chaipalaka to chunks | `chaipalaka.com` | **DONE 2026-06-19** (merged `ba5b72a`; followed `chaipalaka.com/CLAUDE.md` in full — branch → 38-agent behavior diff → verify → sign-off → squash-merge). 5 chunk fixes + 3 web-profile fixes applied in this repo to keep the migration zero-behavior-change. |
 | 6 migrate a godot project | that godot repo | **explicit user go required**, AND follow that repo's own CLAUDE.md/process. |
 | 7 retire old init skills | `cpalaka-claude-skills` | only after steps 5–6 prove the replacement |
 
@@ -61,7 +61,7 @@ lacked them — build the chunk from chaipalaka's evolved version): `propagate-d
 - [x] 2. Pilot `sandbox-auto` end-to-end — DONE 2026-06-19. Live-verified; surfaced the headless `@import` boundary: external imports load **interactively** (one-time per-project approval) but are refused in headless `claude -p` regardless of the approval flag — the lever is `--add-dir ~/.claude/chunks`. Recursive `dev-base` import proven (depth-2).
 - [x] 3. Build the rest of the library + `dev-base.md` — DONE 2026-06-19. 11 chunks authored from verified source + adversarially verified (10 clean, 2 single-line leaf fixes); fork-coherence (ADR-0002 triplet split, no cross-ship, backlog-core merge-agnostic) PASS.
 - [x] 4. Build `init-project` SKILL.md + `profiles/{backlog,web,godot}.md` (+ godot template assets) — DONE 2026-06-19. Engine carries init-scaffold-core (inventory→merge/skip, 3 CLAUDE.md zones, settings merge via a manifest `settings:` field, lockfile-freeze mechanic, verify, handoff) + the `@import` approval / `--add-dir` handling. backlog has the real ported recipe; web minimal (board-by-reference); godot heavy. Deferred to step 6: content-staleness audit of godot-mcp-guide / blender-mcp-guide (blender stamped conditionally).
-- [ ] 5. Migrate `chaipalaka.com` to chunks — **gated** (see table)
+- [x] 5. Migrate `chaipalaka.com` to chunks — **DONE 2026-06-19** (`ba5b72a`). 38-agent adversarial behavior diff (19 findings, all resolved); 5 dropped/weakened rules fixed in-chunk (backlog-core ×4, git-commit-format, git-flow-squash) + 3 web-profile gaps fixed (parallel-work knobs, large-files inline-leaf, DoD-derive note). chaipalaka CLAUDE.md 438→118 lines, zero behavior change.
 - [ ] 6. Migrate a godot project — **gated**
 - [ ] 7. Retire `init-backlog-project` + `init-godot-claude-project`
 
