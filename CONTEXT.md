@@ -47,9 +47,16 @@ Anthropic, mattpocock — within an ecosystem, not the channel itself).
 A non-obvious Godot 4.x failure observed first-hand and indexed by *symptom*,
 not component — typically "I set X, no error fired, nothing changed." Many have
 no error signal, so they must be recognised, not grepped. Body shape: Symptom /
-Cause / Fix / Detect proactively / Confirmed by.
+Cause / Fix / Detect proactively / Confirmed by. A gotcha is either **universal**
+— reproducible on any project here given the same engine / tooling / addon, so it
+lives *only* in the `godot-personal-gotchas` skill (the single source) — or
+**project-local** — bound to this project's own code, scenes, assets, or tuning,
+so it lives in the project's `docs/godot-gotchas.md`. (A *convention* — axis-flip,
+naming — is not a gotcha; it belongs in an ADR.)
 _Avoid_: known issue (a gotcha is a hard-won field observation, not a release
-note), trap, edge case (an edge case is expected; a gotcha is surprising).
+note), trap, edge case (an edge case is expected; a gotcha is surprising);
+mirroring the universal catalog into a project doc (single-source — the skill is
+authoritative; the project doc holds only project-local entries).
 
 **Preference**:
 A personal *workflow* rule — how you want to be assisted — that applies across
