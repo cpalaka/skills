@@ -18,3 +18,5 @@ Any task needing `Skeleton3D` bones (or `BoneAttachment3D` rigs) with godot-ai a
 2026-06-12 — UNCHANGED, re-validated against the godot-ai v2.7.2 source: `set_property` still gates names on the node's `get_property_list()` → `PROPERTY_NOT_ON_CLASS` (`node_handler.gd:194-202`); `batch_execute` still has no method-call verb (`batch_handler.gd:39-55`); no skeleton/bone command among the registered commands (`plugin.gd:268-395`).
 
 2026-06-18 — UNCHANGED, re-anchored to godot-ai **v2.7.5** on Godot **4.7**: `set_property` still gates on `get_property_list()` → `PROPERTY_NOT_ON_CLASS` (`node_handler.gd:194-202`); `batch_execute` dispatches via `dispatch_direct` with no method-call verb (`batch_handler.gd:39-55`); no bone/skeleton command registered. Engine-version-independent (the gap is godot-ai's verb set).
+
+2026-06-20 — re-anchored the dispatch cite: `batch_execute` dispatches through `McpDispatcher` (`batch_handler.gd:55` → `dispatcher.gd:49`); the registered command set still has no method-call verb (no `call_method`/`callv` anywhere in the addon). godot-ai 2.7.5 / Godot 4.7.

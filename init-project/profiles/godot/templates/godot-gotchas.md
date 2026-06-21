@@ -393,22 +393,22 @@ Because the write silently fails, the value must be **hand-edited into the `.tsc
 
 ---
 
-## godot-ai omits `uid=` on a script ext_resource when the `.uid` sidecar doesn't exist yet at save time
+## Script `ext_resource` `uid=` is omitted on the first `scene_save` until the `.uid` sidecar exists — engine-serializer behavior; `reimport`+resave fixes it (2 saves on 2.7.5/4.7)
 
-**Symptom:** godot-ai adds a brand-new script node to a scene (`node_create` + `script_attach` + `scene_save`) and the saved `[ext_resource type="Script" ...]` line in the `.tscn` is written WITHOUT its `uid=` attribute — even though sibling script ext_resources have `uid="uid://..."`. It still resolves by `path=` (so it works at runtime), but it's inconsistent with the other entries and breaks if the script is later renamed/moved outside the editor.
+**Symptom:** After godot-ai attaches a brand-new script to a node and saves (`node_create` + `script_attach` + `scene_save`, or attaching a Write-tool `.gd`), the saved `[ext_resource type="Script" ...]` line has **no `uid=`** — path-only, inconsistent with sibling scripts, fragile if the script is later renamed/moved outside the editor (it still resolves by `path=` at runtime). On the FIRST save the `uid=` is always absent because the `.gd.uid` sidecar doesn't exist yet.
 
-**Cause:** godot-ai serializes the ext_resource with whatever it knows at save time. The UID isn't available until the editor imports the freshly-written `.gd` and generates its `.uid` sidecar — which hasn't happened yet at the moment of the save. *(Re-validated against the v2.7.5 source: the save path is still a bare `EditorInterface.save_scene()` passthrough with no uid handling — `scene_handler.gd:244-247`; zero `ResourceUID` references in plugin or server.)*
+**Cause — this is the engine serializer, NOT a godot-ai defect.** godot-ai delegates scene save entirely to the engine: `_save_current_scene()` is a bare `EditorInterface.save_scene()` passthrough (`scene_handler.gd:244-246`) and there are **zero `ResourceUID` references anywhere in the addon** — so godot-ai has no hand in emitting that `uid=`. The engine's `ResourceFormatSaver` can only write a `uid=` once the editor has imported the freshly-written `.gd` and generated its `.uid` sidecar, which hasn't happened at the moment of the first save. (For a brand-new file the FS watcher may not have scanned it yet, so the single-file `update_file` that `reimport`/`write_text` call — `filesystem_handler.gd:60-66`, `:78-112` — may operate on an unregistered entry; whether it materializes the UID is engine/version-dependent, see the version note below.)
 
-**Fix:** Do NOT hand-edit the `.tscn`. Instead:
+**Fix:** Do NOT hand-edit the `.tscn`.
 
-1. `mcp__godot-ai__filesystem_manage` with `op=reimport`, `params={"paths": ["res://scripts/your_script.gd"]}` — generates the `.uid` sidecar.
-2. `mcp__godot-ai__scene_save` again — godot-ai now writes the `uid=` cleanly.
+1. `mcp__godot-ai__filesystem_manage op=reimport` the `.gd` — generates the `.uid` sidecar.
+2. `mcp__godot-ai__scene_save` again — the engine now writes a clean one-line `uid=` (`+[ext_resource ... uid="uid://..." path=...]`, zero `unique_id` churn).
 
-Verified to produce exactly a one-line diff (`+[ext_resource ... uid="uid://..." path=...]`) with zero `unique_id` churn or reordering.
+On **v2.7.5 / Godot 4.7 (current)** this resolves in **2 saves** with no window activation. On **v2.7.2 / Godot 4.6.2 (historical)** `reimport` alone no-op'd on the unscanned entry and the `uid=` appeared only on the THIRD save after waking the macOS FS watcher first (`osascript -e 'tell application "Godot" to activate'` → reimport → save) — that `osascript` escalation is **OBSOLETE** on current versions. The same `reimport` trick force-generates a `.uid` so a new script can be committed (the headless `--script` runner does NOT generate one for a preload-by-path).
 
-The same `reimport` trick force-generates a `.uid` for a new script (e.g. so it can be committed, if the project tracks `.uid` files). Note: the headless `--script` test runner does NOT generate a `.uid` for a script it only `preload`s by path, so reimport is the reliable way to materialize it.
+**Detect proactively:** After any godot-ai scene edit that attaches a freshly-created/Written script, grep the saved `.tscn` for that script's `ext_resource` line — if it has `path=` but no `uid=` while siblings do, `reimport` + re-save and re-grep (verify the on-disk `.gd.uid` sidecar actually exists, don't trust the `reimport` success report). Related: the `class_name` cache-stale entry (trap 3) above; `docs/godot-mcp-guide.md` for the godot-ai writer surface.
 
-**Detect proactively:** After any godot-ai scene edit that attaches a newly-created script, grep the saved `.tscn` for the new script's ext_resource line — if it has `path=` but no `uid=` while siblings do, reimport + re-save before committing. See `godot-mcp-guide.md` for the godot-ai writer surface.
+**Confirmed by:** v2.7.2 / Godot 4.6.2 / macOS — `uid=` materialized only on the THIRD save (osascript → reimport → scene_save). **2026-06-18 — re-verified on v2.7.5 / Godot 4.7 / macOS: `filesystem_manage op=reimport` ALONE generated the `.gd.uid` (no `osascript`/window activation) and the next `scene_save` wrote the clean `uid=` — resolved in 2 saves; the `osascript` step is obsolete.**
 
 ---
 
@@ -431,7 +431,9 @@ The same `reimport` trick force-generates a `.uid` for a new script (e.g. so it 
 2. **Verify** the hand-written file by godot-ai `resource_manage op=load` (parses + lists properties) plus a `project_run` boot-check, reading `logs_read source="game"/"editor"` for any load-time `push_error`.
 3. **Built-in resources still go through godot-ai** — e.g. a Curve via `resource_manage op=create type="Curve" resource_path="…"` then `op=curve_set_points` with points as `{offset, value}` dicts (NOT `[x, y]` arrays — that errors `Curve points[0] must be {offset, value, …}`). godot-ai embeds the Curve's `uid` inline in its `[gd_resource]` header (no `.uid` sidecar — resources carry uid inline; sidecars are script-only).
 
-**Detect proactively:** Before reaching for godot-ai `resource_manage` to create/inspect a `.tres`, check whether the resource's `type` is a `class_name` (your script) or a built-in engine class. Custom = hand-write inline + verify via `op=load` + boot-check; built-in = godot-ai is fine. A `resource_manage` call that returned `Unknown resource type:` is this gotcha. Related: the `uid`-omission entry above and the `class_name` cache-stale entry above (both godot-ai/`class_name` resource-handling quirks).
+**Detect proactively:** Before reaching for godot-ai `resource_manage` to create/inspect a `.tres`, check whether the resource's `type` is a `class_name` (your script) or a built-in engine class. Custom = hand-write inline + verify via `op=load` + boot-check; built-in = godot-ai is fine. A `resource_manage` call that returned `Unknown resource type:` is this gotcha. Related: the `ext_resource` `uid=`-on-save entry above and the `class_name` cache-stale entry above (both godot-ai/`class_name` resource-handling quirks).
+
+**Version boundary — superseded by PR #583:** the `Unknown resource type` rejection above is the **PRE-#583** behavior (custom `class_name` resources entirely unreachable). PR #583 (godot-ai 2.7.5, branch `feat/instantiate-custom-resources`) makes them reachable — `resource_manage op=create` now CAN author a custom Resource; you instead hit a new `@tool` gate. If you're on #583+ and see `WRONG_TYPE … add @tool` rather than `VALUE_OUT_OF_RANGE: Unknown resource type`, read the successor entry below ("`resource_manage op=create` … needs `@tool` on the script").
 
 ---
 
@@ -439,7 +441,7 @@ The same `reimport` trick force-generates a `.uid` for a new script (e.g. so it 
 
 **Symptom:** Creating `Skeleton3D` bones via godot-ai fails — bones are neither child nodes nor settable properties. `node_set_property bones/0/name` → `PROPERTY_NOT_ON_CLASS` ("not found on Skeleton3D"): the dynamic `bones/N/*` properties don't exist until the bone exists, and there's no bone-count setter to bootstrap one. `batch_execute` has create-node/set-property/delete/attach-script commands but NO method-call command, so it can't call `add_bone`/`set_bone_parent`/`set_bone_rest` either.
 
-**Cause:** godot-ai exposes nodes + properties + a few batch verbs, but no `Skeleton3D` bone-authoring API and no general method-call path. The bone array is engine-internal state reached only through methods (`add_bone`, …) that godot-ai can't invoke. *(Re-validated against the v2.7.5 source: `set_property` still gates names on the node's `get_property_list()` → `PROPERTY_NOT_ON_CLASS` — `node_handler.gd:194-202`; `batch_execute` still has no method-call verb — `batch_handler.gd:39-55`.)*
+**Cause:** godot-ai exposes nodes + properties + a few batch verbs, but no `Skeleton3D` bone-authoring API and no general method-call path. The bone array is engine-internal state reached only through methods (`add_bone`, …) that godot-ai can't invoke. *(Re-validated against the v2.7.5 source: `set_property` still gates names on the node's `get_property_list()` → `PROPERTY_NOT_ON_CLASS` — `node_handler.gd:194-202`; `batch_execute` dispatches through `McpDispatcher` (`batch_handler.gd:55` → `dispatcher.gd:49`) and the registered command set still has no method-call verb (no `call_method`/`callv` anywhere in the addon).)*
 
 **Fix:** Hand-write the bone array into the `[node ... type="Skeleton3D"]` block of the `.tscn`. Per bone, 7 lines: `bones/N/name`, `bones/N/parent` (int; must reference a lower index), `bones/N/rest` (`Transform3D`), `bones/N/enabled = true`, `bones/N/position` (`Vector3` = rest origin), `bones/N/rotation` (`Quaternion` = identity `(0,0,0,1)` for a translation-only rest), `bones/N/scale = Vector3(1,1,1)`. **Include the pose triple** (`position`/`rotation`/`scale`) — omitting it leaves bones at pose=identity, not rest, collapsing the rig.
 
@@ -787,24 +789,59 @@ Sibling to the Intel-mac `cryptography`-wheel entry above (same symptom + depend
 
 ---
 
-## godot-ai script `ext_resource` `uid=` won't materialize on the FIRST save of a BRAND-NEW Write-tool script — on v2.7.5/4.7 a plain `reimport` then fixes it (no window focus); on the older v2.7.2/4.6.2 reimport no-op'd and the macOS escalation was `osascript`-activate the window FIRST
+## Script `ext_resource` `uid=` on the first save of a brand-new Write-tool script — consolidated above
 
-**Symptom:** After creating a brand-new `.gd` script (via the Write tool — NOT godot-ai's own `create_script`/`write_text`), attaching it to a node, and `scene_save` via godot-ai, the saved `.tscn` `[ext_resource type="Script" ...]` line has **no `uid=`** (path-only, inconsistent with sibling scripts, fragile on later rename/move). On the FIRST save the `uid=` is always absent — the `.gd.uid` sidecar doesn't exist yet. What differs by version is whether a plain `reimport` then repairs it: on **v2.7.5 / Godot 4.7 (current)** `mcp__godot-ai__filesystem_manage op=reimport` generates the `.uid` sidecar with **NO window activation** and the next `scene_save` writes a clean `uid=` (resolved in 2 saves); on **v2.7.2 / Godot 4.6.2 (historical)** `reimport` — even repeated — did NOT fix it (the `.uid` / `uid_cache.bin` stayed unpopulated, reimport reported success, and a second `scene_save` still omitted `uid=`).
+Merged into the **"Script `ext_resource` `uid=` is omitted on the first `scene_save`…"** entry above, which now carries the engine-serializer root cause (godot-ai delegates save to `EditorInterface.save_scene()`), the `reimport`+resave fix, and the full v2.7.2→v2.7.5 version history (the v2.7.2 `osascript`-activate escalation is obsolete on current versions).
 
-**Cause:** For a brand-new script file, the editor's filesystem watcher hasn't yet scanned it into `EditorFileSystem`, so the single-file `update_file` that both `reimport` and godot-ai's `write_text` call (`filesystem_handler.gd:60-66`, `:78-112`) operates on an entry the FS layer may not have registered. Whether that `update_file` materializes the UID for such a file is engine/version-dependent: on **4.6.2 + v2.7.2** it silently no-op'd the UID materialization while reporting success (the concrete root of the `uid=`-omission entry above — "`.uid` sidecar doesn't exist yet at save time" — and an instance of the brand-new-directory `reimport` no-op trap, trap 3 of the `class_name` cache-stale entry above); on **4.7 + v2.7.5** the same `update_file` path now successfully generates the `.uid` for a Write-tool file with no prior window focus. (godot-ai's own `create_script` separately defers on `ResourceLoader.exists()` per godot-ai #261 — that only helps scripts godot-ai itself writes, not Write-tool ones; the change here is the engine/`update_file` behavior, not that deferral.)
+---
 
-**Fix:**
-- **Current (v2.7.5 / 4.7):** `mcp__godot-ai__filesystem_manage op=reimport` the `.gd`, then `mcp__godot-ai__scene_save`. The reimport generates the `.uid` with no window focus; the save serializes a clean one-line `uid=`. This is exactly the `uid=`-omission entry's fix above — on current versions this gotcha collapses back into it, and the `osascript` step below is **obsolete**.
-- **Historical fallback (v2.7.2 / 4.6.2 — or if reimport-alone ever regresses):** wake the FS watcher first. On macOS, activating the editor window triggers the rescan:
-  1. `osascript -e 'tell application "Godot" to activate'` — forces the FS watcher to scan the new file.
-  2. `mcp__godot-ai__filesystem_manage op=reimport` on the script — now operates on a scanned entry, generates the `.uid` / populates `uid_cache.bin`.
-  3. `mcp__godot-ai__scene_save` — writes a clean one-line `uid=` on the `ext_resource`.
+## `assert_eq(<Dictionary>, <struct Variant>)` silently false-passes — an un-coerced dict reads as "equal" to a struct
 
-  On v2.7.2 the `uid=` appeared only on the **THIRD** save: (1) first save → no uid; (2) reimport + second save → still no uid (unscanned entry, reimport no-op); (3) osascript-activate + reimport + third save → `uid="uid://..."` present. On v2.7.5 it appears on the **SECOND** save with no `osascript` at all.
+**Symptom:** A GDScript test like `assert_eq(some_dict, Vector2i(3, 4))` (or `Rect2` / `Vector4` / `Transform2D` / any struct Variant) **PASSES even when `some_dict` is a raw, un-coerced `Dictionary`** that was never converted to the struct — a false green. The test reads as if it verifies coercion/conversion, but it actually verifies nothing: it stays green whether or not the conversion happened. Observed live as the obvious-style `assert_eq(_coerce_value(...), <struct>)` artifact tests that false-passed in the TDD **RED** phase, before any coercion code existed.
 
-**Detect proactively:** After any godot-ai scene edit that attaches a freshly-Written script, grep the saved `.tscn` for that script's `ext_resource` line — if it has `path=` but no `uid=` while siblings do, `reimport` + re-save and re-grep to confirm `uid=`. Verify the on-disk `.gd.uid` sidecar actually exists rather than trusting the `reimport` success report. If (on an older version) reimport-alone leaves it absent, escalate to the `osascript`-activate step. See the `uid=`-omission entry and the `class_name` cache-stale entry (trap 3) above; also `docs/godot-mcp-guide.md` for the godot-ai writer surface.
+**Cause:** GDScript's `==` / `!=` between a `Dictionary` and an incompatible struct type emits a **NON-FATAL** runtime error and evaluates the expression to **`false`** — it does not equate them, it simply can't compare them and defaults to false:
 
-**Confirmed by:** v2.7.2 / Godot 4.6.2-stable / macOS — `uid=` materialized only on the THIRD save (osascript-activate → reimport → scene_save); repeated reimport alone insufficient. **2026-06-18 — re-verified live on v2.7.5 / Godot 4.7-stable / macOS: a Write-tool script attached + saved emitted a `uid=`-less `ext_resource`; `filesystem_manage op=reimport` ALONE then generated the `.gd.uid` sidecar (`uid://…`) with no `osascript`/window activation, and the next `scene_save` wrote the clean `uid=`. Resolved in 2 saves; the `osascript` step is OBSOLETE on this version (the 2026-06-18 OPEN flag is resolved).**
+```
+SCRIPT ERROR: Invalid operands 'Dictionary' and 'Vector2i' in operator '!='
+SCRIPT ERROR: Invalid operands 'Dictionary' and 'Rect2' in operator '!='
+SCRIPT ERROR: Invalid operands 'Dictionary' and 'Transform2D' in operator '!='
+```
+
+A typical `assert_eq` helper is `if actual != expected: <record failure>`. So `dict != struct` → `false` → **no failure recorded → the assertion "passes."** Contrast the strict type check, which works: `assert_true(result is Vector2i)` correctly **FAILS** on the same un-coerced dict, and `value as Transform3D` on a dict raises `Invalid cast: could not convert value to 'Transform3D'`. The `is`/`as` paths reject the dict; the `==`/`!=` path silently swallows it.
+
+**Fix:** When asserting that a value was coerced/converted to a struct, assert the **TYPE strictly BEFORE** comparing the value — the `is <Type>` check catches the raw dict (RED), and once both operands are the same struct type, `assert_eq` is a valid same-type comparison:
+
+```gdscript
+var result: Variant = some_coercer(...)
+assert_true(result is Vector2i, "should coerce to Vector2i")  # catches an un-coerced dict (RED)
+assert_eq(result, Vector2i(3, 4))                             # reliable once both sides are Vector2i
+```
+
+**Detect proactively:** Grep tests for struct comparisons that skip the type guard: `grep -nE 'assert_eq\([^,]+,[ ]*(Vector[234]i?|Rect2i?|AABB|Plane|Basis|Quaternion|Transform[23]D|Projection|Color)\(' tests/`. Any `assert_eq(x, <struct>(…))` where `x` might be a Dictionary (a coercer/parser/deserializer output) needs an `assert_true(x is <Type>)` line first — otherwise an un-coerced dict false-passes. Watch the test log for `Invalid operands 'Dictionary' and '<Struct>' in operator '!='`: it is emitted from inside an assertion that nonetheless reported a pass. Applies to any GDScript test comparing a Dictionary (or other non-struct Variant) to a struct value (`Vector2/2i/3/3i/4/4i`, `Rect2/2i`, `AABB`, `Plane`, `Basis`, `Quaternion`, `Transform2D/3D`, `Projection`, `Color`) with `assert_eq` / `==` / `!=` — not specific to godot-ai. Sibling to the `can_instantiate()`-vs-`is_abstract()` entry above (both are silently-inverted/false-passing test assertions where a strict check is the truthful signal).
+
+**Confirmed by:** Surfaced in a TDD **RED** phase where bare `assert_eq(_coerce_value(...), <struct>)` artifact tests false-passed before any coercion code existed; strengthening them to `assert_true(result is <Type>)` first made them genuinely fail. Editor error log showed `Invalid operands 'Dictionary' and 'Vector2i'/'Rect2'/'Transform2D' in operator '!='`.
+
+---
+
+## godot-ai `resource_manage op=create` (and inline `{"__class__":"X"}`) needs `@tool` on the script to instantiate a custom `class_name` Resource (POST-#583)
+
+**Symptom:** With PR #583 applied (godot-ai 2.7.5, branch `feat/instantiate-custom-resources`, Godot 4.7), calling `resource_manage op=create type="MyThing"` — or passing a nested `{"__class__": "MyThing", ...}` value — on a project script `class_name MyThing extends Resource` returns:
+
+```
+WRONG_TYPE: MyThing cannot be instantiated in the editor (abstract, or a non-@tool script — add @tool to instantiate it here)
+```
+
+…even though `MyThing` IS correctly registered in `.godot/global_script_class_cache.cfg` and resolvable. **This is the POST-#583 successor state of the entry above** ("godot-ai `resource_manage` can't author script-`class_name` resources"): before #583, the identical call returned `VALUE_OUT_OF_RANGE: Unknown resource type: MyThing` (the OLD behavior — custom classes were entirely unreachable). PR #583 makes custom `class_name` resources reachable; this entry documents the one remaining gate (`@tool`) you hit once they are. Version boundary: pre-#583 → `Unknown resource type`; #583+ → `WRONG_TYPE … add @tool`.
+
+**Cause:** `resource_handler._instantiate_resource()` (`resource_handler.gd:223-244`) resolves the project class via `ProjectSettings.get_global_class_list()`, then gates instantiation on `Script.can_instantiate()` (line 238). Godot returns `can_instantiate() == false` for a NON-`@tool` script when called inside the editor process — the editor only instantiates `@tool` scripts. This is correct Godot behavior, NOT a godot-ai defect; the `WRONG_TYPE` message is PR #583's honest error-split — distinct from `INTERNAL_ERROR` for a script-load failure (line 237) and from `VALUE_OUT_OF_RANGE`/"Unknown resource type" (line 244), which now fires ONLY when the class is genuinely unregistered. Mechanistically related to the `Script.can_instantiate()`-vs-`is_abstract()` entry above (same `can_instantiate()` semantics — there it reports compiled-validity not abstractness; here it reports editor-time-instantiability, which excludes non-`@tool` scripts).
+
+**Fix:** Add `@tool` as the first line of the custom Resource script, then `filesystem_manage op=reimport` it, then retry the create — it succeeds and writes a valid `.tres` (`[gd_resource type="Resource" script_class="MyThing" ...]`). `@tool` only enables editor-time instantiation (which `resource_manage` needs); it does NOT change the resource's runtime data behavior.
+
+**Parallel-reload race (sibling note):** Overwriting a `class_name` script AND a dependent script that references it via TWO PARALLEL `script_create` calls can throw a transient `GDScript reload failed (error code 43)` pointing at the `@export` line. It is a concurrent-reload race, not a real parse error — reimport in dependency order (the child/referenced class BEFORE the parent that references it) settles it. Same EditorFileSystem-timing family as the `op=reimport` STALE-log entry above (reimport races).
+
+**Detect proactively:** Before `resource_manage op=create type="<YourClass>"` (or an inline `{"__class__": "<YourClass>"}` value), confirm the script's first line is `@tool` — otherwise expect `WRONG_TYPE … add @tool` even though the class is cache-registered. A `WRONG_TYPE` mentioning `@tool` means this gotcha; a `VALUE_OUT_OF_RANGE: Unknown resource type` means the class isn't registered (the pre-#583 / cache-stale path — see the entries above). When overwriting interdependent `class_name` scripts in one batch, reimport child-before-parent rather than firing parallel `script_create`s.
+
+**Confirmed by:** godot-ai 2.7.5 / Godot 4.7 on the PR #583 branch `feat/instantiate-custom-resources`. Handler source: `addons/godot_ai/handlers/resource_handler.gd:223-244`.
 
 ---
 
