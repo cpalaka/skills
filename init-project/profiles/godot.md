@@ -44,8 +44,6 @@ templates:
   - { src: tests/fixtures/fixture_truncated_clean.gd,   dest: tests/fixtures/fixture_truncated_clean.gd }
   - { src: tests/fixtures/fixture_parse_error.gd.txt,   dest: tests/fixtures/fixture_parse_error.gd.txt }  # inert .gd.txt — never a live .gd
   # project-local subagents (.claude/agents/)
-  - { src: agents/godot-gotcha-reviewer.md,  dest: .claude/agents/godot-gotcha-reviewer.md }
-  - { src: agents/gotcha-curator.md,         dest: .claude/agents/gotcha-curator.md }
   - { src: agents/godot-export-verifier.md,  dest: .claude/agents/godot-export-verifier.md }
   # user-level helper (NOT in-repo; chmod +x in recipe)
   - { src: godot-mcp-clean,       dest: ~/.local/bin/godot-mcp-clean }   # user-level, once per machine; recipe chmod +x
@@ -85,14 +83,14 @@ knobs:
                             # project); skipped entirely for a board-less prototype.
     VERSION: "<pin the installed backlog CLI version>"
     PLANS_DIR: "docs/superpowers/plans/"
-    VERIFY_EXAMPLES: "tests/run_tests.sh green via the headless runner; an in-editor F5 / interactive verification of the affected surface; a godot-gotcha-reviewer scan of the diff"
+    VERIFY_EXAMPLES: "tests/run_tests.sh green via the headless runner; an in-editor F5 / interactive verification of the affected surface; a gotcha self-scan of the diff against the godot-personal-gotchas skill's Detect-proactively patterns"
     # Godot-flavored DoD — standing gates for every task, ending in the user-sign-off gate
     # (backlog-core requires the list end in sign-off). Stamped into backlog/config.yml at
     # task-create time; config changes don't back-propagate.
     DoD:
       - "Headless test suite green via tests/run_tests.sh (verdict from output, not $?)"
-      - "godot-gotcha-reviewer subagent scan of the diff — clean, or each finding addressed"
-      - "New gotchas filed in docs/godot-gotchas.md and load-bearing decisions recorded as docs/adr/ entries"
+      - "Gotcha self-scan of the diff against the godot-personal-gotchas skill — clean, or each finding addressed"
+      - "New gotchas filed (universal -> godot-personal-gotchas skill, project-local -> docs/godot-gotchas.md); load-bearing decisions recorded as docs/adr/ entries"
       - "Any debug/diagnostic scaffolding (autoload prints, temp scenes, profiler hooks) reverted"
       - "User sign-off received"
   verify-gate:
