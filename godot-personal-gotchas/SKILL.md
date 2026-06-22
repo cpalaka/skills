@@ -13,6 +13,20 @@ When something in Godot behaves unexpectedly, scan the index table by symptom **
 
 If your symptom matches an entry, apply the fix. If it doesn't match, debug normally — then add the new gotcha here when you find the cause (see "Adding new gotchas" at the bottom).
 
+> **Single-source / migration note:** universal gotchas live ONLY here. A project's
+> `docs/godot-gotchas.md` should hold only *project-local* entries; if it still mirrors this
+> index it predates the single-source migration — offer to run `/audit-godot-parity`, which
+> shrinks the project doc (removing verified duplicates) under parity-table approval.
+
+## Proactive pre-commit scan
+
+Before committing Godot changes, scan the diff against the **Detect proactively** line of each
+relevant index entry (read the body file for the full pattern) — this skill is the single source
+for those detection patterns. Highest-yield checks: `.tscn` ` = null` overrides (#3); `:=` on
+`clamp`/`min`/`max`/`abs`/`sign` (#2) and on cross-script member access (#6); `window_set_mode`
+from script (#1); non-code files under a docs folder without `.gdignore` (#7); `basis.z` without a
+leading `-` (#17). Report `file:line → entry → fix`; silence is not a pass.
+
 ## Tooling: which MCP to use
 
 Many entries below are godot-mcp write quirks — the meta-fix is **use the right tool for the job**:
@@ -73,7 +87,23 @@ On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = t
 
 ## Adding new gotchas
 
+**This skill is the SINGLE SOURCE for universal gotchas** — do not copy them into any project's
+`docs/godot-gotchas.md`. Classify first:
+
+- **Universal** — reproduces on any Godot project here given the same engine / tooling / addon
+  (Godot, godot-ai, godot-mcp, GDScript, the headless harness, the dev machine, a third-party
+  addon). **File it here** (steps below).
+- **Project-local** — bound to one project's own code, scenes, assets, or param-tuning. File it in
+  *that project's* `docs/godot-gotchas.md`, not here.
+- A *convention* (axis-flip, naming, a design rule) is not a gotcha — record it as a `docs/adr/`
+  entry, in neither catalog.
+
+To file a universal gotcha here:
+
 1. Append a row to the **Gotcha index** table with a one-line symptom and a one-line cause.
-2. Create `gotchas/NN-<slug>.md` (NN = the new row number, zero-padded to 2 digits; slug = short kebab-case from the title) containing a `### N. <Short title>` section with **Symptom / Cause / Fix / Confirmed by** subsections (same format as the existing body files).
+2. Create `gotchas/NN-<slug>.md` (NN = the new row number, zero-padded to 2 digits; slug = short
+   kebab-case from the title) with **Symptom / Cause / Fix / Detect proactively / Confirmed by**
+   subsections (same format as existing body files). A gotcha first hit in a specific project keeps
+   its `Confirmed by: <project> <date>` anchor here — provenance lives in the skill.
 3. Keep entries symptom-first — what you'd type into a search box at 11pm.
-4. Do NOT renumber existing entries — the row number is the stable pointer from the index to the body file.
+4. Do NOT renumber existing entries — the row number is the stable pointer from index to body file.

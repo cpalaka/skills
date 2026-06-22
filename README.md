@@ -32,13 +32,13 @@ The single engine that scaffolds (or migrates) a dev project onto the **Chunk li
 
 [`SKILL.md`](./init-project/SKILL.md)
 
-### sync-godot-skills
+### audit-godot-parity
 
 Audits and propagates learnings from a Godot project's docs and per-project memory back to the source skills (the `init-project` godot profile, `godot-personal-gotchas`, `godot-personal-preferences`). Identifies drift, presents a parity table for user approval, applies surgical updates to skill files only. Direction is always project → skill, never the reverse.
 
-**When to use:** Running a parity check between project docs/memory and skills, syncing new Godot gotchas or workflow feedback back to their skills, propagating doc updates to the `init-project` godot-profile templates, or the user says "audit godot skill parity" / "sync godot skills" / invokes `/sync-godot-skills`.
+**When to use:** Running a parity check between project docs/memory and skills, propagating new Godot gotchas or workflow feedback back to their skills, propagating doc updates to the `init-project` godot-profile templates, running the gotcha leak-audit + gated single-source doc-shrink, or the user says "audit godot parity" / "audit godot skills" / invokes `/audit-godot-parity`.
 
-[`SKILL.md`](./sync-godot-skills/SKILL.md)
+[`SKILL.md`](./audit-godot-parity/SKILL.md)
 
 ### godot-personal-preferences
 
