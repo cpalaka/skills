@@ -4,5 +4,5 @@ __pycache__/
 
 # Claude Code workspace plumbing — never publish
 .claude/
-CLAUDE.md
 .superpowers/
+# CLAUDE.md is intentionally TRACKED (repo operating notes) — keep it mechanics-only, no secrets/private paths.
