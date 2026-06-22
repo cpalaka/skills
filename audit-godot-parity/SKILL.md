@@ -59,7 +59,7 @@ DO NOT propagate (= project-specific):
 - "Confirmed by: <this project's> Step N / Phase X / specific session" anchors when going into the init template (a fresh project doesn't have those sessions). Such anchors ARE acceptable in `godot-personal-gotchas/SKILL.md` and `godot-personal-preferences/SKILL.md`, which already have project-specific refs.
 - File path references to this project's specific scripts/scenes.
 - Git/branch/commit-discipline notes that encode project policy (e.g. "this project went under version control on 2026-05-24"), not engine knowledge.
-- Feedback tied to a single specific decision in one project (e.g. "for THIS repo we chose to keep CLAUDE.md out of public" — propagate the general principle, drop the project-specific scope).
+- Feedback tied to a single specific decision in one project (e.g. "for THIS repo we keep the local editor cache / session transcripts out of publishing" — propagate the general principle, drop the project-specific scope).
 
 For unclear cases, INCLUDE the entry in your report and ASK before propagating.
 
