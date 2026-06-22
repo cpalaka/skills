@@ -110,6 +110,6 @@ Signals 4+5 are the verdict (hard, binary); 1–3 and 6 support. A re-derived di
 
 ## Maintaining this skill
 
-Direction is always **project → skill** (via `sync-godot-skills`): when a campaign run in a real
+Direction is always **project → skill** (via `audit-godot-parity`): when a campaign run in a real
 project teaches a new guardrail, gate, or artifact convention, generalize it back here. Project
 parameters (drivers, anchor tasks, population labels, candidates) never propagate.

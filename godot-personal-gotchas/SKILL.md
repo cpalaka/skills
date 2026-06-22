@@ -15,7 +15,7 @@ If your symptom matches an entry, apply the fix. If it doesn't match, debug norm
 
 > **Single-source / migration note:** universal gotchas live ONLY here. A project's
 > `docs/godot-gotchas.md` should hold only *project-local* entries; if it still mirrors this
-> index it predates the single-source migration — offer to run `/sync-godot-skills`, which
+> index it predates the single-source migration — offer to run `/audit-godot-parity`, which
 > shrinks the project doc (removing verified duplicates) under parity-table approval.
 
 ## Proactive pre-commit scan
