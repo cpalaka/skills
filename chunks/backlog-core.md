@@ -31,6 +31,13 @@ one file fine to hand-edit; `backlog config set` does not expose `definition_of_
   agents. ID generation is a max+1 scan, so concurrent creation collides. (A solo
   interactive worktree session is the main session *for its own task*, so its `task edit`
   writes are fine; only `task create` stays main-repo-only — see `parallel-work`.)
+- **Create from a fresh board view — a feature branch is a stale board.** `backlog draft create`
+  and `task create` assign IDs by a max+1 scan of the **current branch's** `backlog/`, so creating
+  on a branch is blind to items added on `main` (or a sibling branch) since it diverged → a
+  colliding ID that a later merge keeps as a silent **duplicate** (the two files have different
+  name-slugs, so nothing flags a textual conflict). Prefer doing board grooming on `main`; if you
+  do create on a branch, re-sync it with `main` **first** so the scan sees every existing ID, and
+  re-check IDs right before the merge if `main`'s board moved meanwhile.
 - **Populating/seeding the board, and any task decomposition, require an explicit
   go-ahead in chat before the first `backlog task create` runs.** Propose the list
   (titles + one-liners) and wait for a yes. A spec that says "decompose this into tasks"
