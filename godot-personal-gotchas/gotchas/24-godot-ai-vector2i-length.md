@@ -1,5 +1,7 @@
 ### 24. godot-ai `node_set_property` can't write a `Vector2i` — v2.5.x sets the container's LENGTH; v2.7.2+ silently no-ops
 
+**FIXED upstream in godot-ai 2.8.0 (PR #582, merged 2026-06-23).** The merged `_coerce_value` (`node_handler.gd:697`) now has explicit `Vector2i`/`Vector3i`/`Vector4i` branches (`:813`/`:816`) and `_check_coerced` strict-checks them (`:568`–`569`); the response echo is at `:274`. On **2.8.0+** a dict/array writes the integer-vector property correctly. Everything below is the **PRE-2.8.0 behavior (v2.5.x–2.7.6)**, kept for anyone on an older godot-ai. (Cites verified against the merged 2.8.1 source.)
+
 **Symptom**
 Setting a `Vector2i` property via godot-ai (e.g. `SubViewport.size`) silently produces the wrong result. **v2.5.x:** dict `{"x":256,"y":256}` → `Vector2i(2,2)` (key count), array `[256,256]` → `Vector2i(2,2)` (length), string `"Vector2i(256, 256)"` → no-op; any 2-element container → `(2,2)` regardless of values. **v2.7.2+:** the length mangling is gone — every form should silently no-op (property keeps its old value) while the tool reports success; the response echoes the live property value (`node_handler.gd:280`), which is the one tell.
 
@@ -18,3 +20,5 @@ When a godot-ai `node_set_property` targets a `Vector2i`-typed property (`SubVie
 2026-06-12 — CHANGED, re-verified against the godot-ai v2.7.2 source: the v2.5.x length-coercion path no longer exists (zero integer-vector hits in `node_handler.gd`); v2.7.2 behavior is a silent no-op instead of `(2,2)`. Fix unchanged. Not yet reproduced live on v2.7.2.
 
 2026-06-18 — UNCHANGED from v2.7.2, re-anchored to godot-ai **v2.7.5** on Godot **4.7**: still no `Vector2i`/`Vector3i`/`Vector4i` branch in `_coerce_value` (`node_handler.gd:657-762`); `_check_coerced` wildcard passes integer-vector targets through (`:546-572`). Silent-no-op behavior identical to v2.7.2. Unaffected by Godot 4.7.
+
+2026-06-29 — **FIXED.** PR #582 merged upstream 2026-06-23, shipped in **godot-ai 2.8.0**. Merged `node_handler.gd`: `_coerce_value:697` adds the `Vector2i`/`Vector3i`/`Vector4i` branches (`:813`/`:816`); `_check_coerced` strict-checks them (`TYPE_VECTOR2I`/`TYPE_VECTOR3I` at `:568`/`:569`); echo at `:274`. The silent no-op is now pre-2.8.0 history. Verified against the merged 2.8.1 source.
