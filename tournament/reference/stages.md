@@ -307,8 +307,8 @@ const DOMAIN = 'your domain here' // FILL: one-phrase description of what is bei
 const ROOT = '/path/to/research' // FILL: absolute path to the research corpus root
 
 const briefResults = await parallel([
-  () => agent(`Read ${ROOT}/research/topic-a.md. Extract everything relevant to ${DOMAIN}. ${briefSpec}`, { label: 'brief:topic-a', phase: 'Context' }), // FILL: replace file path, topic, and extraction goal
-  () => agent(`Read ${ROOT}/research/topic-b.md. Extract everything relevant to ${DOMAIN}. ${briefSpec}`, { label: 'brief:topic-b', phase: 'Context' }), // FILL: replace file path, topic, and extraction goal
+  () => agent(`Read ${ROOT}/research/topic-a.md. Extract everything relevant to ${DOMAIN}. ${briefSpec}`, { model: 'opus', label: 'brief:topic-a', phase: 'Context' }), // FILL: replace file path, topic, and extraction goal
+  () => agent(`Read ${ROOT}/research/topic-b.md. Extract everything relevant to ${DOMAIN}. ${briefSpec}`, { model: 'opus', label: 'brief:topic-b', phase: 'Context' }), // FILL: replace file path, topic, and extraction goal
 ])
 
 const briefs = { // FILL: key names must match what downstream generate/filter stages reference
@@ -333,7 +333,7 @@ const researchBriefs = [
 ]
 
 const researchResults = (await parallel(researchBriefs.map(b => () =>
-  agent(b.prompt, { label: `research:${b.key}`, phase: 'Context', effort: 'high' })
+  agent(b.prompt, { model: 'opus', label: `research:${b.key}`, phase: 'Context', effort: 'high' })
 ))).filter(Boolean)
 
 const briefs = Object.fromEntries( // FILL: key names must match what downstream stages reference
@@ -379,13 +379,17 @@ const verified = (await parallel(claims.map(c => () =>
   parallel(VERIFY_LENSES.map((lens, li) => () =>
     agent(
       `A research agent (working on: ${DOMAIN}) asserted this claim:\n"${c.claim}"\nWhy it was flagged as dubious: ${c.whyDubious}\n\nVERIFY IT THROUGH THIS LENS: ${lens}. Use WebSearch/WebFetch (load via ToolSearch "select:WebSearch,WebFetch") to ground your check in real sources where you can. Be ADVERSARIAL — actively try to refute the claim or surface the nuance that makes it misleading. If evidence is thin, default to skepticism. Then give your verdict (confirmed / refuted / partly / unknown), a corrected precise statement of what is actually true, and your single strongest piece of evidence.`,
-      { label: `verify:${c.id}:${li}`, phase: 'Verify', schema: VERDICT_SCHEMA, effort: 'medium' }
+      { model: 'opus', label: `verify:${c.id}:${li}`, phase: 'Verify', schema: VERDICT_SCHEMA, effort: 'medium' }
     )
   )).then(vs => {
     const v = vs.filter(Boolean)
+    const dropped = vs.length - v.length // verify lenses that errored/returned null
     const count = k => v.filter(x => x.verdict === k).length
     const consensus = count('refuted') >= 2 ? 'REFUTED' : count('confirmed') >= 2 ? 'CONFIRMED' : 'NUANCED'
-    return { id: c.id, claim: c.claim, consensus, verdicts: v }
+    // Reconcile SENT vs RETURNED (improvements 2026-06-28): a dropped lens can flip a real quorum, so a short panel is never resolved silently.
+    const needsAdjudication = dropped > 0
+    if (needsAdjudication) log(`⚠ claim ${c.id}: ${dropped}/${vs.length} verify lens(es) dropped — consensus "${consensus}" rests on a short panel; flagging for main-loop adjudication`)
+    return { id: c.id, claim: c.claim, consensus, verdicts: v, votesSent: vs.length, votesReturned: v.length, dropped, needsAdjudication }
   })
 ))).filter(Boolean)
 
@@ -420,7 +424,7 @@ const LENSES = [ // FILL: replace lens keys and prompts for your domain
 const genResults = await parallel(LENSES.map(l => () =>
   agent(
     `You are an expert generating candidates for a tournament deciding: ${DOMAIN}. ${l.prompt}\n\n${genContext}\n\nGenerate exactly 4 DISTINCT candidates through your lens. Each must satisfy all hard constraints and have one undeniably strong differentiator.`, // FILL: adjust count and constraint framing
-    { label: `gen:${l.key}`, phase: 'Generate', schema: CANDIDATE_SCHEMA }
+    { model: 'opus', label: `gen:${l.key}`, phase: 'Generate', schema: CANDIDATE_SCHEMA }
   )
 ))
 
@@ -429,7 +433,7 @@ const seedPrompts = [
   `You are an expert. Develop this user-supplied seed idea into its STRONGEST single tournament-ready candidate for: ${DOMAIN}.\n\nSEED: [describe the seed idea here]\n\n${genContext}\n\nReturn exactly 1 candidate.`, // FILL: replace seed description
 ]
 const seedDevs = await parallel(seedPrompts.map((prompt, si) => () =>
-  agent(prompt, { label: `gen:seed-${si}`, phase: 'Generate', schema: CANDIDATE_SCHEMA })
+  agent(prompt, { model: 'opus', label: `gen:seed-${si}`, phase: 'Generate', schema: CANDIDATE_SCHEMA })
 ))
 
 const candidates = []
@@ -461,7 +465,7 @@ const HARD = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints her
 const allIdx = candidates.map((_, i) => i)
 const dedup = await agent(
   `You are the gatekeeper for a tournament deciding: ${DOMAIN}. Below are ${candidates.length} candidates, each with an index.\n\n${HARD}\n\nTASKS:\n1. KILL any candidate that violates a hard constraint.\n2. MERGE near-duplicates: when two candidates share the same core idea, keep only the better-articulated one.\n3. Indices ${JSON.stringify(seedIndices)} are the user's own seed ideas — they MUST be kept regardless (flag concerns in notes instead of killing).\n\nReturn the indices to keep.\n\n${renderIndexed(allIdx)}`,
-  { label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA }
+  { model: 'opus', label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA }
 )
 
 let kept = (dedup && dedup.keep ? dedup.keep : allIdx).filter(i => i >= 0 && i < candidates.length)
@@ -476,7 +480,7 @@ const AXES = [ // FILL: replace axes for your domain; each axis has key, brief (
 const screeningResults = await parallel(AXES.map(a => () =>
   agent(
     `You are a tournament screener scoring candidates on ONE axis: ${a.instr}\n\nCONTEXT: ${DOMAIN}\n\nREFERENCE BRIEF:\n${a.brief}\n\nScore EVERY candidate below 0-10 on your axis ONLY. Use the full range — be a harsh discriminator, no clustering at 7. One sentence of reasoning each.\n\n${renderIndexed(kept)}`,
-    { label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA }
+    { model: 'opus', label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA }
   )
 ))
 
@@ -511,7 +515,7 @@ const HARD_SB = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints 
 const allIdxSB = candidates.map((_, i) => i)
 const dedupSB = await agent(
   `You are the gatekeeper for a tournament deciding: ${DOMAIN}. Below are ${candidates.length} candidates, each with an index.\n\n${HARD_SB}\n\nTASKS:\n1. KILL any candidate that violates a hard constraint.\n2. MERGE near-duplicates: keep only the better-articulated one.\n3. Indices ${JSON.stringify(seedIndices)} are user seeds — keep regardless.\n\nReturn the indices to keep.\n\n${renderIndexed(allIdxSB)}`,
-  { label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA }
+  { model: 'opus', label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA }
 )
 
 let keptSB = (dedupSB && dedupSB.keep ? dedupSB.keep : allIdxSB).filter(i => i >= 0 && i < candidates.length)
@@ -526,7 +530,7 @@ const AXES_SB = [ // FILL: replace axes for your domain
 const screeningResultsSB = await parallel(AXES_SB.map(a => () =>
   agent(
     `You are a tournament screener scoring candidates on ONE axis: ${a.instr}\n\nCONTEXT: ${DOMAIN}\n\nREFERENCE BRIEF:\n${a.brief}\n\nScore EVERY candidate below 0-10 on your axis ONLY. Use the full range — no clustering at 7. One sentence of reasoning each.\n\n${renderIndexed(keptSB)}`,
-    { label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA }
+    { model: 'opus', label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA }
   )
 ))
 
@@ -581,22 +585,33 @@ const runMatch = async (ai, bi, round) => {
   const votes = await parallel(JUDGE_LENSES.map(j => () =>
     agent(
       `You are one of three judges in a single-elimination tournament deciding: ${DOMAIN}.\n\n${HARD}\n\n${j.instr} The other must-haves are hard pass/fail criteria — a candidate that fails one loses regardless of your lens.\n\nREFERENCE BRIEF:\n${j.brief()}\n\nCANDIDATE A:\n${renderConcept(a)}\n\nCANDIDATE B:\n${renderConcept(b)}\n\nBe adversarial: hunt for the fatal flaw in each before weighing strengths. Pick the better CHOICE, not the more impressive idea on paper.`,
-      { label: `judge:${round}:${j.key}`, phase: 'Tournament', schema: MATCH_SCHEMA }
+      { model: 'opus', label: `judge:${round}:${j.key}`, phase: 'Tournament', schema: MATCH_SCHEMA }
     )
   ))
   const valid = votes.filter(Boolean)
+  const dropped = votes.length - valid.length // judges that errored/returned null
   const aVotes = valid.filter(v => v.winner === 'A').length
-  const winner = aVotes * 2 >= valid.length ? ai : bi // tie or majority-A → higher seed (A)
+  const bVotes = valid.length - aVotes
+  const tie = aVotes === bVotes
+  const winner = aVotes >= bVotes ? ai : bi // deterministic seed tie-break (higher seed = A); a bracket must still advance someone — surfaced via the flag below
+  // Reconcile SENT vs RETURNED (improvements 2026-06-28): a bracket that advances the wrong finalist corrupts the whole result, so a tie or a dropped judge is surfaced loudly, never silent.
+  const needsAdjudication = dropped > 0 || tie
+  if (needsAdjudication) log(`⚠ ${round}: ${a.name} vs ${b.name} advanced ${candidates[winner].name} on ${tie ? 'a TIE' : 'a majority'}${dropped ? ` with ${dropped}/${votes.length} judge vote(s) DROPPED` : ''} → decided by seed tie-break; FLAGGED for main-loop review`)
   matchLog.push({
     round,
     a: a.name,
     b: b.name,
     winner: candidates[winner].name,
+    votesSent: votes.length,
+    votesReturned: valid.length,
+    dropped,
+    tie,
+    needsAdjudication,
     votes: JUDGE_LENSES.map((j, k) => votes[k]
       ? `${j.key}: ${votes[k].winner === 'A' ? a.name : b.name} — ${votes[k].reason}`
       : `${j.key}: (no vote)`)
   })
-  log(`${round}: ${a.name} vs ${b.name} → ${candidates[winner].name} (${aVotes}/${valid.length} for A)`)
+  log(`${round}: ${a.name} vs ${b.name} → ${candidates[winner].name} (A ${aVotes} / B ${bVotes}${dropped ? `, ${dropped} dropped` : ''})`)
   return winner
 }
 
@@ -654,7 +669,7 @@ const judged = (await pipeline(
     const c = candidates[idx]
     return agent(
       `${SHARED_SB}\n\nYou are developing ONE tournament candidate.\nCANDIDATE: ${c.name}\n\nProduce a complete, detailed output for this candidate. Put full content in the appropriate schema fields.`, // FILL: tailor prompt for your domain
-      { label: `gen:${c.name}`, phase: 'Tournament', schema: { type: 'object', properties: { candidates: { type: 'array', items: { type: 'object' } } }, required: ['candidates'] }, effort: 'high' } // FILL: replace inline schema with your domain's generation schema (e.g. CANDIDATE_SCHEMA)
+      { model: 'opus', label: `gen:${c.name}`, phase: 'Tournament', schema: { type: 'object', properties: { candidates: { type: 'array', items: { type: 'object' } } }, required: ['candidates'] }, effort: 'high' } // FILL: replace inline schema with your domain's generation schema (e.g. CANDIDATE_SCHEMA)
     )
   },
   (generated, idx) => {
@@ -663,7 +678,7 @@ const judged = (await pipeline(
     return parallel(JUDGES.map(j => () =>
       agent(
         `${SHARED_SB}\n\nYou are judging a tournament candidate. YOUR ROLE: ${j.persona}.\n${j.rubric}\n\nCANDIDATE NAME: ${c.name}\nCANDIDATE OUTPUT:\n${renderConcept(generated)}\n\nScore it 0-10 through YOUR lens only. Be tough, specific, and do NOT inflate. Give a breakdown, a sharp critique, the single most important fix (mustFix), and whether YOU personally would choose it.`, // FILL: adjust score scale in prompt to match JUDGE_SCHEMA (0-10)
-        { label: `judge:${c.name}:${j.key}`, phase: 'Tournament', schema: JUDGE_SCHEMA, effort: 'high' }
+        { model: 'opus', label: `judge:${c.name}:${j.key}`, phase: 'Tournament', schema: JUDGE_SCHEMA, effort: 'high' }
       )
     )).then(js => {
       const jj = js.filter(Boolean)
@@ -712,11 +727,14 @@ const SKEPTIC_LENSES = [ // FILL: replace with lenses for your domain; each has 
 const skepticResults = await parallel(SKEPTIC_LENSES.map(s => () =>
   agent(
     `You are a professional skeptic. Your job is to REFUTE this champion before committing to it. Default to refuted=true only for genuinely FATAL flaws; use severity for the rest. Always propose concrete fixes where they exist.\n\n${HARD}\n\n${s.instr}\n\nREFERENCE BRIEF:\n${s.brief()}\n\nTHE CHAMPION:\n${renderConcept(candidates[champion])}`,
-    { label: `skeptic:${s.key}`, phase: 'Verify', schema: SKEPTIC_SCHEMA }
+    { model: 'opus', label: `skeptic:${s.key}`, phase: 'Verify', schema: SKEPTIC_SCHEMA }
   )
 ))
 const skeptics = SKEPTIC_LENSES.map((s, k) => ({ lens: s.key, result: skepticResults[k] })).filter(x => x.result)
+const skepticsDropped = skepticResults.length - skeptics.length // skeptic lenses that errored/returned null
 const fatalCount = skeptics.filter(x => x.result.refuted).length
+// Reconcile SENT vs RETURNED (improvements 2026-06-28): a dropped refuter UNDERcounts fatalCount, so a bad champion could survive a flaw it shouldn't. Never trust the swap on a short panel.
+if (skepticsDropped > 0) log(`⚠ champion skeptic panel: ${skepticsDropped}/${skepticResults.length} lens(es) dropped — fatalCount ${fatalCount} rests on a short panel; a missing refuter can hide a fatal flaw. Flag for main-loop adjudication before trusting the swap.`)
 log(`Skeptic verdicts: ${skeptics.map(x => `${x.lens}=${x.result.severity}${x.result.refuted ? ' (REFUTED)' : ''}`).join(', ')}`)
 // SWAP RULE: if fatalCount >= 2, the synthesize stage should recommend runnerUp instead of champion // FILL: adjust threshold (default: 2 of 3 lenses)
 ```
@@ -754,9 +772,10 @@ const HARD = `HARD CONSTRAINTS for ${DOMAIN}: [list must-satisfy constraints her
 const briefs = {} // STANDALONE PARSE ONLY — DELETE at assembly
 
 log('Writing final recommendation...')
+const SYNTH_MODEL = 'opus' // OPT-IN: set to 'fable' for max-insight final synthesis. This single agent is the ONLY sanctioned Fable call site in a tournament (model policy 2026-07-01); every other stage stays Opus.
 const report = await agent(
   `You are the synthesis lead for a tournament deciding: ${DOMAIN}. Write the FINAL RECOMMENDATION REPORT in markdown. Your final message IS the report — no meta-commentary.\n\n${HARD}\n\nCHAMPION:\n${renderConcept(candidates[champion])}\n(user-seed concept: ${seedIndices.includes(champion)})\n\nRUNNER-UP:\n${renderConcept(candidates[runnerUp])}\n(user-seed concept: ${seedIndices.includes(runnerUp)})\n\nFULL MATCH LOG (judge reasoning):\n${JSON.stringify(matchLog, null, 1)}\n\nADVERSARIAL SKEPTIC FINDINGS ON CHAMPION (${fatalCount}/${skeptics.length} voted fatal):\n${JSON.stringify(skeptics, null, 1)}\n\nWrite these sections:\n1. **Recommendation** — the choice to make and the one-paragraph case. If ${fatalCount >= 2 ? fatalCount : 0}+ skeptics voted fatal, recommend the runner-up instead and say why.\n2. **The winner in full** — refined pitch incorporating skeptic FIXES and the best grafts from runner-up (name each graft and its source).\n3. **Why it beat the field** — the decisive judge arguments, honestly including close calls.\n4. **Skeptic findings & mitigations** — every serious+ concern with its concrete mitigation.\n5. **Scope sketch** — milestone outline against your time/budget yardstick, with the hardest constraint explicitly budgeted.\n6. **Kill criteria** — 3 testable conditions early in execution that should kill/pivot the project.\n7. **The full bracket** — one-line results of every match.`, // FILL: adjust section list, scope yardstick, and kill-criteria framing for your domain
-  { label: 'synthesis', phase: 'Synthesize' }
+  { model: SYNTH_MODEL, label: 'synthesis', phase: 'Synthesize' }
 )
 ```
 
@@ -784,9 +803,10 @@ const DOMAIN_SYNTH = 'your domain here' // FILL: one-phrase description (already
 const SHARED_SYNTH = `[shared background context for ${DOMAIN_SYNTH}]` // FILL: compose from briefs/verifiedDigest at assembly
 
 log('Producing final synthesized output...')
+const SYNTH_MODEL = 'opus' // OPT-IN: set to 'fable' for max-insight final synthesis. This single agent is the ONLY sanctioned Fable call site in a tournament (model policy 2026-07-01); every other stage stays Opus.
 const synth = await agent(
   `${SHARED_SYNTH}\n\nTOURNAMENT RESULTS (best first):\n${board.map(b => `- ${candidates[b.index].name}: ${b.score.toFixed(1)} | judges: ${(b.judges || []).map(j => `[${j.persona}] score ${j.score}, critique: ${j.critique} (mustFix: ${j.mustFix})`).join('  ||  ')}`).join('\n')}\n\nWINNER: ${candidates[winner].name}\n\nADVERSARIAL SKEPTIC FINDINGS ON WINNER (${fatalCount}/${skeptics.length} voted fatal):\n${JSON.stringify(skeptics, null, 1)}\n\nALL CANDIDATES (for grafting the best ideas):\n${board.map(b => `\n===== ${candidates[b.index].name} (${b.score.toFixed(1)}) =====\n${JSON.stringify(b.generated || candidates[b.index], null, 1)}`).join('\n')}\n\nNow produce the FINAL synthesized output. Start from the WINNER, GRAFT IN the best verified ideas from other candidates, and resolve EVERY judge mustFix. Output summaryMarkdown (complete, detailed, ready-to-use), parametersMarkdown (key tunable parameters), changeLog (each change with why and what it came from), and graftedFrom (source concept names). If ${fatalCount >= 2 ? fatalCount : 0}+ skeptics voted fatal, address their concerns explicitly in the changeLog.`, // FILL: tailor prompt — replace field names (b.thesis, b.generated etc.) to match your scoreboard-mode tournament's actual output shape
-  { label: 'synthesize', phase: 'Synthesize', schema: SYNTH_SCHEMA, effort: 'max' }
+  { model: SYNTH_MODEL, label: 'synthesize', phase: 'Synthesize', schema: SYNTH_SCHEMA, effort: 'max' }
 )
 ```
 
@@ -814,12 +834,12 @@ const CONSTRAINTS_QA = `[hard constraints for ${DOMAIN_QA}]` // FILL: replace wi
 log('QA red-team + patch...')
 const qa = await agent(
   `Red-team this final output BEFORE it ships. Be ruthless.\n\nCONSTRAINTS:\n${CONSTRAINTS_QA}\n\nFINAL OUTPUT:\n${synth.summaryMarkdown}\n\nPARAMETERS:\n${synth.parametersMarkdown || '(none)'}\n\nCheck HARD for: (1) domain-specific hard gates (${DOMAIN_QA}); (2) internal contradictions, missing quantities, or ambiguous steps; (3) does it overshoot the constraint budget?; (4) any claims that contradict verified findings; (5) is every judge mustFix actually resolved? List every issue with a concrete fix.`, // FILL: replace checklist items with your domain's QA gates
-  { label: 'qa-redteam', phase: 'QA', schema: QA_SCHEMA, effort: 'high' }
+  { model: 'opus', label: 'qa-redteam', phase: 'QA', schema: QA_SCHEMA, effort: 'high' }
 )
 
 const patched = await agent(
   `Apply these QA fixes to the output, changing as LITTLE as possible and preserving its structure, formatting, and voice. Return ONLY the corrected full output markdown (no preamble).\n\nQA VERDICT: ${qa.verdict}\nQA ISSUES:\n${JSON.stringify(qa.issues, null, 2)}\n\nCURRENT FINAL OUTPUT:\n${synth.summaryMarkdown}`, // FILL: replace synth.summaryMarkdown with the correct field for your synth output (e.g. report for text-mode)
-  { label: 'qa-patch', phase: 'QA', effort: 'medium' }
+  { model: 'opus', label: 'qa-patch', phase: 'QA', effort: 'medium' }
 )
 ```
 

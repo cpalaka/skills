@@ -60,6 +60,8 @@ Compose the script from the catalog — never write stage boilerplate from scrat
 3. **Compose ONLY the stages the spec needs**, in pipeline order (drop claim-verify/QA when toggled off; pick bracket *or* scoreboard variant).
 4. **Fill each `// FILL:` slot** from the spec.
 5. **DELETE any line marked `// STANDALONE PARSE ONLY — DELETE at assembly`** — those exist only so each snippet parses in isolation.
+6. **Model policy — every `agent()` pins an explicit `model:` (never inherit the session model).** All stages use `model: 'opus'`; the single final synthesis agent may opt into `model: SYNTH_MODEL` set to `'fable'` for max-insight synthesis — the **sole sanctioned Fable call site** in a tournament (model policy 2026-07-01; a tournament fans out 89–111 agents, so silent Fable inheritance is a weekly-budget blowout). The catalog stages ship pinned; keep them pinned.
+7. **Vote-tallying stages reconcile SENT vs RETURNED** (bracket, claim-verify, champion-skeptic): compute `dropped = sent − returned`, log it, and flag any tie or dropped vote as `needsAdjudication` (improvements 2026-06-28 — a dropped vote silently flips a winner/consensus/fatalCount). The catalog stages already do this; preserve it when filling slots.
 
 **Never hand-edit a generated script.** It is a build artifact; hand-edits diverge from the spec (DESIGN §14). To change behavior, **edit the spec and regenerate.**
 
@@ -71,7 +73,7 @@ Before any full launch, self-lint the emitted script against the runtime's hard 
 node reference/lint.mjs <script.js>
 ```
 
-Exit **0** = clean, **1** = errors (must fix), **2** = usage. It prints `WARN:`/`ERROR:` lines and checks: literal `export const meta`, `meta.phases` match `phase()` calls, **no `Date.now()`/`Math.random()`/argless `new Date()`**, no `import`/`require`/fs, `parallel()` guarded by `.filter(Boolean)`, and `node --check` syntax. Resolve every `ERROR:` before proceeding.
+Exit **0** = clean, **1** = errors (must fix), **2** = usage. It prints `WARN:`/`ERROR:` lines and checks: literal `export const meta`, `meta.phases` match `phase()` calls, **no `Date.now()`/`Math.random()`/argless `new Date()`**, no `import`/`require`/fs, `parallel()` guarded by `.filter(Boolean)`, **every `agent()` pins an explicit `model:` (ERROR if missing)**, **vote-tallying stages reconcile sent-vs-returned (WARN if a `winner`/`consensus`/`fatalCount` stage filters results without `dropped`/`votesSent`/`needsAdjudication`)**, and `node --check` syntax. Resolve every `ERROR:` before proceeding.
 
 **Required tiny smoke-run** on a **new or edited** script before full scale: 1 lens / 2 candidates / 1 judge / no web / low effort — a green dry-run proves the wiring. **Skip the smoke-run when re-running an unchanged, previously-green spec.** Never auto-run an unseen full-scale script.
 

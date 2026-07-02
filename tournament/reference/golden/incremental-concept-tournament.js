@@ -97,11 +97,11 @@ log('Distilling research corpus into design briefs...')
 const briefSpec = 'Return ONLY a dense, design-actionable brief of AT MOST 600 words: terse bullets, concrete numbers/examples preserved, no fluff or meta-commentary. Your final message IS the brief.'
 
 const [genreBrief, feelBrief, marketBrief, seedsBrief, feasBrief] = await parallel([
-  () => agent(`Read ${ROOT}/research/idle-incremental-genre.md (a verified deep-research report). Extract everything design-relevant to building a Gnorp-Apologue-style VISUAL incremental: what makes Gnorp work (structure, build variety, finite arc, spectacle), design principles for visual incrementals, the balancing-effort findings (balancing is reportedly 60-70% of such a project), monetization/pricing findings near $3-5, and known pitfalls. IGNORE deckbuilder-idler recommendations entirely (user refuses card mechanics). ${briefSpec}`, { label: 'brief:genre', phase: 'Context' }),
-  () => agent(`Read ${ROOT}/research/game-feel-collectibles.md and the notes ${ROOT}/research/notes/game-feel/recipes.md, ${ROOT}/research/notes/game-feel/theory.md, ${ROOT}/research/notes/game-feel/vacuum-suction.md, ${ROOT}/research/notes/game-feel/psychology.md. Extract a juice/game-feel cookbook applicable to a 2D incremental: concrete pickup/impact/feedback recipes (numbers: durations, curves, pitch ramps), the spring-reel/vacuum findings, spectacle-of-scale techniques, and the psychology of satisfying collection. ${briefSpec}`, { label: 'brief:feel', phase: 'Context' }),
-  () => agent(`Read ${ROOT}/research/indie-market-2025-2026.md and ${ROOT}/research/indie-marketing-playbook.md (skim ${ROOT}/research/notes/marketing/dive-dome-keeper.md and ${ROOT}/research/notes/marketing/sweep-steam-mechanics.md if useful). Extract what makes a $2.99-4.99 solo 2D incremental SELLABLE in 2026: hook/GIF-ability criteria, Steam tags and comparables (incl. Gnorp Apologue's own performance if covered), wishlist/Next Fest timing, what fails. ${briefSpec}`, { label: 'brief:market', phase: 'Context' }),
-  () => agent(`Read ${ROOT}/research/magic-systems.md and ${ROOT}/research/arcade-space-shooter-lineage.md. Extract raw material for two game-concept seeds: (1) a fantasy premise inspired by Brandon Sanderson magic systems where magic manifests as living crystals found in the ground that must be SQUISHED to retrieve power — pull the most game-mappable magic-system mechanics (costs, vulnerability windows, power-as-corruption, comprehension gates); (2) a 2D space MINING game with soft-RTS controls — pull the most unmined ideas from the Asteroids-lineage report relevant to mining/harvesting/swarm control rather than shooting. ${briefSpec}`, { label: 'brief:seeds', phase: 'Context' }),
-  () => agent(`You are a production planner for a SOLO game developer: ~300-350 hours over 2 months, Godot 4.6, 2D, doing code+art+music+marketing alone; competent 2D artist; first commercial release; target = Gnorp-Apologue-style visual incremental, 4-8h playtime, $2.99-4.99. Skim ${ROOT}/research/idle-incremental-genre.md for effort findings (balancing reportedly 60-70% of such projects) and ${ROOT}/research/indie-marketing-playbook.md for marketing time costs. Produce a FEASIBILITY YARDSTICK: hour-budget breakdown (systems code / content+art / audio / balancing+tuning / juice polish / marketing+store), a hard ceiling on number of distinct systems and art scope that fits, concrete examples of what does NOT fit in 320h, and 5 red-flag patterns that silently blow the budget. ${briefSpec}`, { label: 'brief:feasibility', phase: 'Context' }),
+  () => agent(`Read ${ROOT}/research/idle-incremental-genre.md (a verified deep-research report). Extract everything design-relevant to building a Gnorp-Apologue-style VISUAL incremental: what makes Gnorp work (structure, build variety, finite arc, spectacle), design principles for visual incrementals, the balancing-effort findings (balancing is reportedly 60-70% of such a project), monetization/pricing findings near $3-5, and known pitfalls. IGNORE deckbuilder-idler recommendations entirely (user refuses card mechanics). ${briefSpec}`, { model: 'opus', label: 'brief:genre', phase: 'Context' }),
+  () => agent(`Read ${ROOT}/research/game-feel-collectibles.md and the notes ${ROOT}/research/notes/game-feel/recipes.md, ${ROOT}/research/notes/game-feel/theory.md, ${ROOT}/research/notes/game-feel/vacuum-suction.md, ${ROOT}/research/notes/game-feel/psychology.md. Extract a juice/game-feel cookbook applicable to a 2D incremental: concrete pickup/impact/feedback recipes (numbers: durations, curves, pitch ramps), the spring-reel/vacuum findings, spectacle-of-scale techniques, and the psychology of satisfying collection. ${briefSpec}`, { model: 'opus', label: 'brief:feel', phase: 'Context' }),
+  () => agent(`Read ${ROOT}/research/indie-market-2025-2026.md and ${ROOT}/research/indie-marketing-playbook.md (skim ${ROOT}/research/notes/marketing/dive-dome-keeper.md and ${ROOT}/research/notes/marketing/sweep-steam-mechanics.md if useful). Extract what makes a $2.99-4.99 solo 2D incremental SELLABLE in 2026: hook/GIF-ability criteria, Steam tags and comparables (incl. Gnorp Apologue's own performance if covered), wishlist/Next Fest timing, what fails. ${briefSpec}`, { model: 'opus', label: 'brief:market', phase: 'Context' }),
+  () => agent(`Read ${ROOT}/research/magic-systems.md and ${ROOT}/research/arcade-space-shooter-lineage.md. Extract raw material for two game-concept seeds: (1) a fantasy premise inspired by Brandon Sanderson magic systems where magic manifests as living crystals found in the ground that must be SQUISHED to retrieve power — pull the most game-mappable magic-system mechanics (costs, vulnerability windows, power-as-corruption, comprehension gates); (2) a 2D space MINING game with soft-RTS controls — pull the most unmined ideas from the Asteroids-lineage report relevant to mining/harvesting/swarm control rather than shooting. ${briefSpec}`, { model: 'opus', label: 'brief:seeds', phase: 'Context' }),
+  () => agent(`You are a production planner for a SOLO game developer: ~300-350 hours over 2 months, Godot 4.6, 2D, doing code+art+music+marketing alone; competent 2D artist; first commercial release; target = Gnorp-Apologue-style visual incremental, 4-8h playtime, $2.99-4.99. Skim ${ROOT}/research/idle-incremental-genre.md for effort findings (balancing reportedly 60-70% of such projects) and ${ROOT}/research/indie-marketing-playbook.md for marketing time costs. Produce a FEASIBILITY YARDSTICK: hour-budget breakdown (systems code / content+art / audio / balancing+tuning / juice polish / marketing+store), a hard ceiling on number of distinct systems and art scope that fits, concrete examples of what does NOT fit in 320h, and 5 red-flag patterns that silently blow the budget. ${briefSpec}`, { model: 'opus', label: 'brief:feasibility', phase: 'Context' }),
 ])
 
 const briefs = { genre: genreBrief || '', feel: feelBrief || '', market: marketBrief || '', seeds: seedsBrief || '', feas: feasBrief || '' }
@@ -128,7 +128,7 @@ const genResults = await parallel(LENSES.map(l => () =>
 
 ${genContext}
 
-Generate exactly 4 DISTINCT game concepts through your lens. Each must satisfy every hard constraint, be buildable by this solo dev in ~320 hours INCLUDING balancing (which historically eats 60-70% of incremental projects), and have one undeniable GIF moment. Favor one-screen or small-camera-space designs over sprawling maps. Be specific about the active input and why it stays meaningful at hour 6. Do not propose card/deck mechanics in any disguise.`, { label: `gen:${l.key}`, phase: 'Generate', schema: CONCEPTS_SCHEMA })
+Generate exactly 4 DISTINCT game concepts through your lens. Each must satisfy every hard constraint, be buildable by this solo dev in ~320 hours INCLUDING balancing (which historically eats 60-70% of incremental projects), and have one undeniable GIF moment. Favor one-screen or small-camera-space designs over sprawling maps. Be specific about the active input and why it stays meaningful at hour 6. Do not propose card/deck mechanics in any disguise.`, { model: 'opus', label: `gen:${l.key}`, phase: 'Generate', schema: CONCEPTS_SCHEMA })
 ))
 
 const seedDevs = await parallel([
@@ -140,7 +140,7 @@ SEED MATERIAL FROM RESEARCH:\n${briefs.seeds}
 
 ${genContext}
 
-Resolve the seed's open questions in the most compelling, scope-safe way. Return exactly 1 concept.`, { label: 'gen:seed-space-mining', phase: 'Generate', schema: CONCEPTS_SCHEMA }),
+Resolve the seed's open questions in the most compelling, scope-safe way. Return exactly 1 concept.`, { model: 'opus', label: 'gen:seed-space-mining', phase: 'Generate', schema: CONCEPTS_SCHEMA }),
   () => agent(`You are a senior game designer. Develop the user's own seed idea into its STRONGEST single tournament-ready form (1 concept):
 
 SEED: A fantasy premise inspired by Brandon Sanderson magic systems. The world's magic manifests as CRYSTALS found in the ground; they are almost alive and must be SQUISHED to retrieve their power. The squishing should be the deliciously juicy active input. Gameplay mechanics beyond that are open — design them.
@@ -149,7 +149,7 @@ SEED MATERIAL FROM RESEARCH:\n${briefs.seeds}
 
 ${genContext}
 
-Resolve the seed's open questions in the most compelling, scope-safe way (e.g. what squishing feeds into, what the finite arc is, what fills the screen at scale). Return exactly 1 concept.`, { label: 'gen:seed-crystal-squish', phase: 'Generate', schema: CONCEPTS_SCHEMA }),
+Resolve the seed's open questions in the most compelling, scope-safe way (e.g. what squishing feeds into, what the finite arc is, what fills the screen at scale). Return exactly 1 concept.`, { model: 'opus', label: 'gen:seed-crystal-squish', phase: 'Generate', schema: CONCEPTS_SCHEMA }),
 ])
 
 const concepts = []
@@ -177,7 +177,7 @@ TASKS:
 
 Return the indices to keep. Be ruthless; a kept field of 12-18 strong distinct concepts is ideal.
 
-${renderIndexed(allIdx)}`, { label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA })
+${renderIndexed(allIdx)}`, { model: 'opus', label: 'filter:dedup', phase: 'Filter', schema: KEEP_SCHEMA })
 
 let kept = (dedup && dedup.keep ? dedup.keep : allIdx).filter(i => i >= 0 && i < concepts.length)
 for (const s of seedIndices) if (!kept.includes(s)) kept.push(s)
@@ -200,7 +200,7 @@ REFERENCE BRIEF:\n${a.brief}
 
 Score EVERY concept below 0-10 on your axis ONLY. Use the full range — be a harsh discriminator, no clustering at 7. One sentence of reasoning each.
 
-${renderIndexed(kept)}`, { label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA })
+${renderIndexed(kept)}`, { model: 'opus', label: `screen:${a.key}`, phase: 'Filter', schema: SCORES_SCHEMA })
 ))
 
 const totals = new Map(kept.map(i => [i, 0]))
@@ -241,7 +241,7 @@ CONCEPT A:\n${renderConcept(a)}
 
 CONCEPT B:\n${renderConcept(b)}
 
-Be adversarial: hunt for the fatal flaw in each before weighing strengths. Pick the better CHOICE TO BUILD, not the cooler idea on paper.`, { label: `judge:${round}:${j.key}`, phase: 'Tournament', schema: MATCH_SCHEMA })
+Be adversarial: hunt for the fatal flaw in each before weighing strengths. Pick the better CHOICE TO BUILD, not the cooler idea on paper.`, { model: 'opus', label: `judge:${round}:${j.key}`, phase: 'Tournament', schema: MATCH_SCHEMA })
   ))
   const valid = votes.filter(Boolean)
   const aVotes = valid.filter(v => v.winner === 'A').length
@@ -287,7 +287,7 @@ ${s.instr}
 
 REFERENCE BRIEF:\n${s.brief()}
 
-THE CHAMPION CONCEPT:\n${renderConcept(concepts[champion])}`, { label: `skeptic:${s.key}`, phase: 'Verify', schema: SKEPTIC_SCHEMA })
+THE CHAMPION CONCEPT:\n${renderConcept(concepts[champion])}`, { model: 'opus', label: `skeptic:${s.key}`, phase: 'Verify', schema: SKEPTIC_SCHEMA })
 ))
 const skeptics = SKEPTIC_LENSES.map((s, k) => ({ lens: s.key, result: skepticResults[k] })).filter(x => x.result)
 const fatalCount = skeptics.filter(x => x.result.refuted).length
@@ -321,7 +321,7 @@ Write these sections:
 4. **Skeptic findings & mitigations** — every serious+ concern with its concrete mitigation.
 5. **2-month scope sketch** — week-by-week milestone outline against the ~320h yardstick, with the balancing tax explicitly budgeted.
 6. **Kill criteria** — 3 testable conditions in the first 2 weeks of prototyping that should kill/pivot the project.
-7. **The full bracket** — one-line results of every match.`, { label: 'synthesis', phase: 'Synthesize' })
+7. **The full bracket** — one-line results of every match.`, { model: 'opus', label: 'synthesis', phase: 'Synthesize' })
 
 return {
   champion: concepts[champion],

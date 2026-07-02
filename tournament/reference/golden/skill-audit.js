@@ -98,7 +98,7 @@ Be blunt and evidence-based. If skills are used well here, say so plainly. Retur
 
 phase('Audit: usage clusters')
 const clusterFindings = (await parallel(CLUSTERS.map(c => () =>
-  agent(clusterPrompt(c), { label:`audit:${c.key}`, phase:'Audit: usage clusters', agentType:'Explore', schema:CLUSTER_FINDING, effort:'medium' })
+  agent(clusterPrompt(c), { model: 'opus', label:`audit:${c.key}`, phase:'Audit: usage clusters', agentType:'Explore', schema:CLUSTER_FINDING, effort:'medium' })
 ))).filter(Boolean)
 log(`Audit complete for ${clusterFindings.length}/${CLUSTERS.length} clusters`)
 
@@ -135,7 +135,7 @@ Produce:
 4. capability_gaps: real needs where NO installed skill exists, tagged with one DOMAIN of: ${DOMAINS}.
 5. discovery_queries: 6-10 SPECIFIC search queries (gap-driven) to feed the online-skill hunt — phrase them as things to search for, targeted at the real gaps you found (not generic).
 Return the structured object.`,
-  { label:'audit:synthesis', phase:'Audit: synthesis', schema:AUDIT_SYNTH, effort:'high' })
+  { model: 'opus', label:'audit:synthesis', phase:'Audit: synthesis', schema:AUDIT_SYNTH, effort:'high' })
 
 // ---------------------------------------------------------------------------
 // PHASE 3 — Multi-modal discovery sweep (LIVE web; it is June 2026)
@@ -165,7 +165,7 @@ const dynAngles = (audit && audit.discovery_queries ? audit.discovery_queries : 
 const allAngles = ANGLES.concat(dynAngles)
 const discovered = (await parallel(allAngles.map(a => () =>
   agent(`Discover currently-popular agent skills for this user. SEARCH ANGLE: ${a.brief}\n\n${PROFILE}\n\n${WEB}\n\nReturn 5-20 candidate skills for THIS angle as the structured object. Be specific and current; do not invent skills — every candidate must be a real, locatable skill with a source.`,
-    { label:`discover:${a.key}`, phase:'Discover: multi-modal sweep', agentType:'general-purpose', schema:CANDIDATES, effort:'medium' })
+    { model: 'opus', label:`discover:${a.key}`, phase:'Discover: multi-modal sweep', agentType:'general-purpose', schema:CANDIDATES, effort:'medium' })
 ))).filter(Boolean)
 const allCandidates = discovered.flatMap(d => (d && d.candidates) ? d.candidates : [])
 log(`Discovered ${allCandidates.length} raw candidates across ${allAngles.length} angles`)
@@ -205,7 +205,7 @@ Steps:
 4. Score each survivor 0-5 on: relevance (to THIS user's real work), quality (source reputation + evident craft), maintenance (recency/activity), and redundancy (0=novel, 5=overlaps installed). net_score = relevance*2 + quality + maintenance - redundancy.
 5. Return the shortlist sorted by net_score DESC. Keep up to 20. Each needs a one-line rationale tying it to the user's actual usage. Preserve install_command/source/url/maturity/counts.
 Be skeptical of low-install experimental repos but DO keep the strongest experimental ones (user opted in) — just score maintenance/quality honestly.`,
-  { label:'triage', phase:'Score & dedup', schema:SHORTLIST, effort:'high' })
+  { model: 'opus', label:'triage', phase:'Score & dedup', schema:SHORTLIST, effort:'high' })
 const shortlist = ((triage && triage.shortlist) ? triage.shortlist : []).slice(0, 16)
 log(`Shortlist: ${shortlist.length} candidates after dedup/scoring`)
 
@@ -227,7 +227,7 @@ phase('Adversarial verify')
 const verified = await parallel(shortlist.map(s => () =>
   parallel(LENSES.map(l => () =>
     agent(`Adversarially evaluate ONE skill through a single lens. Be a genuine skeptic; do not be charitable.\n\nLENS: ${l.brief}\n\nCANDIDATE (JSON):\n${JSON.stringify(s)}\n\n${PROFILE}\n\nUse live web tools if the lens requires verifying repo facts (load via ToolSearch "select:WebSearch,WebFetch"). Return your verdict for THIS lens only. (resumed pass)`,
-      { label:`verify:${s.name}:${l.key}`, phase:'Adversarial verify', agentType:'general-purpose', schema:VERDICT, effort:'high' })
+      { model: 'opus', label:`verify:${s.name}:${l.key}`, phase:'Adversarial verify', agentType:'general-purpose', schema:VERDICT, effort:'high' })
   )).then(vs => {
     const v = vs.filter(Boolean)
     const refutes = v.filter(x => x.refuted).length
@@ -255,7 +255,7 @@ const domainSet = []
 for (const s of survivors){ if (domainSet.indexOf(s.domain) === -1) domainSet.push(s.domain) }
 const rankings = (await parallel(domainSet.map(d => () =>
   agent(`Run a head-to-head TOURNAMENT to rank the surviving skills in ONE domain: "${d}". Compare them against each other, not in isolation — if two overlap, the weaker loses. Assign tiers: must-install / recommended / try / watch-experimental.\n\n${PROFILE}\n\nSURVIVORS in this domain (JSON, incl. their adversarial verdicts):\n${JSON.stringify(survivors.filter(s => s.domain === d))}\n\nReturn the ranked list for this domain. why_for_user must tie to the user's ACTUAL work and reference the gap it fills.`,
-    { label:`rank:${d}`, phase:'Tournament & final report', schema:DOMAIN_RANK, effort:'high' })
+    { model: 'opus', label:`rank:${d}`, phase:'Tournament & final report', schema:DOMAIN_RANK, effort:'high' })
 ))).filter(Boolean)
 
 const FINAL = { type:'object', additionalProperties:false, properties:{
@@ -285,6 +285,6 @@ Produce combined_markdown with exactly these sections:
 "## Considered & rejected" (brief.)
 Keep it scannable with tables/bullets. State confidence levels. No praise, no filler.
 Also return install_plan: the concrete ordered list of skills to offer to install (name, command, tier, why).`,
-  { label:'final-report', phase:'Tournament & final report', schema:FINAL, effort:'xhigh' })
+  { model: 'opus', label:'final-report', phase:'Tournament & final report', schema:FINAL, effort:'xhigh' })
 
 return final

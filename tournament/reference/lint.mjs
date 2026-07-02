@@ -32,6 +32,22 @@ for (const p of new Set(called)) if (!metaPhases.includes(p)) warns.push(`phase(
 if (/await\s+parallel\(/.test(src) && !/\.filter\(Boolean\)/.test(src))
   warns.push('parallel() used but no .filter(Boolean) — guard against null agent results')
 
+// Every agent() call must pin an explicit model: — no silent session-model inheritance (model policy 2026-07-01).
+// Heuristic: scan each agent() call's span (up to the next agent() call) for a model: key.
+const agentStarts = [...src.matchAll(/\bagent\(/g)].map(m => m.index)
+for (let i = 0; i < agentStarts.length; i++) {
+  const span = src.slice(agentStarts[i], agentStarts[i + 1] ?? src.length)
+  if (!/\bmodel\s*:/.test(span)) {
+    const line = src.slice(0, agentStarts[i]).split('\n').length
+    errors.push(`agent() call at line ${line} has no explicit model: — pin it (model: 'opus', or SYNTH_MODEL for the single synthesis agent)`)
+  }
+}
+
+// Vote-tallying stages must reconcile SENT vs RETURNED (improvements 2026-06-28): a dropped vote can silently flip a winner/consensus/fatalCount.
+if (/\b(winner|consensus|fatalCount)\b/.test(src) && /\.filter\(Boolean\)/.test(src)
+    && !/\b(dropped|votesSent|votesReturned|needsAdjudication)\b/.test(src))
+  warns.push('vote-tallying stage (winner/consensus/fatalCount) filters agent results but has no sent-vs-returned reconciliation (dropped/votesSent/needsAdjudication) — a dropped vote can silently flip the outcome (improvements 2026-06-28)')
+
 for (const w of warns) console.error('WARN: ' + w)
 for (const e of errors) console.error('ERROR: ' + e)
 process.exit(errors.length ? 1 : 0)

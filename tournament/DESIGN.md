@@ -99,6 +99,8 @@ Before handoff, the skill self-lints the emitted script:
 - literal `meta`; `meta.phases` match the `phase()` calls;
 - **no `Date.now()`/`Math.random()`/argless `new Date()`** (vary by index);
 - no `import`/`require`/fs; `pipeline()` by default, `parallel()` only as a genuine barrier; every fan-out result `.filter(Boolean)`;
+- **every `agent()` pins an explicit `model:`** (ERROR if missing) — no silent session-model inheritance; a tournament fans out 89–111 agents, so a Fable-session default would blow the weekly budget (model policy 2026-07-01). All stages Opus; the single synthesis agent may opt into `model: SYNTH_MODEL = 'fable'` (sole sanctioned Fable site);
+- **vote-tallying stages reconcile SENT vs RETURNED** (WARN if a `winner`/`consensus`/`fatalCount` stage filters agent results without `dropped`/`votesSent`/`needsAdjudication`) — a dropped vote otherwise silently flips a bracket winner, claim consensus, or skeptic fatalCount (improvements 2026-06-28);
 - `node --check` for syntax.
 
 ## 11. Run flow
@@ -138,6 +140,7 @@ No GUI/config-file editor (interview only). No auto-tuning of counts (beyond opt
 | 7 | Elicitation | 3 depths (quick / brainstorm / +grill), posture replicated inline |
 | 8 | Smoke-test | Lint always; smoke-run required on new/edited, skipped on unchanged reuse |
 | 9 | Budget | Explicit counts; budget-aware gate; opt-in `--scale-to-budget` |
+| 10 | Model & vote reconciliation | Every `agent()` pins `model:` (Opus; synthesis opt-in Fable); vote-tally stages reconcile sent-vs-returned + flag ties/drops. Lint-enforced. (2026-07-02 retrofit of the 06-28/07-01 rules the generator predated) |
 | — | Form | Script-authoring skill (general scope, all domains) |
 | — | Defaults | Strong, overridable; interview asks only domain+candidate+lenses+judges+mode |
 | — | Context stage | Inline research agents (+ optional local-doc distillation); not a `deep-research` sub-invoke |

@@ -112,7 +112,7 @@ const researchBriefs = [
   { key:'effort-mealprep', prompt:`You are a recipe developer optimizing FLAVOR-PER-EFFORT under a strict 'a few high-impact upgrades only' budget, for a cook meal-prepping ONE batch over 3-4 dinners over rice in Seattle. Use WebSearch/WebFetch (load via ToolSearch "select:WebSearch,WebFetch") where useful. Deliver: (1) a RANKED list of candidate upgrades by flavor impact per unit effort -- fresh-ground garam, deep onion browning / birista, chili-bloom + finishing tadka, hot-chili-as-engine, black pepper, late/raw green chili, a touch of acid, marinade tweaks, stock-vs-water; (2) how each change BEHAVES ON REHEAT over 3-4 days -- does the curry improve? does a nut/dairy emulsion split, and exactly how to prevent it (stop loose? fat cap? add cream/nut late?); (3) how to engineer a per-portion 'HEAT FINISHER' so a single plate can be pushed hotter (chili-ghee tadka jar? dry chili-salt-pepper gunpowder? fresh green chili?) -- give a concrete buildable option; (4) chili SOURCING in Seattle: the HOT engine (Guntur/Sannam/cayenne -- rough Scoville) vs COLOR chilies (Kashmiri/Byadgi/paprika), what to actually buy at Mayuri. Return findings (with confidence) + dubious claims to verify.` },
 ];
 const research = (await parallel(researchBriefs.map(b => () =>
-  agent(b.prompt, { label:`research:${b.key}`, phase:'Research', schema: RESEARCH_SCHEMA, effort:'high' })
+  agent(b.prompt, { model: 'opus', label:`research:${b.key}`, phase:'Research', schema: RESEARCH_SCHEMA, effort:'high' })
 ))).filter(Boolean);
 
 const researchDigest = research.map(r =>
@@ -136,7 +136,7 @@ const LENSES = [
 const verified = (await parallel(claims.map(c => () =>
   parallel(LENSES.map((lens, li) => () =>
     agent(`A research agent (improving a chicken curry) asserted this claim:\n"${c.claim}"\nWhy it was flagged as dubious: ${c.whyDubious}\n\nVERIFY IT THROUGH THIS LENS: ${lens}. Use WebSearch/WebFetch (load via ToolSearch "select:WebSearch,WebFetch") to ground your check in real sources where you can. Be ADVERSARIAL -- actively try to refute the claim or surface the nuance that makes it misleading. If evidence is thin, default to skepticism. Then give your verdict (confirmed / refuted / partly / unknown), a corrected precise statement of what's actually true, and your single strongest piece of evidence.`,
-      { label:`verify:${c.id}:${li}`, phase:'Verify', schema: VERDICT_SCHEMA, effort:'medium' })
+      { model: 'opus', label:`verify:${c.id}:${li}`, phase:'Verify', schema: VERDICT_SCHEMA, effort:'medium' })
   )).then(vs => {
     const v = vs.filter(Boolean);
     const count = k => v.filter(x => x.verdict === k).length;
@@ -172,12 +172,12 @@ const JUDGES = [
 const judged = (await pipeline(
   CANDIDATES,
   (c) => agent(`${SHARED}\n\nYou are developing ONE tournament candidate recipe.\nCANDIDATE: ${c.name}\nBRIEF: ${c.brief}\n\nProduce a COMPLETE, COOKABLE recipe for 1.5 lb boneless skinless chicken thighs (meal-prep for one over 3-4 dinners over rice). It MUST include: a bespoke fresh-toasted-and-ground garam masala (exact whole spices + spoon AND gram amounts + a NutriBullet/mortar grind method), the SACRED whole-garam popu, the full step-by-step method with the WHY behind each high-impact change (teach the cook), the LAYERED heat system with specific chili types/amounts, a per-portion HEAT FINISHER, meal-prep/reheat guidance, and an explicit bulleted list of changes vs mom's original. Respect the 'a few high-impact upgrades only' budget. Put the full formatted recipe in recipeMarkdown.`,
-      { label:`gen:${c.name}`, phase:'Tournament', schema: CANDIDATE_SCHEMA, effort:'high' }),
+      { model: 'opus', label:`gen:${c.name}`, phase:'Tournament', schema: CANDIDATE_SCHEMA, effort:'high' }),
   (recipe, c) => {
     if (!recipe) throw new Error('generation failed');
     return parallel(JUDGES.map(j => () =>
       agent(`${SHARED}\n\nYou are judging a tournament candidate. YOUR ROLE: ${j.persona}.\n${j.rubric}\n\nCANDIDATE NAME: ${c.name}\nRECIPE UNDER REVIEW:\n${recipe.recipeMarkdown}\n\nScore it 0-50 through YOUR lens only. Be tough, specific, and do NOT inflate. Give a breakdown, a sharp critique, the single most important fix (mustFix), and whether YOU personally would cook it.`,
-        { label:`judge:${c.name}:${j.key}`, phase:'Tournament', schema: JUDGE_SCHEMA, effort:'high' })
+        { model: 'opus', label:`judge:${c.name}:${j.key}`, phase:'Tournament', schema: JUDGE_SCHEMA, effort:'high' })
     )).then(js => {
       const jj = js.filter(Boolean);
       const score = jj.length ? jj.reduce((s,x) => s + (x.score_0_50||0), 0) / jj.length : 0;
@@ -193,15 +193,15 @@ log(`Leaderboard: ${board.map(b => `${b.name} ${b.score.toFixed(1)}`).join(' | '
 // ---------------- PHASE 5: SYNTHESIZE ----------------
 phase('Synthesize');
 const synth = await agent(`${SHARED}\n\nTOURNAMENT RESULTS (best first):\n${board.map(b => `- ${b.name}: ${b.score.toFixed(1)}/50 | thesis: ${b.thesis}\n   judges: ${b.judges.map(j => `[${j.persona}] score ${j.score_0_50}, critique: ${j.critique} (mustFix: ${j.mustFix})`).join('  ||  ')}`).join('\n')}\n\nWINNER: ${winner.name}\nWINNER RECIPE:\n${winner.recipe.recipeMarkdown}\n\nALL CANDIDATE RECIPES (for grafting the best ideas):\n${board.map(b => `\n===== ${b.name} (${b.score.toFixed(1)}/50) =====\n${b.recipe.recipeMarkdown}`).join('\n')}\n\nNow produce the FINAL recipe. Start from the WINNER, GRAFT IN the best verified ideas from the other candidates, and resolve EVERY judge 'mustFix'. The final recipe MUST: deliver genuinely SWEAT-INDUCING, LAYERED heat while honestly accounting for the fat/dairy/nut buffer (per the verified science); keep the SACRED whole-garam popu; use a fresh-toasted-and-ground bespoke garam; stay within 'a few high-impact upgrades only'; and meal-prep cleanly over 3-4 days for one. Teach the cook the WHY of each move, and where a step rests on a verified finding, say so briefly. Output: finalRecipeMarkdown (a complete, beautifully-formatted, cookable recipe with amounts, the popu, the heat system, meal-prep notes, and a 'what changed vs mom's & why' section), garamBlendMarkdown (the standalone blend spec), heatDialMarkdown (how to tune heat per batch AND the per-portion finisher), changeLog, and graftedFrom.`,
-  { label:'synthesize', phase:'Synthesize', schema: SYNTH_SCHEMA, effort:'max' });
+  { model: 'opus', label:'synthesize', phase:'Synthesize', schema: SYNTH_SCHEMA, effort:'max' });
 
 // ---------------- PHASE 6: QA RED-TEAM + PATCH ----------------
 phase('QA');
 const qa = await agent(`Red-team this FINAL chicken-curry recipe BEFORE it ships to the cook. Be ruthless.\nCONSTRAINTS:\n${CONSTRAINTS}\n\nVERIFIED SCIENCE:\n${verifiedDigest}\n\nFINAL RECIPE:\n${synth.finalRecipeMarkdown}\n\nGARAM BLEND:\n${synth.garamBlendMarkdown}\n\nHEAT DIAL:\n${synth.heatDialMarkdown}\n\nCheck HARD for: (1) food safety (chicken reaches 74C/165F; safe marinade handling); (2) will it ACTUALLY be sweat-inducing given the buffering, or is the heat STILL under-dosed/over-buffered? (3) any spice dose that's inedibly high OR, conversely, still mild; (4) internal contradictions, missing quantities, or uncookable/ambiguous steps; (5) Seattle sourcing + NutriBullet/mortar realism; (6) meal-prep/reheat claims (will a nut/dairy emulsion split?); (7) does it OVERSHOOT the 'a few high-impact upgrades only' budget? List every issue with a concrete fix.`,
-  { label:'qa-redteam', phase:'QA', schema: QA_SCHEMA, effort:'high' });
+  { model: 'opus', label:'qa-redteam', phase:'QA', schema: QA_SCHEMA, effort:'high' });
 
 const patched = await agent(`Apply these QA fixes to the recipe, changing as LITTLE as possible and preserving its structure, formatting, and teaching voice. Return ONLY the corrected full recipe markdown (no preamble).\n\nQA VERDICT: ${qa.verdict}\nQA ISSUES:\n${JSON.stringify(qa.issues, null, 2)}\n\nCURRENT FINAL RECIPE:\n${synth.finalRecipeMarkdown}`,
-  { label:'qa-patch', phase:'QA', effort:'medium' });
+  { model: 'opus', label:'qa-patch', phase:'QA', effort:'medium' });
 
 return {
   leaderboard: board.map(b => ({ name:b.name, score:Number(b.score.toFixed(1)), thesis:b.thesis })),
