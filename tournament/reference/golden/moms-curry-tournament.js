@@ -139,9 +139,12 @@ const verified = (await parallel(claims.map(c => () =>
       { model: 'opus', label:`verify:${c.id}:${li}`, phase:'Verify', schema: VERDICT_SCHEMA, effort:'medium' })
   )).then(vs => {
     const v = vs.filter(Boolean);
+    const dropped = vs.length - v.length; // verify lenses that errored/returned null
     const count = k => v.filter(x => x.verdict === k).length;
     const consensus = count('refuted') >= 2 ? 'REFUTED' : count('confirmed') >= 2 ? 'CONFIRMED' : 'NUANCED';
-    return { id:c.id, claim:c.claim, consensus, verdicts:v };
+    // reconcile SENT vs RETURNED (improvements 2026-06-28): a dropped lens can flip a real quorum
+    if (dropped > 0) log(`⚠ claim ${c.id}: ${dropped}/${vs.length} verify lens(es) dropped — consensus "${consensus}" on a short panel; flag for adjudication`);
+    return { id:c.id, claim:c.claim, consensus, verdicts:v, votesSent:vs.length, votesReturned:v.length, dropped, needsAdjudication: dropped > 0 };
   })
 ))).filter(Boolean);
 
@@ -180,12 +183,17 @@ const judged = (await pipeline(
         { model: 'opus', label:`judge:${c.name}:${j.key}`, phase:'Tournament', schema: JUDGE_SCHEMA, effort:'high' })
     )).then(js => {
       const jj = js.filter(Boolean);
+      const judgesDropped = js.length - jj.length; // judges that errored/returned null
       const score = jj.length ? jj.reduce((s,x) => s + (x.score_0_50||0), 0) / jj.length : 0;
-      return { name:c.name, thesis:recipe.thesis, recipe, judges:jj, score };
+      // reconcile SENT vs RETURNED (improvements 2026-06-28): a candidate scored on a short judge panel isn't comparable to a full-panel one
+      if (judgesDropped > 0) log(`⚠ ${c.name}: ${judgesDropped}/${js.length} judge(s) dropped — score ${score.toFixed(1)} rests on a short panel`);
+      return { name:c.name, thesis:recipe.thesis, recipe, judges:jj, score, judgesSent:js.length, judgesReturned:jj.length, judgesDropped };
     });
   }
 )).filter(Boolean);
 
+const candidatesDropped = CANDIDATES.length - judged.length; // candidates that failed generation/judging entirely (excluded from the board)
+if (candidatesDropped > 0) log(`⚠ scoreboard: ${candidatesDropped}/${CANDIDATES.length} candidate(s) dropped before scoring — leaderboard incomplete; flag for main-loop review`);
 const board = judged.sort((a,b) => b.score - a.score);
 const winner = board[0];
 log(`Leaderboard: ${board.map(b => `${b.name} ${b.score.toFixed(1)}`).join(' | ')}. Winner: ${winner.name}.`);

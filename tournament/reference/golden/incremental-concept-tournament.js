@@ -244,10 +244,16 @@ CONCEPT B:\n${renderConcept(b)}
 Be adversarial: hunt for the fatal flaw in each before weighing strengths. Pick the better CHOICE TO BUILD, not the cooler idea on paper.`, { model: 'opus', label: `judge:${round}:${j.key}`, phase: 'Tournament', schema: MATCH_SCHEMA })
   ))
   const valid = votes.filter(Boolean)
+  const dropped = votes.length - valid.length // judges that errored/returned null
   const aVotes = valid.filter(v => v.winner === 'A').length
-  const winner = aVotes * 2 >= valid.length ? ai : bi // tie or majority-A -> higher seed (A)
-  matchLog.push({ round, a: a.name, b: b.name, winner: concepts[winner].name, votes: JUDGE_LENSES.map((j, k) => votes[k] ? `${j.key}: ${votes[k].winner === 'A' ? a.name : b.name} — ${votes[k].reason}` : `${j.key}: (no vote)`) })
-  log(`${round}: ${a.name} vs ${b.name} → ${concepts[winner].name} (${aVotes}/${valid.length} for A)`)
+  const bVotes = valid.length - aVotes
+  const tie = aVotes === bVotes
+  const winner = aVotes >= bVotes ? ai : bi // deterministic seed tie-break (higher seed = A); a bracket must still advance someone — surfaced via the flag below
+  // reconcile SENT vs RETURNED (improvements 2026-06-28): a bracket that advances the wrong finalist corrupts the whole result
+  const needsAdjudication = dropped > 0 || tie
+  if (needsAdjudication) log(`⚠ ${round}: ${a.name} vs ${b.name} advanced ${concepts[winner].name} on ${tie ? 'a TIE' : 'a majority'}${dropped ? ` with ${dropped}/${votes.length} judge vote(s) DROPPED` : ''} → seed tie-break; FLAGGED for main-loop review`)
+  matchLog.push({ round, a: a.name, b: b.name, winner: concepts[winner].name, votesSent: votes.length, votesReturned: valid.length, dropped, tie, needsAdjudication, votes: JUDGE_LENSES.map((j, k) => votes[k] ? `${j.key}: ${votes[k].winner === 'A' ? a.name : b.name} — ${votes[k].reason}` : `${j.key}: (no vote)`) })
+  log(`${round}: ${a.name} vs ${b.name} → ${concepts[winner].name} (A ${aVotes} / B ${bVotes}${dropped ? `, ${dropped} dropped` : ''})`)
   return winner
 }
 
@@ -290,7 +296,10 @@ REFERENCE BRIEF:\n${s.brief()}
 THE CHAMPION CONCEPT:\n${renderConcept(concepts[champion])}`, { model: 'opus', label: `skeptic:${s.key}`, phase: 'Verify', schema: SKEPTIC_SCHEMA })
 ))
 const skeptics = SKEPTIC_LENSES.map((s, k) => ({ lens: s.key, result: skepticResults[k] })).filter(x => x.result)
+const skepticsDropped = skepticResults.length - skeptics.length // skeptic lenses that errored/returned null
 const fatalCount = skeptics.filter(x => x.result.refuted).length
+// reconcile SENT vs RETURNED (improvements 2026-06-28): a dropped refuter UNDERcounts fatalCount, so a flawed champion could survive
+if (skepticsDropped > 0) log(`⚠ champion skeptic panel: ${skepticsDropped}/${skepticResults.length} lens(es) dropped — fatalCount ${fatalCount} rests on a short panel; flag for main-loop adjudication before trusting the swap`)
 log(`Skeptic verdicts: ${skeptics.map(x => `${x.lens}=${x.result.severity}${x.result.refuted ? ' (REFUTED)' : ''}`).join(', ')}`)
 
 // ---------- Phase 6: Synthesize ----------

@@ -230,13 +230,20 @@ const verified = await parallel(shortlist.map(s => () =>
       { model: 'opus', label:`verify:${s.name}:${l.key}`, phase:'Adversarial verify', agentType:'general-purpose', schema:VERDICT, effort:'high' })
   )).then(vs => {
     const v = vs.filter(Boolean)
+    const dropped = vs.length - v.length // verify lenses that errored/returned null
     const refutes = v.filter(x => x.refuted).length
-    return Object.assign({}, s, { verdicts:v, refutes, survives: refutes < 2 })
+    const survives = refutes < 2
+    // reconcile SENT vs RETURNED (improvements 2026-06-28): a dropped refuter UNDERcounts refutes, so a skill that should be killed can survive on a short panel
+    if (dropped > 0) log(`⚠ verify ${s.name}: ${dropped}/${vs.length} lens(es) dropped — ${survives ? 'SURVIVES' : 'killed'} on ${refutes} refute(s) over a short panel; flag for adjudication`)
+    return Object.assign({}, s, { verdicts:v, refutes, survives, votesSent:vs.length, votesReturned:v.length, dropped, needsAdjudication: dropped > 0 })
   })
 ))
-const survivors = verified.filter(Boolean).filter(s => s.survives)
-const killed = verified.filter(Boolean).filter(s => !s.survives)
-log(`${survivors.length}/${shortlist.length} survived adversarial verification; ${killed.length} killed`)
+const scored = verified.filter(Boolean)
+const skillsDropped = shortlist.length - scored.length // skills whose verify errored entirely (in NEITHER survivors nor killed)
+if (skillsDropped > 0) log(`⚠ adversarial verify: ${skillsDropped}/${shortlist.length} skill(s) dropped entirely — not in survivors or killed; flag for main-loop review`)
+const survivors = scored.filter(s => s.survives)
+const killed = scored.filter(s => !s.survives)
+log(`${survivors.length}/${shortlist.length} survived adversarial verification; ${killed.length} killed${skillsDropped ? `; ${skillsDropped} dropped` : ''}`)
 
 // ---------------------------------------------------------------------------
 // PHASE 6 — Per-domain tournament ranking, then final combined report
@@ -253,10 +260,13 @@ const DOMAIN_RANK = { type:'object', additionalProperties:false, properties:{
 phase('Tournament & final report')
 const domainSet = []
 for (const s of survivors){ if (domainSet.indexOf(s.domain) === -1) domainSet.push(s.domain) }
-const rankings = (await parallel(domainSet.map(d => () =>
+const rankingsRaw = await parallel(domainSet.map(d => () =>
   agent(`Run a head-to-head TOURNAMENT to rank the surviving skills in ONE domain: "${d}". Compare them against each other, not in isolation — if two overlap, the weaker loses. Assign tiers: must-install / recommended / try / watch-experimental.\n\n${PROFILE}\n\nSURVIVORS in this domain (JSON, incl. their adversarial verdicts):\n${JSON.stringify(survivors.filter(s => s.domain === d))}\n\nReturn the ranked list for this domain. why_for_user must tie to the user's ACTUAL work and reference the gap it fills.`,
     { model: 'opus', label:`rank:${d}`, phase:'Tournament & final report', schema:DOMAIN_RANK, effort:'high' })
-))).filter(Boolean)
+))
+const rankings = rankingsRaw.filter(Boolean)
+const domainsDropped = rankingsRaw.length - rankings.length // domain rankings that errored → those domains vanish from the report
+if (domainsDropped > 0) log(`⚠ domain ranking: ${domainsDropped}/${domainSet.length} domain(s) dropped — their skills are missing from the final report; flag for main-loop review`)
 
 const FINAL = { type:'object', additionalProperties:false, properties:{
   combined_markdown:{type:'string'},
