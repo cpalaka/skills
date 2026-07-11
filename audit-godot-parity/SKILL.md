@@ -1,9 +1,9 @@
 ---
 name: audit-godot-parity
-description: Audit parity between a Godot project's docs/memory and the source skills it was seeded from (the init-project godot profile/templates, godot-personal-gotchas, godot-personal-preferences, godot-architecture-review), and propagate generalizable learnings UP into those skills. Strictly one-directional (project → skill, never the reverse): identify drift, present a parity table for approval, then apply surgical updates to skill files only — plus the one gated project-side write, the single-source gotcha-doc shrink + leak-audit. Use to run a parity check between a project's docs/memory and its skills, propagate a new Godot gotcha to godot-personal-gotchas or new workflow feedback to godot-personal-preferences, propagate doc updates to the init-project godot templates or architecture-process learnings to godot-architecture-review, run the gotcha leak-audit + gated single-source doc-shrink, or when the user says "audit godot parity", "audit godot skills", or invokes /audit-godot-parity.
+description: Audit parity between a Godot project's docs/memory and the source skills that seeded them (the init-project godot templates, godot-personal-gotchas, godot-personal-preferences, godot-architecture-review), propagating generalizable learnings UP — project → skill, never the reverse. Use to run a parity check, propagate a new gotcha / preference / template or process learning into its skill, run the gotcha leak-audit + gated doc-shrink, or when the user says "audit godot parity" / "audit godot skills" or invokes /audit-godot-parity.
 ---
 
-# Sync Godot Skills
+# Audit Godot Parity
 
 Audit parity between a Godot project's docs/memory and the source skills that bootstrap them. Find drift, make surgical updates to the **skills only**, leave the project files alone. Direction is project → skill, never the reverse (the skill might be ahead from other projects).
 
@@ -28,7 +28,7 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 3. `docs/blender-mcp-guide.md` ↔ `init-project/profiles/godot/templates/blender-mcp-guide.md`  (conditional — only if the project stamped the Blender guide)
 4. `docs/asset-pipeline.md`    ↔ `init-project/profiles/godot/templates/asset-pipeline.md`
 5. `CLAUDE.md` — **no doc-parity pair in the chunk era.** A migrated project's CLAUDE.md is the 3-zone chunk shape (`@import`s + knob blocks + inline-leaf), not a copy of `CLAUDE.md.full`. Godot guidance that used to live in `CLAUDE.md.full` now lives in the relevant **chunk** (single-source) — propagate it by editing `cpalaka-claude-skills/chunks/`, not a template. (`CLAUDE.md.full` is now only the starter for a project that has no CLAUDE.md yet.)
-6. `docs/godot-gotchas.md` entries ↔ entries in `godot-personal-gotchas/` (index row in SKILL.md + `gotchas/NN-<slug>.md` body; match by symptom keyword or section title). Only Godot-engine gotchas belong in the personal-gotchas skill. (Memory `gotcha-*.md` files exist only for gotchas with no doc counterpart — include any found.) (Under single-source, new universal gotchas are filed straight into the skill at discovery, so this pair is now primarily a LEAK-AUDIT: flag any universal entry that nonetheless appears in a project doc, ensure it is in the skill, and propose the gated shrink — see "## Gotcha-doc shrink".)
+6. `docs/godot-gotchas.md` entries ↔ entries in `godot-personal-gotchas/` (index row in SKILL.md + `gotchas/NN-<slug>.md` body; match by symptom keyword or section title). Only Godot-engine gotchas belong in the personal-gotchas skill. (Memory `gotcha-*.md` files exist only for gotchas with no doc counterpart — include any found.) (Under single-source, new universal gotchas are filed straight into the skill at discovery, so this pair is now primarily a LEAK-AUDIT: flag any universal entry that nonetheless appears in a project doc, ensure it is in the skill, and propose the gated shrink — read [`DOC-SHRINK.md`](DOC-SHRINK.md) before proposing it; its four rails gate the only project-side write.)
 7. Memory `feedback_*.md` files ↔ entries in `godot-personal-preferences/` (index row in SKILL.md + `preferences/N-<slug>.md` body; match by topic keyword or section title). Only generalizable workflow preferences propagate; project-specific feedback stays in memory only (see Rules below).
 8. `docs/architecture/refactor-process.md` (or `docs/architecture/campaign.md`) ↔ entries in `godot-architecture-review/` (SKILL.md / ARTIFACTS.md / PHASES.md — match by section title). Only generalizable process knowledge propagates (guardrails, gates, artifact conventions, phase mechanics); project parameters (drivers, anchor tasks, population labels, candidates, run log) stay in the project.
 
@@ -52,7 +52,7 @@ PROPAGATE (= portable Godot/Blender knowledge or generalizable workflow):
 - New sections in the MCP guides documenting tool surfaces or workflow rules.
 - New CLAUDE.md guidance about which skills/docs to consult and when.
 - New workflow preferences that generalize across Godot projects: how to handle a class of edits, when to invoke a skill, plan-execution discipline, conditional rules tied to project-state (public/private, has-a-deploy-workflow, etc.).
-- **MCP tool-surface changes** — when an MCP server renames or removes a tool action (e.g. godot-mcp's `get_errors`/`get_debug_output` → `get_log_messages source="editor"` in v3.6.1, or the unprefixed → `godot_*` prefix migration), or version-scopes a behavior (e.g. the struct-write no-op narrowing to `Rect2`-only). These are CROSS-CUTTING — handle them as a sweep, not a single-pair diff (see "Handling cross-cutting MCP action changes" below).
+- **MCP tool-surface changes** — when an MCP server renames or removes a tool action (e.g. godot-mcp's `get_errors`/`get_debug_output` → `get_log_messages source="editor"` in v3.6.1, or the unprefixed → `godot_*` prefix migration), or version-scopes a behavior (e.g. the struct-write no-op narrowing to `Rect2`-only). These are CROSS-CUTTING — before classifying such a hunk, read [`MCP-SWEEP.md`](MCP-SWEEP.md) and handle it as the sweep it specifies, never as a single-pair diff.
 
 DO NOT propagate (= project-specific):
 - Convention decisions made by this project (axis-flip choices, naming choices, game-design rules).
@@ -63,47 +63,10 @@ DO NOT propagate (= project-specific):
 
 For unclear cases, INCLUDE the entry in your report and ASK before propagating.
 
-## Handling cross-cutting MCP action changes
-
-A renamed/removed MCP action (or a version-scoped behavior change) is NOT a single-pair diff — the stale token is scattered across the MCP guide, every agent definition, the personal-gotchas/preferences skills, and any tool-selection matrix/preamble. Handle it as a sweep, in this order:
-
-1. **Fix the canonical source first.** Update the project's `docs/godot-mcp-guide.md` (and any memory that downstream content cites — e.g. an A/B verdict or tooling-research memory) before touching templates/skills. Downstream files quote these; fixing them first stops you copying the error forward.
-2. **Propagate to templates AND personal skills together** — not one pair at a time. A half-applied rename leaves contradictory guidance live in a session.
-3. **Re-verify by grepping every skill + template file for the OLD token** (e.g. `grep -rn 'get_errors\|mcp__godot-mcp__editor[^_]' …`). Expected residue: only "X was removed / does not exist" notes and dated "Confirmed by" historical anchors.
-
-Distinguish **active guidance** (update to the new action) from **historical anchors** ("Confirmed by: <date> … surfaced via <old tool>") and **deprecation notes** ("`get_errors` was removed in v3.6.1") — the latter two are preserved or version-scoped, not blindly renamed. An active *recommendation* to use the old action is a miss; a "was removed" note is correct.
-
-## Gotcha-doc shrink (single-source migration)
-
-Universal gotchas are single-source in the `godot-personal-gotchas` skill; a project's
-`docs/godot-gotchas.md` should hold only project-local entries + a pointer. When a project doc
-still mirrors the skill (a pre-migration full copy), offer to shrink it. The shrink DELETES
-project-doc entries, so it is gated and **content-unidirectional** — it removes redundant project
-copies; it never pushes skill content into the project.
-
-Rails (all four hold; a shrink that can't satisfy them is not proposed):
-
-1. **Removal only for verified BODY-level duplicates.** Propose deleting a doc entry only when its
-   body is materially equivalent to a `gotchas/NN-<slug>.md` entry; show the matching entry + a
-   `diff` in the parity table. A same-symptom entry whose FIX diverges is NOT a duplicate.
-2. **Provenance/locality is KEEP-by-default.** A doc entry with a project `Confirmed by:` anchor, a
-   project file path, param-tuned values, or a divergent fix is auto-classified KEEP and never
-   auto-proposed for removal — surface it separately for a manual call. Before deleting a
-   universal-bodied entry that carried an anchor, verify the anchor is captured in the skill entry
-   first; if a divergence is a universal improvement, propagate it UP to the skill before removing
-   the copy.
-3. **Conservative default:** uncertain → keep + flag, never propose removal.
-4. **Demarcate the project-write half** of the parity table from the skills-only half, so "this run
-   will delete project-doc lines" is unmissable.
-
-After approval: edit the project doc to the thin shape (project-local entries + the skill pointer,
-matching `init-project/profiles/godot/templates/godot-gotchas.md`); re-grep to confirm only
-project-local + pointer remain.
-
 ## Constraints
 
 - The hand-authored skill dirs live in the `cpalaka-claude-skills` git repo (symlinked into `~/.claude/skills/`) — apply file writes only; committing there is the user's decision after reviewing the sync, never part of this skill's run.
-- Do NOT modify any project file **except the one gated operation in "## Gotcha-doc shrink"**: that step may DELETE verified-duplicate universal entries from a project's `docs/godot-gotchas.md`, and only after parity-table approval. Everything else in a project stays read-only — find typos/improvements? mention them in the report; the user decides.
+- Do NOT modify any project file **except the one gated operation defined in [`DOC-SHRINK.md`](DOC-SHRINK.md)**: that step may DELETE verified-duplicate universal entries from a project's `docs/godot-gotchas.md`, and only after parity-table approval. Everything else in a project stays read-only — find typos/improvements? mention them in the report; the user decides.
 - Use `diff` via Bash, not Read + manual comparison.
 - Don't delete content from skills unless newer project content clearly supersedes it (and even then, surface the deletion in your report).
 - Be terse in status updates — the user has likely run this audit before. Assume they remember the pattern.

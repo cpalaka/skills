@@ -100,7 +100,5 @@ low-severity hygiene. Log the verdict in `campaign.md` and the `runs/` index.
 
 ## Campaign close — skill maintenance
 
-The generic learnings of a campaign (a new guardrail, a gate refinement, an artifact convention)
-propagate **project → skill** via `audit-godot-parity`. Project parameters never propagate. If the
-campaign exposed a new engine gotcha, file it in the `godot-personal-gotchas` skill (the single
-source for universal gotchas; a project-specific one goes in the project's `docs/godot-gotchas.md`).
+Run the maintenance pass in [SKILL.md § Maintaining this skill](SKILL.md) — it governs what
+propagates up and what stays in the project.

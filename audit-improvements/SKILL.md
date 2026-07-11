@@ -1,6 +1,6 @@
 ---
 name: audit-improvements
-description: Use when auditing or cleaning up ~/Claude/improvements.md (the cross-session behavior-improvements log) — the recurring "is this log still clean and useful" pass, run roughly monthly after entries accumulate. Triggers include "audit the improvements log", "clean up improvements.md", "check improvements for stale entries", /audit-improvements.
+description: Monthly-ish cleanup pass over ~/Claude/improvements.md — annotate stale/superseded entries, promote durable lessons into active config. Slash-only: /audit-improvements.
 disable-model-invocation: true
 ---
 
@@ -16,13 +16,13 @@ The log is read-to-append, not consulted-to-decide (settled 2026-06-19) — so a
 
 1. **Read the watermark.** `grep -m1 audit-watermark ~/Claude/improvements.md` → the last-audited date. None present → treat as a first/full run (audit everything, then seed the banner in step 5).
 
-2. **Run the engine.** Launch the Workflow tool with `scriptPath` = this skill's `audit-workflow.js`, `args = { filePath: "~/Claude/improvements.md", sinceDate: "<watermark>", mode: "incremental" }`. (Use `mode: "full"` only ~quarterly or on suspicion — it adds the heavy 5,420-transcript read/write scan, which is otherwise wasted re-answering a settled question.) If the Workflow tool isn't available this turn, enable ultracode; do not hand-audit from scratch.
+2. **Run the engine.** Launch the Workflow tool with `scriptPath` = this skill's `audit-workflow.js`, `args = { filePath: "~/Claude/improvements.md", sinceDate: "<watermark>", mode: "incremental" }`. (Use `mode: "full"` only ~quarterly or on suspicion — it adds the heavy full-corpus transcript scan, which is otherwise wasted re-answering a settled question.) If the Workflow tool isn't available this turn, enable ultracode; do not hand-audit from scratch.
 
 3. **Apply in-file annotations** (additive; never delete an entry). For each finding with disposition `annotate-deadref` or `annotate-superseded`, add the marker in the **locked format below** — these are already adversarially verified by the engine. For each `deadrefs` hit from the cheap rot-sweep, first **CONFIRM it's genuinely gone** — re-check existence across roots (`~/Claude`, `~/gamedev`, `~/Code`, `~/.claude`, `~/.agents`), since the sweep can mis-root a relative path — and annotate only confirmed-absent refs on entries not `already_annotated`. A false "dead ref" written into the file is worse than a missed one.
 
 4. **Promote / route — GATED.** Active config (`CLAUDE.md`, skills, memory) is read every session and edits it; per *authority ≠ permission*, present `promote_candidates` to the user and get an explicit "go" BEFORE editing — show the exact diff. For `route_candidates` (project-local one-offs), tell the user it belongs in that project's `NOTES.md`/`docs/adr/` going forward; leave the historical log entry in place. Do not invent new log structure (no status legends, no indexes).
 
-5. **Advance the watermark + record.** Set the banner to today: `<!-- audit-watermark: YYYY-MM-DD -->` (the comment directly under the `# Claude Behavior Improvements` title). Update the `improvements-md-audit` memory's "already done — do NOT re-flag" note with this run's annotations.
+5. **Advance the watermark + record.** Set the banner's date to today — edit only the `audit-watermark: YYYY-MM-DD` date inside the existing banner comment (directly under the `# Claude Behavior Improvements` title), leaving the rest of the banner line intact. Update the `improvements-md-audit` memory's "already done — do NOT re-flag" note with this run's annotations.
 
 6. **Close.** Summarize: entries reviewed (new vs swept), annotations applied, promotions approved/pending, routes flagged. Leave any git commit to the user.
 
@@ -48,9 +48,5 @@ CLAUDE.md cites entries here as the "why" backstop; back-pointers and other entr
 
 ## Red flags — STOP
 
-- Re-auditing entries at or before the watermark from scratch (deep-audit is for new entries; old entries get only the cheap existence sweep)
-- Inventing a marker format instead of the two above, or adding a "status legend"/"index" section to the log
 - Editing `CLAUDE.md`/a skill/memory to promote a lesson without an explicit user "go" first
-- Deleting any entry, or "moving" a project-local entry out (annotate + route forward; keep history)
-- Re-flagging an entry that already carries an `_[… audit: …]_` note or a `> **Superseded …**` blockquote
-- Running `mode: "full"` every time (the read-vs-write question is settled; the heavy scan is ~quarterly)
+- Deleting any entry — annotate + route forward; keep history

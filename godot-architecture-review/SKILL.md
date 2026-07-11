@@ -1,6 +1,6 @@
 ---
 name: godot-architecture-review
-description: Convergent, re-runnable architecture review & refactor campaign for Godot projects — applies A Philosophy of Software Design (deep modules, depth-as-leverage, information hiding) without fighting Godot idioms, applying the codebase-design deep-module vocabulary under Godot guardrails and leaving durable convergence artifacts (CONTEXT.md, docs/adr/, docs/architecture/system-map.md). Use when a Godot project needs an architecture review, a refactor or deepening campaign, or the user says "architecture review", "refactor process", "find shallow modules", "APoSD review", "set up the review loop".
+description: Convergent, re-runnable architecture review & refactor campaign for Godot projects — A Philosophy of Software Design (deep modules, depth-as-leverage, information hiding) without fighting Godot idioms. Use when a Godot project needs an architecture review, a refactor or deepening campaign, or the user says "architecture review", "refactor process", "find shallow modules", "APoSD review", "set up the review loop".
 ---
 
 # Godot Architecture Review (APoSD-aligned)
@@ -88,8 +88,8 @@ Applied naively, the APoSD lens generates **category errors** in Godot. Forbid t
 | 2…M | Deep-dives, one candidate per session | **Solo** — grilling + TDD, surgical |
 | re-run | Verbatim Phase-1 re-run; convergence verdict computed **post-hoc** | **Workflow** + solo verdict |
 
-Execution split: **workflows for exploration** (read-only, parallel-friendly); **solo for
-deep-dives** (write-heavy, coupling-sensitive — parallel edits conflict on shared seams).
+The Mode column's split exists because exploration is read-only and parallel-friendly, while
+deep-dives are write-heavy and coupling-sensitive (parallel edits conflict on shared seams).
 Escalation valve: a *single* dive with a genuinely wide interface-design space may use a
 judge-panel workflow — otherwise stay solo.
 
@@ -112,4 +112,6 @@ Signals 4+5 are the verdict (hard, binary); 1–3 and 6 support. A re-derived di
 
 Direction is always **project → skill** (via `audit-godot-parity`): when a campaign run in a real
 project teaches a new guardrail, gate, or artifact convention, generalize it back here. Project
-parameters (drivers, anchor tasks, population labels, candidates) never propagate.
+parameters (drivers, anchor tasks, population labels, candidates) never propagate. If the campaign
+exposed a new engine gotcha, file it in the `godot-personal-gotchas` skill (the single source for
+universal gotchas; a project-specific one goes in the project's `docs/godot-gotchas.md`).

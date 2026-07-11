@@ -1,6 +1,6 @@
-# 55 — The open editor silently clobbers external disk edits on its next save (stale in-memory copies)
+### 55. The open editor silently clobbers external disk edits on its next save (stale in-memory copies)
 
-## Symptom
+**Symptom**
 
 You hand-edit an open file on disk from OUTSIDE the editor — a `.tscn`/`.tres` (e.g. the #52
 typed-`Array[NodePath]` dodge) or `project.godot` (e.g. a physical-keycode `[input]` action, #46) —
@@ -8,7 +8,7 @@ the edit is correct on disk, then later it silently reverts: the node/action/arr
 gone. No error, no warning. Can wipe committed content from the working tree (e.g. a whole scene
 instance + an input action disappear mid-merge).
 
-## Cause
+**Cause**
 
 The Godot **editor keeps in-memory copies of every open resource** (open scenes AND
 `project.godot` ProjectSettings) and does **not** auto-reload them when the file changes on disk
@@ -19,7 +19,7 @@ saving so you don't clobber the hand-edit" fix notes in **#15** (godot-mcp `Rect
 (godot-ai `Vector2i`), and **#52** (godot-ai typed `Array[T]`). Those MCP coercion gaps just make
 it *common* by forcing hand-edits.
 
-## Fix
+**Fix**
 
 - Prefer editing open `.tscn`/`.tres`/`project.godot` **through the editor / godot-ai**, not a
   direct disk write.
@@ -31,14 +31,14 @@ it *common* by forcing hand-edits.
 - Recovery if clobbered: the committed content is the truth — `git checkout -- <file>` / re-run
   the merge restores disk over the clobber.
 
-## Detect proactively
+**Detect proactively**
 
 Any Edit-tool / direct disk write to `project.godot` or an open `.tscn`/`.tres` while the editor
 is running is a clobber setup. Before a commit/merge that depends on such an edit, `grep` the
 on-disk file for the expected node/action/value rather than trusting that a previously-verified
 edit is still there.
 
-## Confirmed by
+**Confirmed by**
 
 space-miner-prototype task-008 (2026-07-02) — hand-edited a `buddy_toggle` action into
 `project.godot` + an accent `Array[NodePath]` into `main.tscn` with the editor open; the editor's

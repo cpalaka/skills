@@ -1,6 +1,6 @@
 ---
 name: refresh-context
-description: Use when creating or refreshing a project's CONTEXT.md domain glossary (and any ADRs) — a project with no CONTEXT.md yet, or one that has drifted behind code changes. Triggers include "refresh the context", "build/update the CONTEXT.md", "seed domain docs", /refresh-context.
+description: Create or refresh a project's CONTEXT.md domain glossary (and any ADRs) via a docs-aware grilling session. Slash-only: /refresh-context.
 disable-model-invocation: true
 ---
 
@@ -30,14 +30,15 @@ Mode is automatic: no `CONTEXT.md` → **seed** the first glossary; `CONTEXT.md`
      fi
      ```
      Ignore build noise (`dist/`, `node_modules/`); trust `git diff`, never mtimes. Mine `docs/` for established names here too — update mode must not re-label a concept the team already named, and a new design doc is an offer-to-flag, not an edit trigger. If the user claims development HEAD doesn't show, check `git branch --no-merged main` (branches actually *ahead* of main — listing every branch by name isn't evidence), `git worktree list`, and `git stash list` before editing.
+   Scoping is complete when every changed source file is either mapped to a concept worth grilling or explicitly dismissed as noise — a list you could show the user.
 
 3. **Grill + write inline.** Run `grilling` using `domain-modeling`, focused *only* on the scoped concepts. Resolve each term with the user; write it into `CONTEXT.md` the moment it resolves, through the gate below.
 
-4. **ADRs.** When a decision surfaces that passes the 3-gate test (hard-to-reverse + surprising-without-context + real trade-off), *offer* it. Don't auto-write; don't bulk-seed.
+4. **ADRs.** When a decision surfaces that passes the 3-gate test (hard-to-reverse + surprising-without-context + real trade-off), *offer* it — one at a time, on that run's evidence.
 
-5. **Wire it into the repo (seed, or any run where the link is missing).** A `CONTEXT.md` only helps if something reads it — and your machine's global read-rule doesn't travel with the repo. Make the project's root `CLAUDE.md` name it: if it has no `CONTEXT.md` reference, append a one-line pointer — *"Read `CONTEXT.md` at the start of a task for the project's domain vocabulary (and `docs/adr/` when present)."* — creating a minimal `CLAUDE.md` if the repo has none. Idempotent: skip if it already references `CONTEXT.md`. This makes the repo self-describing for cloud agents, other machines, and contributors; the global read-rule only covers your own local sessions.
+5. **Wire it into the repo (seed, or any run where the link is missing).** A `CONTEXT.md` only helps if something reads it — and your machine's global read-rule doesn't travel with the repo. Make the project's root `CLAUDE.md` name it: if it has no `CONTEXT.md` reference, append a one-line pointer — *"Read `CONTEXT.md` at the start of a task for the project's domain vocabulary (and `docs/adr/` when present)."* — creating a minimal `CLAUDE.md` if the repo has none. Idempotent: skip if it already references `CONTEXT.md`. This makes the repo self-describing for cloud agents, other machines, and contributors.
 
-6. **Close.** Summarize terms added/changed, any ADRs offered, and the `CLAUDE.md` wiring. Leave committing to the user.
+6. **Close.** Summarize terms added/changed, any ADRs offered, and the `CLAUDE.md` wiring.
 
 ## The glossary-only gate — apply PER ENTRY, before writing (not as a later cleanup)
 
@@ -56,8 +57,4 @@ A `CONTEXT.md` **points into** design docs/ADRs; it never duplicates or summariz
 
 ## Red flags — STOP
 
-- Trusting `$BASE` blindly — run `git show --stat $BASE` first: an empty `$BASE` (uncommitted glossary) makes the diff falsely empty, and a docs-only/typo edit to `CONTEXT.md` hides un-glossed work committed before it
-- Trusting file mtimes over `git diff` (build artifacts look freshly modified)
-- Drafting entries, then self-critiquing their format afterward — gate each entry *at write time*
-- Adding terms because the user said "update" when the diff shows nothing changed
-- Defining a generic/industry term as if it were project-specific
+- Trusting `$BASE` without `git show --stat $BASE` — an empty `$BASE` (uncommitted glossary) makes the diff falsely empty, and a docs-only/typo edit to `CONTEXT.md` hides un-glossed work committed before it

@@ -13,7 +13,7 @@ templates: []               # board conventions arrive via the backlog-core @imp
 knobs:
   # Per-project values written into <!-- knobs:backlog-core --> in the project CLAUDE.md.
   backlog-core:
-    VERSION: "1.45.2"                       # pinned; bump deliberately (npm i -g backlog.md@<pin>)
+    VERSION: "1.45.2"                       # THE canonical pin (web.md mirrors it — bump both together); npm i -g backlog.md@<pin>
     PLANS_DIR: "docs/superpowers/plans/"    # where multi-task plan docs linked via --doc live
     VERIFY_EXAMPLES: "typecheck/test/build green · dev smoke · screenshot"  # illustrate AC shape
     DoD:                                    # standing gates, stamped at task-creation time;

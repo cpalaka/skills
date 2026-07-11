@@ -50,8 +50,7 @@ def decide_plugin_update(installed_version, installed_sha, manifest_version, man
     """Return (update_available: bool, available_label: str|None).
 
     If the manifest carries a version, compare versions. Otherwise the plugin is
-    SHA-pinned (e.g. superpowers) — compare the manifest source sha to the installed
-    gitCommitSha.
+    SHA-pinned — compare the manifest source sha to the installed gitCommitSha.
     """
     if manifest_version is not None:
         if manifest_version != installed_version:

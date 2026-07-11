@@ -1,14 +1,9 @@
 ---
 type: godot
 imports: []                 # No UNCONDITIONAL imports beyond dev-base + the fork.
-                            # backlog-core is CONDITIONAL (like blender-mcp-guide): a board-driven
-                            # Godot project (a real game with a backlog/ board) imports it; a
-                            # prototype/sketch with no board skips it — backlog-core actively
-                            # instructs board ops ("session start: check the board"), so it is NOT
-                            # safe-when-unused. Decided at apply time: default board-ON for a real
-                            # game project, OFF for a prototype. See "### Board (conditional)" in the
-                            # recipe. Re-running init-project later with the board enabled
-                            # idempotently ADDS the backlog wiring (import line + knob block + init).
+                            # backlog-core is CONDITIONAL (like blender-mcp-guide): the recipe's
+                            # "Board (conditional)" step decides it at apply time and wires it
+                            # (import line + knob block + init) — never the default knob pass.
 fork: git-flow-squash       # The default (ADR-0002). git-flow-noff is the opt-in alternative.
                             # MIGRATION: pick the fork from the repo's REAL git history, not this
                             # default. Pre-chunk Godot bootstrapping prescribed NO git-flow
@@ -124,8 +119,9 @@ lockfile-freeze MECHANIC, verify-after-write, and the handoff. Do **not** re-run
 This recipe supplies only what the manifest can't express: the MCP install, the `project.godot`
 edits, the freeze PAYLOAD, and the load-bearing WHYs. Run the numbered steps in order.
 
-**Board (conditional):** backlog-core is NOT imported unconditionally (see the `imports:`
-note). Decide at apply time whether this project is board-driven: if `backlog/` already exists,
+**Board (conditional):** backlog-core is NOT imported unconditionally — it actively instructs
+board ops ("session start: check the board"), so it is not safe-when-unused. Decide at apply
+time whether this project is board-driven: if `backlog/` already exists,
 or the user wants a board (default **yes** for a real game project, **no** for a
 prototype/sketch), then (a) add `@~/.claude/chunks/backlog-core.md` to the CLAUDE.md import
 block, (b) write the `<!-- knobs:backlog-core -->` block from the manifest knobs, and (c) run

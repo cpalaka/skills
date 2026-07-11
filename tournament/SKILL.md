@@ -1,11 +1,11 @@
 ---
 name: tournament
-description: Author and run a generate → judge → verify → synthesize tournament workflow in any domain — interview for the spec, assemble a self-contained Workflow script from the stage catalog, lint + smoke-run it, then launch and relay results. Use to "run a tournament", do a "generate-and-judge" pass, "pick the best X via fan-out", build a "bracket/scoreboard of candidates", or set up a "tournament workflow". Persists a reusable spec for re-runs.
+description: Tournament workflows — generate → judge → verify → synthesize in any domain, from a persisted reusable spec. Use to "run a tournament", do a "generate-and-judge" pass, "pick the best X via fan-out", or build a "bracket/scoreboard of candidates".
 ---
 
 # Tournament
 
-Turn a recurring "generate a bunch, judge them, pick and refine a winner" job into an editable, reusable **spec** and a self-contained **Workflow** script. This skill is a code generator, not a library: the Workflow runtime forbids `import`/`require`/fs and `Date.now()`/`Math.random()`/argless `new Date()` (DESIGN §3), so each run emits a fresh literal script.
+Turn a recurring "generate a bunch, judge them, pick and refine a winner" job into an editable, reusable **spec** and a self-contained **Workflow** script. This skill is a code generator, not a library: the Workflow runtime forbids several JS built-ins (the §6 lint list; DESIGN §3), so each run emits a fresh literal script.
 
 ## 1. When to use & the invariant pipeline
 
@@ -49,7 +49,7 @@ Depths are realized by **replicating the posture inline** — do NOT sub-invoke 
 
 The candidate shape varies per domain and a flat config can't express it. Strategy: **infer + propose, archetype-seeded.** Carry ~3 archetypes — `creative-concept`, `procedure/recipe`, `evaluated-option` — infer the best-fit field set from objective + domain, and propose it for one-line edits. Default shape = a handful of **structured comparable fields** + an optional **freeform `body` markdown field**.
 
-**Coherence check (during the interview):** verify every axis and judge maps to at least one candidate field; flag any judge with nothing to grade. This catches incoherence before assembly.
+**Coherence check (during the interview):** verify every axis and judge maps to at least one candidate field; flag any judge with nothing to grade.
 
 ## 5. Assembly
 

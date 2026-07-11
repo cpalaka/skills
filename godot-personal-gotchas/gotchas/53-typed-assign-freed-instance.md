@@ -1,6 +1,6 @@
-# 53 — Typed assignment of a previously-freed instance faults on the READ, before any is_instance_valid guard
+### 53. Typed assignment of a previously-freed instance faults on the READ, before any is_instance_valid guard
 
-## Symptom
+**Symptom**
 
 `SCRIPT ERROR: Trying to assign invalid previously freed instance` fires on a line that
 merely **reads** a stored Object reference into a **typed** local or property:
@@ -21,7 +21,7 @@ Also fires on `var n: Node2D = some_member`, `var c: MyClass = dict[k]`, functio
 freed instance into a typed parameter, and typed `@export`/property assignment — anywhere a freed
 instance is bound to a *statically typed* slot.
 
-## Cause
+**Cause**
 
 Assigning to a **typed** variable/property in Godot 4.x validates the source Variant against the
 declared type (`Object`, `Node2D`, a `class_name`, …). Validating a *previously-freed* instance
@@ -34,7 +34,7 @@ verbatim with **no** validation. `is_instance_valid(t)` then safely returns `fal
 instance, and an `and`-chain (`is_instance_valid(t) and t is Node2D and ...`) short-circuits before
 any `is` / property / `is_queued_for_deletion()` access touches the freed node.
 
-## Fix
+**Fix**
 
 Read possibly-freed stored references **untyped** first, then guard:
 
@@ -48,7 +48,7 @@ if is_instance_valid(t) and t is Node2D and not (t as Node2D).is_queued_for_dele
 `is_instance_valid` FIRST in the `and` chain is load-bearing: it short-circuits the `is` and
 method calls, which would themselves fault on a freed instance.
 
-## Detect proactively
+**Detect proactively**
 
 Grep changed `.gd` for a **typed** local/property assignment whose right-hand side is a stored
 Object reference that can outlive its target — a Dictionary/array index or a member holding a node
@@ -56,7 +56,7 @@ ref — especially when an `is_instance_valid(...)` guard sits on the *following
 too late if the read is typed). Any long-lived "committed target / last-seen / cached node" ref
 freed elsewhere in its lifecycle is the classic setup.
 
-## Confirmed by
+**Confirmed by**
 
 space-miner-prototype, 2026-07-02 — a committed mining target (an asteroid) is mined to death and
 freed; the next frame a typed read of `..._intent["target"]` faulted with the exact message. Exposed

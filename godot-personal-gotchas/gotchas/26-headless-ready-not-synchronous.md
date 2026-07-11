@@ -14,5 +14,8 @@ In `SceneTree._initialize()`, a node's `_ready()` is NOT fired synchronously aft
 **How to run**
 The harness is `--headless --path . --script res://tests/foo.gd`, where `foo.gd` `extends SceneTree` with `func _initialize()` as the entry point and `quit(code)` for exit status — confirmed working in Godot 4.6.2, including with the editor open on the same project. Invoke with your Godot binary path (Godot is often not on `PATH`).
 
+**Detect proactively**
+In any headless `SceneTree` test, grep for lifecycle assertions placed in `_initialize()` right after an `add_child` — `grep -nA4 'add_child' tests/*.gd` — and check whether the following lines assert against `_ready()`-initialized state; move those into the first `_process(delta)` (tree live) or call `node._ready()` explicitly. Sibling to #51 — the stronger `get_tree()`-is-null variant of the same `_initialize`-tree-not-live root cause.
+
 **Confirmed by**
 2026-06-04 — `circle-combat-prototype`. Harness flagged as "unproven" in the uppercut plan; worked on first try. The `_ready`-not-synchronous quirk cost a debug cycle in an integration test. See memory `godot-headless-test-harness.md`.

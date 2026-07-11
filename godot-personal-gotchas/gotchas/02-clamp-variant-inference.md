@@ -24,5 +24,14 @@ Use the explicitly-typed variants. They return `float` or `int` directly so `:=`
 
 Alternative (worse): annotate explicitly — `var x: float = clamp(...)`. Works, but more verbose than swapping the function name.
 
+**Detect proactively**
+Grep changed `.gd` for `:=` inference on the Variant-returning math globals:
+
+```bash
+grep -nE ':=\s*(clamp|min|max|abs|sign|floor|ceil|round)\s*\(' **/*.gd
+```
+
+Any hit is a warnings-as-errors parse failure waiting to happen (under `treat_warnings_as_errors`) — swap the call to its typed `*f`/`*i` variant per the table above, or annotate the local with `: float`/`: int`.
+
 **Confirmed by**
 Hit during the `3d-prototype-1` movement-depth implementation on 2026-05-24, line 36 of `scripts/player.gd`: `var magnitude := clamp(distance / walk_threshold, 0.0, 1.0)` → fixed by swapping to `clampf`.

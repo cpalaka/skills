@@ -92,23 +92,6 @@ Authors and runs a generate → judge → verify → synthesize **tournament** w
 
 Skills I have installed locally and use as part of my workflow. Grouped by upstream source.
 
-### From [superpowers](https://github.com/obra/superpowers)
-
-- `brainstorming` — You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation.
-- `dispatching-parallel-agents` — Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies
-- `executing-plans` — Use when you have a written implementation plan to execute in a separate session with review checkpoints
-- `finishing-a-development-branch` — Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup
-- `receiving-code-review` — Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation
-- `requesting-code-review` — Use when completing tasks, implementing major features, or before merging to verify work meets requirements
-- `subagent-driven-development` — Use when executing implementation plans with independent tasks in the current session
-- `systematic-debugging` — Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
-- `test-driven-development` — Use when implementing any feature or bugfix, before writing implementation code
-- `using-git-worktrees` — Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback
-- `using-superpowers` — Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions
-- `verification-before-completion` — Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
-- `writing-plans` — Use when you have a spec or requirements for a multi-step task, before touching code
-- `writing-skills` — Use when creating new skills, editing existing skills, or verifying skills work before deployment
-
 ### From [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills)
 
 - `karpathy-guidelines` — Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria.
@@ -136,9 +119,11 @@ Skills I have installed locally and use as part of my workflow. Grouped by upstr
 - `setup-matt-pocock-skills` — Configure this repo for the engineering skills — set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.
 - `tdd` — Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions "red-green-refactor", or wants integration tests.
 - `teach` — Teach the user a new skill or concept, within this workspace.
-- `to-issues` — Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
-- `to-prd` — Turn the current conversation context into a PRD and publish it to the project issue tracker. Use when user wants to create a PRD from the current context.
+- `to-spec` — Turn the current conversation into a spec and publish it to the project issue tracker — no interview, just synthesis of what you've already discussed.
+- `to-tickets` — Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, published to the configured tracker.
 - `triage` — Move issues through a state machine of triage roles — categorise, reproduce, grill if needed, and write agent-ready briefs.
+- `ask-matt` — Ask which skill or flow fits your situation. A router over the skills in this repo.
+- `implement` — Implement a piece of work based on a spec or set of tickets.
 
 ### From [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)
 

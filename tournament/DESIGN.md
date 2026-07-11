@@ -1,6 +1,6 @@
 # `/tournament` — design spec
 
-**Status:** approved design (2026-06-17), pre-implementation. Next step: implementation plan via `writing-plans`.
+**Status:** approved design (2026-06-17), since implemented — `SKILL.md` is the live spec; this file is the rationale archive.
 **One-liner:** A personal skill that authors a complete, self-contained Claude Code **Workflow** script for a generate → judge → verify → synthesize *tournament* in any domain, persists the resolved spec for reuse, and (on approval) launches it and relays results.
 
 ---

@@ -18,7 +18,7 @@ Because both static layers have blind spots, the real backstop is making the **s
 
 **Why**
 
-This is a strict superset of the warnings-as-errors gates that GUT covers. The failure mode: a script authored in an earlier session, never exercised by tests, carries `expf(-rate)` or cross-script-without-`class_name` (personal-gotchas #6 and #12) — invisible until F5 instantiates a scene that loads it. The cost of saying "compile clean" when it isn't is a fresh-session F5 that explodes immediately. A nastier variant slips past `--check-only` AND the LSP entirely — a *runtime-compile* error like the array-literal-index `:=` above (gotcha #44) — and `is_playing:true` after `project_run` is NOT proof the script compiled: it only means the SceneTree loaded; if the root script failed to compile, `_ready` never ran and the scene is non-functional.
+This is a strict superset of the warnings-as-errors gates that GUT covers. The failure mode: a script authored in an earlier session, never exercised by tests, carries `expf(-rate)` or cross-script-without-`class_name` (personal-gotchas #6 and #12) — invisible until F5 instantiates a scene that loads it. The cost of saying "compile clean" when it isn't is a fresh-session F5 that explodes immediately. And `is_playing:true` after `project_run` is NOT proof the script compiled: it only means the SceneTree loaded; if the root script failed to compile, `_ready` never ran and the scene is non-functional.
 
 **How to apply**
 
@@ -26,4 +26,4 @@ When the editor is open, prefer `mcp__godot-mcp__godot_editor get_log_messages s
 
 When the editor is closed, `--check-only --quit` is the right tool. When in doubt or under time pressure, spot-read any `.gd` script that's about to be loaded by a scene the user is about to F5 — fastest manual verification.
 
-Every new GDScript that no behavioral test exercises gets a **preload-smoke test** added to the headless suite (part of the test-roster discipline) so the suite actually compiles it — this is the only catch for runtime-compile errors that `--check-only` and the LSP both miss. When you CANNOT run a scene (game capture down — gotcha #43), treat its controller as UNVERIFIED; never substitute static checks + `is_playing:true`.
+Every new GDScript that no behavioral test exercises gets a **preload-smoke test** added to the headless suite (part of the test-roster discipline) so the suite actually compiles it. When you CANNOT run a scene (game capture down — gotcha #43), treat its controller as UNVERIFIED; never substitute static checks + `is_playing:true`.

@@ -2,7 +2,7 @@
 
 **When this applies**
 
-Executing a multi-task plan via the `superpowers:subagent-driven-development` skill in a Godot project, where individual tasks would otherwise prompt for F5 manual verification. (Whether subagent-driven execution is the right mode at all is gated by preference #8 — plan specificity; this preference presumes that question already answered yes.)
+Executing a fully-specified multi-task plan via subagent-driven execution (subagents dispatched per task/ticket — e.g. the `implement` flow or a Workflow-tool fan-out) in a Godot project, where individual tasks would otherwise prompt for F5 manual verification. (Whether subagent-driven execution is the right mode at all is gated by preference #8 — plan specificity; this preference presumes that question already answered yes.)
 
 **Preferred behavior**
 

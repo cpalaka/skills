@@ -1,6 +1,6 @@
-# 54 — macOS delivers media keys, not F1–F12, so a Godot F-key binding silently never fires
+### 54. macOS delivers media keys, not F1–F12, so a Godot F-key binding silently never fires
 
-## Symptom
+**Symptom**
 
 On macOS, a Godot game binding a top-row function key never receives it — no error, no
 warning, the handler just never runs:
@@ -21,7 +21,7 @@ The trap that hides it: **injected** keycodes DO fire the handler. godot-ai
 the game, bypassing the OS layer — so the feature tests **green under MCP** (and in any headless
 injection harness) while silently failing when a human presses the key at a real keyboard.
 
-## Cause
+**Cause**
 
 macOS's default keyboard setting **"Use F1, F2, etc. keys as standard function keys" is OFF**.
 With it off, the hardware top row emits **media/hardware events** (brightness, volume, Launchpad,
@@ -29,7 +29,7 @@ Mission Control, Do Not Disturb, …) at the OS level; the F1–F12 keycodes rea
 only when **Fn** is held. Standard macOS behavior, not a Godot bug — but a Godot F-key binding
 *looks* broken because the event never arrives, and there is no error to grep for.
 
-## Fix
+**Fix**
 
 - At the keyboard: hold **Fn + F-key**, or enable System Settings → Keyboard → Keyboard Shortcuts
   → Function Keys → **"Use F1, F2, etc. keys as standard function keys"** (global or per-app).
@@ -41,7 +41,7 @@ only when **Fn** is held. Standard macOS behavior, not a Godot bug — but a God
   resulting state — but treat green there as "the code path works," NOT "a user's keyboard will
   deliver the key." The OS-delivery caveat is invisible to injection.
 
-## Detect proactively
+**Detect proactively**
 
 Grep changed GDScript on a macOS dev host for top-row F-key bindings — `physical_keycode == KEY_F1`
 .. `KEY_F12` (or `keycode`) in `_unhandled_input`/`_input`, or an Input-Map action whose event is an
@@ -49,7 +49,7 @@ F-key. Any hit is a candidate silent-no-op: move it off the top row or ship the 
 that passes MCP-injected-key verification but has never been pressed at a real keyboard is exactly
 the false-green case.
 
-## Confirmed by
+**Confirmed by**
 
 space-miner-prototype task-010 (2026-07-02) — F9 (`buddy_stats.tres` reload) and F10 (buddy debug
 draw), the project's first top-row F-key bindings. Surfaced by the task's buddy-review as a LOW

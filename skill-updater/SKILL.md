@@ -1,6 +1,6 @@
 ---
 name: skill-updater
-description: Check installed Claude skills for upstream updates and install them. Auto-applies updates from trusted sources (Anthropic, Vercel, official marketplace) and confirms community sources first. Covers both ecosystems — Claude Code plugins (claude plugin CLI) and npx-skills agent-skills (~/.agents). Use when the user says "check my skills for updates", "update my skills", "any skill updates?", or invokes /skill-updater. Does NOT touch hand-authored personal skills.
+description: Check installed Claude skills for upstream updates and install them, across both ecosystems (Claude Code plugins and npx-skills agent-skills). Use when the user asks to check or update their skills, or invokes /skill-updater. Does NOT touch hand-authored personal skills.
 ---
 
 # Skill Updater
@@ -98,5 +98,4 @@ end with this note verbatim:
 - **Trusted vs. community** is defined in `~/.claude/skills/skill-updater/trusted-sources.json`.
   To promote a source to auto-apply, add its marketplace name to `marketplaces` or its
   `owner/*` glob to `repos`.
-- **Offline / failures** are isolated per source and reported; the other ecosystem still runs.
 - Set `GITHUB_TOKEN` in the environment to avoid GitHub rate limits on the clones.

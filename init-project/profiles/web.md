@@ -14,7 +14,7 @@ knobs:
   # dev-base. All three are value-variant, so the engine still writes a knob
   # block for each (knob values live in the project CLAUDE.md, never in a chunk).
   backlog-core:
-    VERSION: "1.45.2"                         # chaipalaka's pin; confirm/derive at apply time
+    VERSION: "1.45.2"                         # same pin as profiles/backlog.md — bump both together; confirm at apply time
     PLANS_DIR: "docs/superpowers/plans/"      # specs in docs/superpowers/specs/; plans/ created lazily
     VERIFY_EXAMPLES: "typecheck/test/build green, dev smoke of the affected route, screenshot where visual"
     DoD:                                      # EXAMPLES ONLY — at apply time, mirror the project's ACTUAL
@@ -57,9 +57,9 @@ Profiles do not compose; reference, don't copy. (The board CONVENTIONS still
 arrive via the `backlog-core` @import regardless; only the one-time CLI
 `init` is bespoke, and it lives in the backlog profile.)
 
-**Web-specific concerns are INLINE-LEAF — NOT in this profile or any chunk.**
-The engine never writes Zone 3; these are hand-authored in the project's own
-`CLAUDE.md` and must not be baked into a manifest knob or a shared chunk:
+**Web-specific concerns live as INLINE-LEAF (Zone 3), hand-authored in the
+project's own `CLAUDE.md`.** The engine never writes Zone 3, and no manifest
+knob or shared chunk carries them:
 
 - **Deploy** — the Hetzner box, `make deploy` / `deploy-web` / `deploy-api` /
   `assets-sync`, the `/etc/chaipalaka.env` secret store, the `/api/*`-only

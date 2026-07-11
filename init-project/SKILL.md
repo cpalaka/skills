@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: The single engine that scaffolds (or migrates) a dev project onto the Chunk library — writes the chunk @imports, knob blocks, stamps Templates, merges settings.local.json, and runs a project-type Profile's bespoke recipe. Use when setting up a new dev project, adopting the chunk library in an existing one, or adding a new project type. Consumes a declarative Profile from profiles/<type>.md; the engine never changes as types grow — adding a type means adding a Profile.
+description: Scaffold (or migrate) a dev project onto the Chunk library, driven by a declarative project-type Profile. Use when setting up a new dev project, adopting the chunk library in an existing one, or adding a new project type.
 ---
 
 # init-project — the Chunk-library scaffolding engine
@@ -8,10 +8,6 @@ description: The single engine that scaffolds (or migrates) a dev project onto t
 ONE engine, many **Profiles**. The engine is a uniform apply-algorithm; a Profile
 (`profiles/<type>.md`) is the *data* for one project type. Adding a project type = adding
 a Profile. The engine and `dev-base` bundle are stable; only Profiles grow. (ADR-0003.)
-
-This replaces the per-type init skills `init-backlog-project` and `init-godot-claude-project`,
-both **retired in step 7** (2026-06-19) once chaipalaka (backlog/web) and a godot project
-proved the replacement. Adding a project type is now adding a Profile, not a skill.
 
 ## What a Profile is (the manifest contract)
 
@@ -27,9 +23,9 @@ fork: git-flow-squash      # exactly one git-flow variant. squash is the DEFAULT
                            # git-flow-noff is the opt-in. The fork is imported explicitly,
                            # never via dev-base (@import cannot be undone).
 templates: []              # parity-tracked Template assets to stamp: [{src, dest, refresh?}]
-  settings:                  # optional: this type's settings.local.json delta, merged in step 4
-    allow: []                #   extra permissions.allow globs (unioned by exact-string dedup)
-    enabled_mcp_servers: []  #   added to enabledMcpjsonServers
+settings:                  # optional: this type's settings.local.json delta, merged in step 4
+  allow: []                #   extra permissions.allow globs (unioned by exact-string dedup)
+  enabled_mcp_servers: []  #   added to enabledMcpjsonServers
 knobs:                     # per value-variant chunk → the values to write into its knob block
   backlog-core:
     VERSION: "..."
@@ -124,4 +120,4 @@ the Profile recipe defers to an interactive editor step.
 ## Extensibility
 
 New project type → add `profiles/<type>.md`. New cross-cutting rule → add `chunks/<name>.md`
-(+ `dev-base.md` if universal). The engine never changes.
+(+ `dev-base.md` if universal).
