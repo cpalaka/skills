@@ -11,7 +11,7 @@ export const meta = {
   ],
 }
 
-const ROOT = '/Users/chaipalaka/Claude/game-storming'
+const ROOT = '/Users/chaipalaka/gamedev/design/game-storming'
 
 const HARD = `HARD CONSTRAINTS (every concept MUST satisfy ALL of these):
 - Solo developer doing EVERYTHING (code, art, music, marketing), ~300-350 hours total over 2 months, Godot 4.6, strictly 2D.
