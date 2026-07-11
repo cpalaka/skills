@@ -22,12 +22,28 @@ Tell the user you're checking both ecosystems and that this fetches from GitHub
 python3 ~/.claude/skills/skill-updater/scripts/skillsync.py detect --refresh
 ```
 
-Parse the JSON. It has three keys: `plugins`, `skills`, `errors`. Each plugin/skill
-entry has `trusted` (bool), `updateAvailable` (bool), an identifier (`id` for plugins,
-`name` for skills), `availableLabel`/`diffstat`, and an optional `note`.
+Parse the JSON. It has four keys: `plugins`, `skills`, `newSkills`, `errors`. Each
+plugin/skill entry has `trusted` (bool), `updateAvailable` (bool), an identifier (`id`
+for plugins, `name` for skills), `availableLabel`/`diffstat`, and an optional `note`.
 
-If every entry has `updateAvailable: false` and `errors` is empty, report
-"✓ All skills are up to date" and stop.
+Two special `note` values on `skills` entries:
+- **moved upstream** — the skill's folder moved in the source repo (e.g. out of
+  `in-progress/`). `updateAvailable`/`diffstat` are computed against the NEW path, but
+  `apply-skills` may not follow the move; the note carries the reinstall command
+  (`npx skills@latest add <repo> -g -y --skill <name>`) that also fixes the lock path.
+- **removed upstream** — the folder is gone from the source repo (often a rename;
+  check `newSkills` for a likely successor). Nothing is auto-applied; ask the user
+  whether to keep the frozen local copy or remove it
+  (`npx skills@latest remove <name> -g -y`).
+
+`newSkills` lists upstream skills with no local install, each with an `installCmd`.
+Only repos the user tracks wholesale (>= half the repo's skills installed) are scanned,
+so cherry-picked catalog repos don't flood this list. Before offering an install, check
+the name doesn't collide with an already-installed skill from a DIFFERENT source repo
+(`~/.agents/.skill-lock.json`) — flag collisions instead of installing over them.
+
+If every entry has `updateAvailable: false`, `newSkills` is empty, and `errors` is
+empty, report "✓ All skills are up to date" and stop.
 
 Always surface anything in `errors` (e.g. a repo that failed to clone) — report it but
 keep going with what succeeded.
@@ -59,6 +75,12 @@ diff; present them by version/`availableLabel` and confirm the same way.)
 
 Apply only the chosen ones using the same `apply-plugin` / `apply-skills` commands as
 Step 2.
+
+In the same confirmation, present the `newSkills` entries (with source and path) and any
+moved/removed-upstream skills, and apply the user's picks with each entry's
+`installCmd` / the note's reinstall or remove command. New installs and moves/removals
+are ALWAYS confirmed, even from trusted sources — trusted auto-apply covers only
+in-place updates to skills the user already chose to install.
 
 ### 4. Report
 

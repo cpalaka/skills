@@ -27,6 +27,16 @@ it and **restart** before proceeding. A fresh session needs this configured expl
 worktree. (How the defaults reach subagents vs. fresh worktree sessions: see
 `parallel-work`.)
 
+**Git ops that write `.claude/` need the sandbox off.** The sandbox's `denyWithinAllow`
+blocks writes to `.claude/` (and `.git/config`/`.git/hooks`) but NOT `.git/objects`/
+`.git/refs` — so `git commit` succeeds under the sandbox, yet a `git checkout`/`switch`/
+`merge`/`rebase`/`stash pop` that must modify a **tracked** file under `.claude/` fails
+`Operation not permitted` and **half-switches**: HEAD moves, other files revert to the
+target branch, but the denied file is left dirty, so the next `merge` aborts. Run such
+branch ops with the sandbox disabled; read-only git (`status`/`log`/`diff`) is always
+safe — assess first. Recover a half-switched tree with `git checkout -- <denied-file>`
+(sandbox off) then redo. Rationale: `~/Claude/improvements.md` (2026-07-03).
+
 **Allowlist hygiene — keep destructive globs OUT.** `permissions.allow` *overrides* the
 classifier, so anything it matches runs silently with no gate. Therefore:
 

@@ -145,24 +145,41 @@ def diff_dirs(upstream_dir, local_dir):
 
 
 # ---------- cloning ----------
-def clone_skill_folders(source_url, folders, ref, dest):
-    """Shallow, blob-filtered, sparse clone of `folders` from source_url into dest.
+def clone_no_checkout(source_url, ref, dest):
+    """Shallow, blob-filtered, no-checkout clone. Tree metadata is available
+    (git ls-tree) without fetching file contents.
 
-    source_url/ref/folders come from the untrusted ~/.agents/.skill-lock.json, so
-    reject any value git could read as an option (argv flag smuggling — e.g. a
-    sourceUrl of "--upload-pack=<cmd>" is RCE) and separate positionals with "--".
+    source_url/ref come from the untrusted ~/.agents/.skill-lock.json, so reject
+    any value git could read as an option (argv flag smuggling — e.g. a sourceUrl
+    of "--upload-pack=<cmd>" is RCE) and separate positionals with "--".
     """
     for val, label in [(source_url, "sourceUrl"), (ref or "", "ref")]:
         if val.startswith("-"):
             raise ValueError(f"unsafe {label}: {val!r}")
-    for folder in folders:
-        if folder.startswith("-"):
-            raise ValueError(f"unsafe folder: {folder!r}")
     cmd = ["git", "clone", "--depth", "1", "--filter=blob:none", "--no-checkout"]
     if ref:
         cmd += ["--branch", ref]
     cmd += ["--", source_url, str(dest)]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+
+def upstream_skill_folders(dest):
+    """All folders in the cloned repo's HEAD tree containing a SKILL.md.
+
+    Works on a --no-checkout clone: ls-tree reads tree objects, which a
+    blob-filtered clone still has.
+    """
+    r = subprocess.run(["git", "-C", str(dest), "ls-tree", "-r", "--name-only", "HEAD"],
+                       check=True, capture_output=True, text=True)
+    return {os.path.dirname(p) for p in r.stdout.splitlines()
+            if os.path.basename(p) == "SKILL.md"}
+
+
+def checkout_folders(dest, folders):
+    """Sparse-checkout `folders` in an existing no-checkout clone."""
+    for folder in folders:
+        if folder.startswith("-"):
+            raise ValueError(f"unsafe folder: {folder!r}")
     # An empty folder ("") means the skill IS the whole repo (skillPath == "SKILL.md").
     # Sparse-checkout can't express "repo root" in cone mode, so fall back to a full
     # checkout whenever any folder is the root; otherwise sparse-checkout just the subfolders.
@@ -176,10 +193,16 @@ def clone_skill_folders(source_url, folders, ref, dest):
                    check=True, capture_output=True, text=True)
 
 
+def clone_skill_folders(source_url, folders, ref, dest):
+    """Shallow, blob-filtered, sparse clone of `folders` from source_url into dest."""
+    clone_no_checkout(source_url, ref, dest)
+    checkout_folders(dest, folders)
+
+
 # ---------- detect orchestration ----------
 def detect(refresh=False, config_path=DEFAULT_CONFIG):
     trusted_marketplaces, trusted_repos = load_trusted_config(config_path)
-    report = {"plugins": [], "skills": [], "errors": []}
+    report = {"plugins": [], "skills": [], "newSkills": [], "errors": []}
     if refresh:
         r = subprocess.run(["claude", "plugin", "marketplace", "update"],
                            capture_output=True, text=True)
@@ -235,8 +258,23 @@ def detect_skills(report, trusted_repos):
         ref = items[0][2]
         tmp = Path(tempfile.mkdtemp(prefix="skillsync-"))
         try:
-            clone_skill_folders(source_url, [f for (_, f, _) in items], ref, tmp)
+            clone_no_checkout(source_url, ref, tmp)
+            upstream = upstream_skill_folders(tmp)
+            # Classify each installed skill: still at its folder, moved (same
+            # basename elsewhere upstream), or removed upstream entirely.
+            present, moved, removed = [], [], []
             for (name, folder, _ref) in items:
+                if folder in upstream:
+                    present.append((name, folder))
+                    continue
+                match = next((u for u in upstream
+                              if u and os.path.basename(u) == os.path.basename(folder)), None)
+                if match:
+                    moved.append((name, folder, match))
+                else:
+                    removed.append((name, folder))
+            checkout_folders(tmp, [f for (_, f) in present] + [m for (_, _, m) in moved])
+            for (name, folder) in present:
                 try:
                     changed, diffstat, _full = diff_dirs(tmp / folder, AGENT_SKILLS_DIR / name)
                 except Exception as e:  # missing local folder, etc.
@@ -247,6 +285,43 @@ def detect_skills(report, trusted_repos):
                     "trusted": trusted, "updateAvailable": changed,
                     "diffstat": diffstat if changed else None, "note": None,
                 })
+            for (name, old_folder, new_folder) in moved:
+                try:
+                    changed, diffstat, _full = diff_dirs(tmp / new_folder, AGENT_SKILLS_DIR / name)
+                except Exception as e:
+                    changed, diffstat = True, None
+                    report["errors"].append(f"diff {name}: {e}")
+                report["skills"].append({
+                    "name": name, "source": repo, "skillPath": new_folder,
+                    "trusted": trusted, "updateAvailable": changed,
+                    "diffstat": diffstat if changed else None,
+                    "note": (f"moved upstream: {old_folder} -> {new_folder}; "
+                             f"reinstall to fix the lock path: "
+                             f"npx skills@latest add {repo} -g -y --skill {name}"),
+                })
+            for (name, folder) in removed:
+                report["skills"].append({
+                    "name": name, "source": repo, "skillPath": folder,
+                    "trusted": trusted, "updateAvailable": False,
+                    "diffstat": None,
+                    "note": ("removed upstream (possibly renamed — check newSkills); "
+                             "local copy kept as-is"),
+                })
+            # Upstream skills with no lock entry at all: new (or renamed) skills.
+            # Only for repos the user tracks wholesale (installed >= half of
+            # upstream) — cherry-picked catalog repos would flood the report.
+            installed_folders = {f for (_, f, _) in items}
+            installed_names = {n for (n, _, _) in items}
+            if len(installed_folders) * 2 >= len(upstream):
+                for folder in sorted(upstream - installed_folders):
+                    base = os.path.basename(folder)
+                    if not base or base in installed_names:
+                        continue  # root-repo skill, or already reported as moved
+                    report["newSkills"].append({
+                        "name": base, "source": repo, "skillPath": folder,
+                        "trusted": trusted,
+                        "installCmd": f"npx skills@latest add {repo} -g -y --skill {base}",
+                    })
         except subprocess.CalledProcessError as e:
             detail = (e.stderr or str(e))[:200]
             report["errors"].append(f"clone {repo} failed: {detail}")
