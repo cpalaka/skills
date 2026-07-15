@@ -22,6 +22,11 @@ of work whenever possible. Multiple commits on a branch are fine — how a branc
 is integrated (squash vs. merge commit) is the git-flow fork's concern, not this
 chunk's.
 
+**Stage by explicit file path — never `git add <dir>/`.** Directory-level staging
+silently sweeps in untracked strays near your write paths (a concurrent session's
+files, editor droppings), and multi-session repos make strays the expected case.
+Backstop: read the commit's `--stat` output before any push.
+
 **Never amend an already-pushed commit without confirming.** Once a commit is on
 `origin/<branch>`, do not `git commit --amend` (or otherwise rewrite that
 history) without explicit confirmation — it forces a non-fast-forward push that
