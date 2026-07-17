@@ -18,7 +18,9 @@ const FILE = A.filePath || '~/Claude/improvements.md'
 const MODE = A.mode || 'incremental'         // 'full' also runs the heavy read/write evidence scan
 // SINCE (the incremental boundary) is resolved AFTER extraction, preferring the in-file watermark
 // banner over args — the watermark travels with the file, so it can't be lost to args plumbing.
-const CONFIG = `Active config to compare against (read these): ~/.claude/CLAUDE.md, ~/Claude/usage-advice.md, ~/.claude/projects/-Users-chaipalaka-Claude/memory/MEMORY.md, and installed skills (run: ls ~/.claude/skills 2>/dev/null; ls ~/.agents/skills 2>/dev/null).`
+const CONFIG = `Active config to compare against (read these): ~/.claude/CLAUDE.md, ~/.claude/projects/-Users-chaipalaka-Claude/memory/MEMORY.md, and installed skills (run: ls ~/.claude/skills 2>/dev/null; ls ~/.agents/skills 2>/dev/null).`
+// Every agent() call pins model:'opus' explicitly — the Multi-Agent Model Policy forbids silent
+// inheritance (a Fable main loop would otherwise spend ~900k of weekly Fable budget per run).
 
 const EXTRACT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['entries', 'watermark'],
@@ -65,7 +67,7 @@ const VERDICT_SCHEMA = {
 phase('Extract')
 const extracted = await agent(
   `Read ${FILE} IN FULL. It is a dated log of behavioral customizations, one "## YYYY-MM-DD — Title" section per entry. Extract EVERY entry: id (date+short slug), date, title, already_annotated (does it already carry a \`_[YYYY-MM-DD audit: …]_\` inline note or a \`> **Superseded/Generalized/Partly superseded …**\` blockquote?), and artifacts (every concrete referenceable thing that could rot: file paths, skill names, scripts, memory files, named conventions, docs, permission entries). Return via schema.`,
-  { schema: EXTRACT_SCHEMA, phase: 'Extract', label: 'extract', effort: 'high' }
+  { schema: EXTRACT_SCHEMA, phase: 'Extract', label: 'extract', model: 'opus', effort: 'high' }
 )
 if (!extracted) return { error: 'extraction-failed' }
 const all = extracted.entries
@@ -88,13 +90,13 @@ Classify status, then set disposition:
 - route-projectlocal (a project-specific one-off — set promote_target to the owning project's docs). Keep the historical entry; do NOT delete.
 NEVER recommend deleting an entry. Give concrete evidence (commands + results).
 ENTRIES:\n${JSON.stringify(b, null, 1)}`,
-  { schema: AUDIT_SCHEMA, phase: 'Audit', label: `deep:batch${i + 1}`, effort: 'xhigh' }
+  { schema: AUDIT_SCHEMA, phase: 'Audit', label: `deep:batch${i + 1}`, model: 'opus', effort: 'xhigh' }
 ))
 
 const rotThunk = agent(
   `Cheap rot-sweep across ALL entries of ${FILE}: for every artifact below, check ONLY whether it still exists (ls/test for paths/scripts/docs/memory; \`ls ~/.claude/skills/<name>\` or \`ls ~/.agents/skills/<name>\` for skills). Report only the DEAD ones (referenced thing is gone) with the entry_id, the ref, and the command output. Skip 'convention'/'permission'/'other' kinds. Do NOT judge redundancy or supersession — existence only. Paths may be RELATIVE to a workspace root (e.g. \`mcp-test/docs/x.md\` lives under ~/gamedev/godot, NOT ~/Claude), so for any non-absolute, non-~ ref search broadly before concluding it's gone: \`find ~/Claude ~/gamedev ~/Code ~/.claude ~/.agents -path '*<ref>*' 2>/dev/null | head\`; report DEAD only if it exists under NONE of those roots. Before reporting a dead ref, read its entry in ${FILE} and SKIP it if the entry's own text marks that ref as removed/deleted/renamed/retired/archived/orphaned/superseded, or the entry already carries an \`_[… audit: …]_\` note about it — those are intentional removals on record, not broken live pointers.
 ARTIFACTS:\n${JSON.stringify(all.flatMap(e => e.artifacts.filter(a => ['path', 'skill', 'script', 'memory', 'doc'].includes(a.kind)).map(a => ({ entry_id: e.id, ...a }))), null, 1)}`,
-  { schema: ROT_SCHEMA, phase: 'Audit', label: 'rot-sweep', effort: 'high' }
+  { schema: ROT_SCHEMA, phase: 'Audit', label: 'rot-sweep', model: 'opus', effort: 'high' }
 )
 
 const [deepRaw, rot] = await Promise.all([parallel(deepThunks), rotThunk])
@@ -105,7 +107,7 @@ phase('Verify')
 const flagged = deep.filter(f => f.disposition !== 'leave')
 const verified = await parallel(flagged.map(f => () =>
   agent(`Adversarially RE-VERIFY this audit finding about ${FILE}; DEFAULT TO REFUTING it. Re-run the existence/reversal/redundancy checks yourself. If the artifact still exists or the reversal/redundancy is not real, upheld=false. Put real command output in note.\nFINDING:\n${JSON.stringify(f, null, 1)}`,
-    { schema: VERDICT_SCHEMA, phase: 'Verify', label: `verify:${f.id}`, effort: 'xhigh' }
+    { schema: VERDICT_SCHEMA, phase: 'Verify', label: `verify:${f.id}`, model: 'opus', effort: 'xhigh' }
   ).then(v => v ? { ...v, finding: f } : null)
 ))
 const verdicts = {}
@@ -118,7 +120,7 @@ if (MODE === 'full') {
   phase('Extract')
   evidence = await agent(
     `Empirically measure whether sessions READ vs only WRITE ${FILE}. Scan ~/.claude/projects/**/*.jsonl. Count ONLY genuine tool_use events targeting the file (Read tool with that file_path; Bash reading it; Edit/Write/append). EXCLUDE the CLAUDE.md-injection false positives (the filename appears in most transcripts purely because CLAUDE.md cites it). Report read count, write count, and whether the read-to-append pattern still holds.`,
-    { schema: { type: 'object', additionalProperties: false, required: ['summary'], properties: { summary: { type: 'string' } } }, phase: 'Extract', label: 'evidence-full', effort: 'high' }
+    { schema: { type: 'object', additionalProperties: false, required: ['summary'], properties: { summary: { type: 'string' } } }, phase: 'Extract', label: 'evidence-full', model: 'opus', effort: 'high' }
   )
 }
 
