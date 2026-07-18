@@ -37,6 +37,13 @@ branch ops with the sandbox disabled; read-only git (`status`/`log`/`diff`) is a
 safe — assess first. Recover a half-switched tree with `git checkout -- <denied-file>`
 (sandbox off) then redo. Rationale: `~/Claude/improvements.md` (2026-07-03).
 
+**Bash writes OUTSIDE the repo need the sandbox off.** The write-allowlist covers only this
+repo + temp dirs, so a Bash command writing to any outside path — `cp` into a sibling repo,
+`git add`/`commit` in another checkout — fails `Operation not permitted` on the first try
+(reads are unrestricted). Don't burn the failed attempt: use the Write/Edit tools (not
+bash-sandboxed) for outside-file edits, and run outside-repo `cp`/git writes with the sandbox
+disabled directly.
+
 **Allowlist hygiene — keep destructive globs OUT.** `permissions.allow` *overrides* the
 classifier, so anything it matches runs silently with no gate. Therefore:
 

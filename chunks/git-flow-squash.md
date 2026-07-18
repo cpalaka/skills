@@ -24,6 +24,13 @@ that there, then squash-merge so the code change and the Done-stamp become a sin
 - `git checkout main && git merge --squash <branch>` → **review the staged changes** →
   `git commit` (write the message per `git-commit-format`), or `git reset --merge` to abort.
 - Push `main`. The diff approval **is** the authorisation for that one push — see (d).
+- **Merging from a worktree? Release `main` right after the push.** If the main checkout is held
+  by a parallel session on another branch, you `git checkout main` *inside your own worktree* to
+  run the merge — but Git allows a branch in only ONE worktree at a time, so while your worktree
+  sits on `main` no other checkout can check it out, **silently blocking** the parallel session
+  the moment it tries to merge its own branch. Immediately after the push, `git checkout --detach`
+  in the worktree (or remove it) to free `main`. The block is invisible until the other session
+  merges, so releasing `main` is part of the ritual, not an afterthought.
 - This squash-merge pause doubles as the review surface; a compare-references diff view is
   the alternative. There is no merge commit to inspect after the fact, so review happens here.
 

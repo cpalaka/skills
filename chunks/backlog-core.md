@@ -84,7 +84,9 @@ leave the finding only in an ADR / spec / spike doc. As part of the producing ta
 completion (before marking it Done), **pin it onto each dependent task**: a hard requirement
 becomes an `--ac` on the dependent task (a Done-gate); a pointer becomes an
 `--append-notes` reference. Name the source task and doc in the text. Use `--ac` /
-`--append-notes` — **never `--desc` / `--notes`, which replace the whole field.** The
+`--append-notes` — **never `--desc` / `--notes`, which replace the whole field.** (Same trap
+one level up: `task edit --dep` and `--doc` REPLACE their entire list — pass the complete
+set; `--ac` appends.) The
 dependent task's own AC/description is what a future session reads first; an ADR it might
 never open is not enough.
 
