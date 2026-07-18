@@ -2,7 +2,7 @@
 
 When a new workflow preference is established (user corrects approach, or user confirms an unusual approach worked):
 
-1. **First — save to per-project memory** as `feedback_<slug>.md` in `~/.claude/projects/<slug>/memory/`. This is the per-project layer, where it accumulates first.
+1. **First — save to per-project memory** in `~/.claude/projects/<slug>/memory/`: one fact per file, descriptive kebab-case filename, frontmatter `metadata.type: feedback`, plus a one-line pointer in that project's `MEMORY.md`. This is the per-project layer, where it accumulates first.
 2. **Later — propagate via `audit-godot-parity`** (pair 7: feedback memories ↔ this skill). The sync run handles translation from project-specific to generalized form.
 
 If the preference is clearly generalizable from the start, you can write it here directly — but the curation discipline of "memory first, sync to skill" mirrors the gotcha pattern and is less error-prone.
