@@ -32,4 +32,4 @@ question is one round-trip; the cost of an unwanted destructive action or an
 architectural drift a human has to unwind is much higher. Default to small,
 reversible steps with checkpoints over large, speculative ones. (This is the
 hygiene-side echo of the project's broader skill/planning discipline — see
-`superpowers-default`.)
+`dev-practice`.)

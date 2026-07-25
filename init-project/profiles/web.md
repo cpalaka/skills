@@ -1,7 +1,7 @@
 ---
 type: web
 # Beyond dev-base (which is always imported and recursively pulls the base
-# chunks incl. verify-gate + superpowers-default). A web project is board-driven
+# chunks incl. verify-gate + dev-practice). A web project is board-driven
 # here, so it imports backlog-core; the fork below is imported explicitly too
 # (a fork can never ride dev-base — @import cannot be undone).
 imports:
@@ -10,7 +10,7 @@ fork: git-flow-squash      # the default (ADR-0002); git-flow-noff is the opt-in
 templates: []              # none — backlog's claude-section.md is promoted into the
                            # backlog-core chunk, so no profile stamps it; web carries no Template assets.
 knobs:
-  # backlog-core is an explicit import; verify-gate + superpowers-default ride
+  # backlog-core is an explicit import; verify-gate + dev-practice ride
   # dev-base. All three are value-variant, so the engine still writes a knob
   # block for each (knob values live in the project CLAUDE.md, never in a chunk).
   backlog-core:
@@ -34,7 +34,7 @@ knobs:
     smoke: "npm run dev"                      # bring up, confirm the affected route renders, bring down
     secret_scan: "grep -rEn '<secret-leak pattern>' over the working tree from repo root — expect ZERO matches"
     env: "secrets live in /etc/chaipalaka.env on the server (deploy/SECRETS.md); never in the repo or web/ runtime"
-  superpowers-default:
+  dev-practice:
     test_roster: "PRD.md '### Modules with tests' section (the authoritative required-coverage roster)"
     spec_verify_src: "web/src"                # the source tree specs' [reuse] claims are grep/CodeGraph-verified against
   parallel-work:
@@ -69,7 +69,7 @@ knob or shared chunk carries them:
   proactively and their triggers (e.g. `vercel-react-best-practices` before any
   `.tsx`, `vercel-composition-patterns` for reusable component APIs,
   `vercel-react-view-transitions` for route/hero animations). The
-  `superpowers-default` chunk explicitly leaves this list as inline-leaf, not a
+  `dev-practice` chunk explicitly leaves this list as inline-leaf, not a
   knob.
 - **Exact toolchain / version pins** — `vite`, `react-router-dom`,
   `vite-react-ssg`, `react`/`react-dom`, `typescript` pinned by

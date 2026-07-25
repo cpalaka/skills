@@ -1,7 +1,7 @@
 ---
 type: backlog
 # dev-base is always imported by the engine; it already pulls verify-gate +
-# superpowers-default. Add only the explicit, un-bundleable imports here.
+# dev-practice. Add only the explicit, un-bundleable imports here.
 imports:
   - backlog-core
 fork: git-flow-squash       # ADR-0002 default. Opt-in alternative is git-flow-noff
@@ -22,13 +22,13 @@ knobs:
       - "<filing gate — new gotchas/ADRs filed (or N/A)>"
       - "Debug/scaffolding instrumentation reverted"
       - "User sign-off received"
-  # verify-gate + superpowers-default are imported via dev-base; we only supply their knob values.
+  # verify-gate + dev-practice are imported via dev-base; we only supply their knob values.
   verify-gate:
     commands: "<typecheck> · <test> · <build (+ artifact check)> · <smoke up/down> · <secret-scan grep>"
     paths: "<dir the gate runs in>"
     secret_scan: "<grep pattern; expect zero matches>"
     env: "<any required env>"
-  superpowers-default:
+  dev-practice:
     test_roster: "<pointer to the authoritative required-coverage list, e.g. a PRD section>"
     spec_verify_src: "<source tree dir that spec [reuse] claims are grepped against>"
 ---

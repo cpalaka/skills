@@ -97,7 +97,7 @@ knobs:
     paths: "tests/"
     secret_scan: "git grep -nE '(api[_-]?key|secret|password|token)\\s*=' -- ':!docs' ':!*.md'"
     env: "GODOT=<editor binary>  # $GODOT → /Applications/Godot.app/Contents/MacOS/Godot → godot on PATH"
-  superpowers-default:
+  dev-practice:
     # test-roster: where the authoritative list of required-coverage modules lives.
     test_roster: "the project board (backlog) if present, else the design docs under docs/superpowers/; new gameplay systems with verifiable runtime behaviour get a tests/test_<topic>.gd before implementation"
     # spec-verify: the source surface a spec's [reuse] claims are checked against.

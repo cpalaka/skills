@@ -5,7 +5,7 @@
 
 Before committing, opening a handoff, or claiming work done, run this project's
 **verify gate** and confirm it from *fresh* evidence — not "should pass", not a
-previous run. Evidence before assertions, always (the `superpowers-default`
+previous run. Evidence before assertions, always (the `dev-practice`
 verification-before-completion rule): if you didn't run it in this turn, you can't
 claim it passes. The gate is invariant; the exact commands are a knob.
 

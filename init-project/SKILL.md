@@ -33,7 +33,7 @@ knobs:                     # per value-variant chunk → the values to write int
     VERIFY_EXAMPLES: "..."
     DoD: ["...", "User sign-off received"]
   verify-gate: { commands: "...", paths: "...", secret_scan: "...", env: "..." }
-  superpowers-default: { test_roster: "...", spec_verify_src: "..." }
+  dev-practice: { test_roster: "...", spec_verify_src: "..." }
 ---
 ## Bespoke setup
 <imperative steps the manifest can't express, or "None.">

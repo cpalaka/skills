@@ -14,7 +14,7 @@ init on that machine, so absence is the normal default, not a problem to fix.
 find a symbol, trace callers/callees, follow a flow — reach for CodeGraph first (the
 `codegraph_*` MCP tools, or the `codegraph` shell CLI) rather than starting with grep,
 find, or reading files. This is the same "use the more precise tool first" discipline that
-governs skill invocation — see `superpowers-default`. It wins clearly on
+governs skill invocation — see `dev-practice`. It wins clearly on
 locate / callers / flow / behavior queries; for a whole-directory survey, grep is still
 fine.
 

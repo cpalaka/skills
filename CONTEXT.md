@@ -133,7 +133,7 @@ snippet, include, partial, fragment.
 The bundle Chunk every dev Profile imports: a single `chunks/dev-base.md` that
 recursively `@import`s the nine universal base Chunks (git-sync-branch-start,
 git-commit-format, git-confirm-destructive, sandbox-auto, parallel-work,
-verify-gate, superpowers-default, codegraph, code-hygiene). The git-flow fork and
+verify-gate, dev-practice, codegraph, code-hygiene). The git-flow fork and
 backlog-core are deliberately NOT in it — they vary by Profile, and `@import` cannot
 be undone. (Two earlier-listed members are not separate chunks: the settings-merge
 contract folded into `sandbox-auto`, and `init-scaffold-core` lives in the
