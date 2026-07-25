@@ -14,7 +14,7 @@ When something in Godot behaves unexpectedly, scan the index table by symptom **
 When no entry matches and you later find the cause, file the new gotcha — procedure in [`ADDING.md`](ADDING.md).
 
 > **Migration note:** a project's `docs/godot-gotchas.md` that still mirrors this index predates
-> the single-source rule (see "Adding new gotchas") — offer to run `/audit-godot-parity`, which
+> the single-source rule (see [`ADDING.md`](ADDING.md)) — offer to run `/audit-godot-parity`, which
 > shrinks the project doc (removing verified duplicates) under parity-table approval.
 
 ## Proactive pre-commit scan
@@ -81,7 +81,7 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 19 | godot-ai writes a script `[ext_resource]` with no `uid=` after `script_attach`+`scene_save` on a brand-new script | the `.uid` sidecar doesn't exist yet at save time |
 | 20 | Parse error `Cannot find member "TEXTURE_FILTER_INHERIT" in base "CanvasItem"` — a LOAD-time error GUT misses | there is no `_INHERIT`; it is `TEXTURE_FILTER_PARENT_NODE` |
 | 21 | `--check-only` is blind to `.gdshader`, and so is a headless `preload()` — but BINDING it to a `ShaderMaterial` DOES type-check it | nothing compiles a shader until it is bound to a material |
-| 22 | _(superseded by #40)_ — godot-ai `resource_manage op=create` on a script `class_name` failed `VALUE_OUT_OF_RANGE: Unknown resource type` **pre-2.8.1**; 2.8.1+ fails differently, see #40 | body kept at `gotchas/22-*.md` |
+| 22 | _(superseded by #40)_ godot-ai `resource_manage op=create` on a script `class_name` → `VALUE_OUT_OF_RANGE` pre-2.8.1 | see #40; body kept |
 | 23 | godot-ai cannot create `Skeleton3D` bones — `bones/0/name` → `PROPERTY_NOT_ON_CLASS`, and `batch_execute` can't call `add_bone` | bones aren't nodes/properties; no method-call verb |
 | 24 | godot-ai `node_set_property` of a `Vector2i` (e.g. `SubViewport.size`) doesn't land — sets the length, or silently no-ops | no `Vector*i` coercion branch before 2.8.0 |
 | 25 | godot-ai cannot author an AnimationTree graph — `animation_manage` covers AnimationPlayer ops only | no BlendTree/StateMachine/transform-track verbs |
@@ -95,9 +95,9 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 33 | Rapier `Fluid2D` particles silently vanish through `StaticBody2D` walls (y~4e6); worse at smaller particle radius | SPH boundary coupling is only kernel-radius thick |
 | 34 | After a godot-ai `reimport` the editor log shows fatal-looking `Identifier not found: <Autoload>` — while tests pass | transient EditorFileSystem races; the log never retracts |
 | 35 | `--headless --check-only --script <f.gd>` fails `Identifier not found: <Autoload>` though it runs fine at F5 | no SceneTree, so `[autoload]` singletons never register |
-| 36 | _(retired 2026-07-25)_ — godot-ai Intel/x86 macOS `cryptography` build failure; this machine is arm64 and `/usr/local/Homebrew` is gone. arm64 sibling #37 stays live | see `gotchas/RETIRED.md` |
+| 36 | _(retired 2026-07-25)_ godot-ai Intel/x86 macOS `cryptography` build failure — this machine is arm64; sibling #37 stays live | see `RETIRED.md` |
 | 37 | godot-ai dock "exited before the WebSocket handshake" + `Building cryptography` on **arm64**; a native `uv` alone doesn't fix it | an x86_64 Python pulls x86_64 wheels; none exist |
-| 38 | _(superseded by #19)_ — godot-ai `uid=` omission on a brand-new Write-tool script; on 4.7/v2.7.5 the reimport fix is exactly #19's, so this collapses into it. Body retains the v2.7.2/4.6.2 `osascript` escalation | body kept at `gotchas/38-*.md` |
+| 38 | _(superseded by #19)_ godot-ai `uid=` omission on a brand-new Write-tool script; on 4.7 the fix is #19's | see #19; body kept for 4.6.2 |
 | 39 | `assert_eq(some_dict, Vector2i(3,4))` PASSES even when the value is a raw un-coerced `Dictionary` — a false green | `Dictionary` vs struct `==` errors non-fatally to `false` |
 | 40 | (godot-ai 2.8.1+) `resource_manage op=create type="MyThing"` → `WRONG_TYPE: … add @tool to instantiate it here` | PR #583 gates create on `Script.can_instantiate()` |
 | 41 | A held `godot_input` injection plus a SAME-batch screenshot captures the AFTER-state, never the during-hold visual | the injection holds the main thread for `duration_ms` |
@@ -129,7 +129,7 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 67 | A previously-loading `.glb` starts failing `Resource file not found: <Stem>_<name>.png` after an asset-dir cleanup | importer-extracted glTF pngs were pruned as strays |
 | 68 | Wheel-button scroll code works in wasm and with a mouse, but macOS two-finger trackpad scrolling does nothing | macOS trackpad sends `InputEventPanGesture`, not wheel |
 | 69 | A script committed by explicit path boots locally, but a fresh clone mints a DIFFERENT `uid://` and breaks refs | its `.uid` sidecar twin was never staged |
-| 70 | A "swallow hotkeys while a text field has focus" gate kills EVERY hotkey permanently once the user Escs out | Esc exits edit mode but KEEPS focus — gate on `is_editing()` |
+| 70 | A "swallow hotkeys while a text field has focus" gate kills EVERY hotkey permanently once the user Escs out | Esc exits edit mode but keeps focus; use `is_editing()` |
 | 71 | Web build: `AudioEffectCapture` captures pure SILENCE and playback position freezes after one mix block | web defaults to sample playback, bypassing the bus graph |
 | 72 | Custom CLI flags are SILENTLY invisible to the game — `OS.get_cmdline_user_args()` returns `[]`, no warning | user args only begin after a `--` separator |
 | 73 | Reassigning an already-RENDERED canvas-light `texture` spams `Parameter "t" is null` once per replacement | decal-atlas removal trips a null check; keep the RID stable |

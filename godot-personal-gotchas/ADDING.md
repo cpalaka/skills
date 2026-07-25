@@ -33,6 +33,10 @@ To file a universal gotcha here:
 
 ### Row budget (load-bearing — the index is a hot path)
 
+Check it with `scripts/lint-index.sh` (add `--prefs` for the preferences index). It enforces
+the budget, catches an orphaned row or a duplicate number, and trips the 120-row split
+tripwire. A budget nobody measures is a suggestion.
+
 **Symptom ≤ 140 chars, cause ≤ 60 chars.** The index is loaded on every invocation of this skill;
 the bodies are not. A row exists to answer "is my failure in here?" — the full cause sentence, the
 version anchors, and the fix all live in the body, which is read only on a match.
