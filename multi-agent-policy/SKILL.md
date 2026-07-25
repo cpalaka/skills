@@ -17,7 +17,11 @@ This skill names **tiers, not models** — model names churn faster than the rul
 - **budget** — cheaper/faster models. Non-correctness-bearing sweeps only, under the exception below.
 - **scarce** — a rate-limited premium model. Opt-in per launch, one high-leverage slot.
 
-The role → model mapping is **one line in global `CLAUDE.md`** (always loaded, so it holds without this skill). When the model lineup changes, update that line — never these rules. Literal identifiers below (`opus-implementer`, the `fable` arg, `"solo fable"`) are filenames, script parameters, and user-typed toggles, not tier claims — they stay verbatim.
+**These roles are self-resolving — do not write a model name into any durable rule, here or in `CLAUDE.md`.** There is deliberately no role → model mapping line anywhere: a mapping is itself the staleness liability, and a stale one misroutes work silently instead of failing loudly.
+
+This does **not** relax the per-stage pinning rule below. The split: durable rules name *roles*; a given run's script names a *concrete model ID*, resolved at authoring time and pinned explicitly per stage. Resolve that ID by probe rather than from memory or from an alias — the CLI's short tier aliases can lag a release and keep serving the prior generation while every rule reads correct (2026-07-24: the workhorse alias still resolved to the prior generation a day after the new one shipped).
+
+Literal identifiers below (`opus-implementer`, the `fable` arg) are filenames and script parameters, not tier claims — renaming them breaks live pointers, so they stay verbatim.
 
 ## Model & effort pins
 
@@ -52,7 +56,7 @@ When the user flags low weekly usage (or asks to conserve): non-correctness-bear
 
 ## Orchestrator-delegate procedure
 
-When the main loop is on the scarce tier and the task is an implementation task (correctness-bearing code/data diff), orchestrate by default — see the CLAUDE.md pin for the shape and the `"solo fable"` / `"orchestrate"` toggles. Operationally:
+When the main loop is on the scarce tier and the task is an implementation task (correctness-bearing code/data diff), orchestrate by default — see the CLAUDE.md pin for the shape and the `"solo"` / `"orchestrate"` toggles. Operationally:
 
 - The main loop writes the per-phase execution spec; `opus-implementer` (or Workflow `agent()` with per-stage pins) writes the diffs; the main loop re-verifies every handoff itself and runs all gates (tests, typecheck, smoke, scans) in the main loop.
 - **Persist the approved spec to the task's plan doc / board `--plan` before any fan-out** — orchestrator context bloating pre-fan-out is the pattern's known failure mode, and the spec must survive a restart or rewind.
