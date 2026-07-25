@@ -19,3 +19,5 @@ In any headless `SceneTree` test, grep for lifecycle assertions placed in `_init
 
 **Confirmed by**
 2026-06-04 — `circle-combat-prototype`. Harness flagged as "unproven" in the uppercut plan; worked on first try. The `_ready`-not-synchronous quirk cost a debug cycle in an integration test. See memory `godot-headless-test-harness.md`.
+
+2026-07-25 — **re-verified live on Godot 4.7.stable**: a `SceneTree._initialize` that calls `root.add_child(probe)` reads `ready_fired = false` immediately after, and `true` after a single `await process_frame`. Unchanged from 4.6.2.

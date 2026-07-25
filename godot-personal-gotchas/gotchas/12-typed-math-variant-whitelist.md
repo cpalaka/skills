@@ -27,3 +27,5 @@ Before writing any `<math>f(` form, mentally check the whitelist. Grep heuristic
 2026-05-27 — `2d-movement-prototype`. Original line in `scripts/player/player_camera.gd`: `expf(-rate * dt)`. Script was not GUT-covered, parse error surfaced only at F5 when `tuning_room.tscn` instantiated `player_camera.tscn`. One-line fix: `expf` → `exp`. Commit `bb20121`.
 
 2026-06-17 — `space-miner-prototype`: `lerpf` re-confirmed to parse clean on Godot 4.6.2 via `--check-only` (and `sqrtf`/`expf`/`move_towardf` confirmed nonexistent, `Function "…()" not found`); entry refined to list `lerpf`/`wrapf` as the typed-variant exceptions and to use `move_toward` (genuinely Variant-only) as the bare-global example.
+
+2026-07-25 — **re-verified live on Godot 4.7.stable** (isolated scratch project, `--check-only`): `expf()`, `sqrtf()`, `powf()` all still `Parse Error: Function "…()" not found in base self`, and the `:=` inference error still cascades off them. Unchanged from 4.6.2.

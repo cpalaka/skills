@@ -20,3 +20,5 @@ Audit any `--script` test runner — `grep -rn 'quit(' tests/` and inspect where
 
 **Confirmed by**
 2026-06-04 — `circle-combat-prototype`, architecture-refactor deep-dive #5/#6 RED runs (Godot 4.6.2). Mode (b): a runtime `Nonexistent function` aborted `_run` before any assert and printed `0/0 checks passed, 0 failures`, exit 0; a mid-file abort after 4 passing asserts printed `4/4 checks passed`, exit 0 (most deceptive). Mode (a): `Failed to load script ... Parse error`, exit 0. Structural fix landed in deep-dive #6 (shared base with the `EXPECTED_CHECKS` pin + an output-not-`$?` runner). Full history in the circle-combat repo's `docs/godot-gotchas.md` § "Headless `--script` test-harness exit codes lie". Sibling to #13 (a new `class_name` is unresolvable headless → a mode-(a) parse failure that also exits 0).
+
+2026-07-25 — **re-verified live on Godot 4.7.stable**: a script whose body calls an undefined function reports `SCRIPT ERROR: Parse Error` plus `Failed to load script … with error "Parse error"` on stderr and still **exits 0**. Verdict-from-output remains the only truthful reading.

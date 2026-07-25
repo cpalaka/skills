@@ -1,4 +1,4 @@
-### 18. Typed `Array[T]` property rejects an untyped array-literal assignment (Godot 4.6, runtime-only)
+### 18. Typed `Array[T]` property rejects an untyped array-literal assignment (Godot 4.6–4.7, runtime-only)
 
 **Symptom**
 - Assigning an array literal to a typed-array PROPERTY throws at runtime: `SCRIPT ERROR: Invalid assignment of property or key 'edges' with value of type 'Array' on a base object of type 'Resource (MoveDef)'.`
@@ -16,3 +16,5 @@ Watch test / factory / `.tres`-builder code that populates a typed-array resourc
 
 **Confirmed by**
 2026-06-01 — `circle-combat-prototype` player-SM Phase A. The plan's test code authored `MoveDef.edges = [...]`, `MoveLibrary.moves = [...]`, `entry_edges = [...]`; all threw `Invalid assignment of property` at runtime and were fixed to `.assign([...])`. Verified `.assign()` and the typed-local-var form both work; empty-literal and untyped-param paths confirmed unaffected.
+
+2026-07-25 — **re-verified live on Godot 4.7.stable**, faithful repro only. A first pass using a plain `Node` with a non-exported `Array[int]` assigned CLEANLY and nearly retired this entry as stale — that shape is a different code path. Reproducing the entry's actual conditions (a `Resource` with `@export var edges: Array[Resource]`) still throws the exact original message: `Invalid assignment of property or key 'edges' with value of type 'Array' on a base object of type 'Resource'`. The `@export`-on-a-Resource part of the symptom is load-bearing — do not narrow it away.

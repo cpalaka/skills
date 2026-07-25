@@ -20,3 +20,5 @@ Grep input handlers before MCP-driven testing: `grep -rn 'get_global_mouse_posit
 
 **Confirmed by**
 2026-06-10 — `juice-tests` fluid_faucet_test session, Godot 4.6.2, godot-ai v2.5.13, godot-rapier2d v0.8.32. Applied in that project's `scripts/fluid_pool_test.gd` and `scripts/fluid_faucet_test.gd`.
+
+2026-07-25 — NOT re-verified on 4.7. Requires godot-ai input injection into a live game instance, and the only editor running was mid-session on another project. Entry stays 4.6.2 / godot-ai v2.5.13-anchored; 4.7 status unknown, not fixed.

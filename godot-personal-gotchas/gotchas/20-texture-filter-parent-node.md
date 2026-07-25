@@ -1,4 +1,4 @@
-### 20. `CanvasItem.texture_filter` "inherit" member is `TEXTURE_FILTER_PARENT_NODE`, not `TEXTURE_FILTER_INHERIT` (Godot 4.6)
+### 20. `CanvasItem.texture_filter` "inherit" member is `TEXTURE_FILTER_PARENT_NODE`, not `TEXTURE_FILTER_INHERIT` (Godot 4.6–4.7)
 
 **Symptom**
 `Parse Error: Cannot find member "TEXTURE_FILTER_INHERIT" in base "CanvasItem".` — a LOAD-time parse error (fires at F5 / game boot / when the script loads), not a `--check-only`-only nicety. If a sibling `preload`s the offending script (e.g. `player.gd`), the failure **cascades** and the whole scene won't boot ("can't start the game"). Surfaces at GDScript `--check-only`, `mcp__godot-mcp__godot_editor get_log_messages source="editor"`, and godot-ai `logs_read source=editor` (`GDScript::reload`). A green GUT run or a `[x]` "docs-confirmed" pre-flight checkbox does NOT catch it.
@@ -14,3 +14,5 @@ When setting `texture_filter` from script (especially a `NEAREST if pixelated el
 
 **Confirmed by**
 2026-06-03 — `circle-combat-prototype`, scope-1 stylization Task 5 F5 gate (`scripts/stylization_controller.gd`, `_apply_pixel`); the game wouldn't start, the parse error cascaded through `player.gd`'s `preload`. One-line fix `756031d`. See memory `gotcha-texture-filter-parent-node.md`.
+
+2026-07-25 — **re-verified live on Godot 4.7.stable** (`--check-only`): `CanvasItem.TEXTURE_FILTER_INHERIT` still `Parse Error: Cannot find member "TEXTURE_FILTER_INHERIT" in base "CanvasItem"`; `TEXTURE_FILTER_PARENT_NODE` parses clean. Unchanged from 4.6.2.

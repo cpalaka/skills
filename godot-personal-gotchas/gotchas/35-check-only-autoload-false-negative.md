@@ -18,3 +18,5 @@ Before reaching for `--check-only --script` on a file, check it for references t
 
 **Confirmed by**
 2026-06-12, `maw-prototype` Stage 1 (Godot 4.6.2) — `scripts/tuning_panel.gd` and `scripts/main.gd` (both reference the `Feel` autoload) failed check-only with `Identifier not found: Feel` while the same commit's 30-frame headless boot and F5 run were clean.
+
+2026-07-25 — **re-verified live on Godot 4.7.stable**, with a proper control. `--headless --check-only --script` on a script referencing an `[autoload]` fails `Compile Error: Identifier not found: MyAuto`; the same project booted through its real `run/main_scene` prints `MyAuto.ping() -> pong`. Note the near-miss: a bare `--script` run (no main scene) ALSO fails, because it builds no SceneTree either — it is not a valid control for this entry. Only a main-scene run is.
