@@ -1,6 +1,18 @@
 ### 3. Explicit invocation of `godot-personal-gotchas` skill
 
-**When this applies**
+**Status:** retired 2026-07-25 — premise falsified. After the 2026-07-11 description sharpening the
+loader surfaces the skill readily, including in sessions with no Godot content at all (observed
+three times in one `~/Claude` session). The rule now over-fires rather than under-fires: 197
+invocations in 60 days, with the same instruction additionally asserted in
+`space-miner-game/CLAUDE.md` and by the 1%-rule in the `superpowers-default` chunk — three
+statements of one rule.
+
+Kept as history because the constraint can come back: if a loader change makes description
+matching soft again, the symptom is a Godot session that trips a catalogued gotcha without the
+skill ever loading. The fix then is to sharpen the description (which is what worked), not to
+reinstate a blanket explicit-invocation rule.
+
+**When this applies** _(historical — no longer active)_
 
 Any session where I'm working on a Godot project. The skill loader's auto-activation via description matching is too soft to fire reliably on subtle Godot contexts (intent-based triggers, not file-extension triggers).
 
