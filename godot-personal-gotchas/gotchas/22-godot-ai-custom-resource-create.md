@@ -1,5 +1,9 @@
 ### 22. godot-ai `resource_manage` can't author script-`class_name` resources — only built-in engine types
 
+**Status:** superseded-by #40 — PR #583 (godot-ai 2.8.1+) changed the failure mode from
+`VALUE_OUT_OF_RANGE: Unknown resource type` to `WRONG_TYPE: … add @tool`. Kept for projects
+still pinned to a pre-2.8.1 godot-ai.
+
 **Symptom**
 godot-ai `resource_manage` `op=create`/`op=get_info` with `type="<YourScriptClass>"` (e.g. `class_name MoveDef extends Resource`) fails `VALUE_OUT_OF_RANGE: Unknown resource type: MoveDef`. Built-in types (`Curve`, `Environment`, `Gradient`, physics shapes, …) work fine.
 

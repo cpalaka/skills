@@ -1,5 +1,9 @@
 ### 38. godot-ai script `ext_resource` `uid=` won't materialize on the FIRST save of a BRAND-NEW Write-tool script — on v2.7.5/4.7 a plain `reimport` then fixes it (no window focus); on the older v2.7.2/4.6.2 reimport no-op'd and the macOS escalation was `osascript`-activate the window FIRST
 
+**Status:** superseded-by #19 — on Godot 4.7 / godot-ai v2.7.5 a plain `reimport` fixes this,
+which is exactly #19's fix; this entry collapses into it. Body retained for the v2.7.2 / 4.6.2
+`osascript`-activate escalation, which is obsolete on current versions.
+
 **Symptom**
 After creating a brand-new `.gd` (via the Write tool — NOT godot-ai's own `create_script`/`write_text`), attaching it to a node, and `scene_save` via godot-ai, the saved `.tscn` `[ext_resource type="Script" ...]` line has NO `uid=` (path-only, inconsistent with sibling scripts, fragile on later rename/move). On the FIRST save the `uid=` is always absent — the `.gd.uid` sidecar doesn't exist yet. What differs by version is whether a plain `reimport` then repairs it:
 - **godot-ai v2.7.5 / Godot 4.7 (current):** `mcp__godot-ai__filesystem_manage op=reimport` on the script **generates the `.uid` sidecar with NO window activation**, and the next `scene_save` writes a clean `uid=`. Resolved in 2 saves.

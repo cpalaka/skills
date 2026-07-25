@@ -1,5 +1,10 @@
 ### 36. godot-ai MCP server won't launch on Intel macOS — `cryptography` 49 has no x86_64 wheel + ancient Rust
 
+**Status:** retired 2026-07-25 — this machine completed the arm64 migration on 2026-06-20;
+`/usr/local/Homebrew` (Intel Homebrew) is uninstalled, so the x86_64 path this entry describes
+is unreachable here. The arm64 sibling #37 remains LIVE. Un-retire if an Intel Mac re-enters
+the fleet.
+
 **Symptom**
 The godot-ai editor dock shows "The server exited before the WebSocket handshake" (even after a `uvx --refresh` retry, with a "brand-new release / PyPI propagating" hypothesis). `/mcp` shows it disconnected; ports 8000 (HTTP/MCP) and 9500 (WebSocket) stay free — the Python server process never starts. A direct `uvx` run shows `Building cryptography==49.0.0` → `Failed to build` (`cargo metadata`: `invalid type: map, expected a sequence for key 'package.authors'`). The dock's "brand-new release" hypothesis and "downgrade the godot-ai addon" are BOTH red herrings.
 
