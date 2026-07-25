@@ -25,6 +25,14 @@ library, `audit-godot-parity`, `skill-updater`).
   re-point its `~/.claude/skills` symlink — but leave **historical records intact**: the dated design
   docs under `docs/superpowers/`, the `docs/adr/` entries, and the `tournament/reference/golden/`
   fixtures (recorded test data). Don't rewrite history to chase a rename.
+- **A skill's lookup path and its maintenance protocol are different documents.** `SKILL.md` loads on
+  every invocation; the filing/retirement protocol fires only when someone *edits* the catalog, which
+  is rare by comparison. Keep the authoring procedure in a sibling `ADDING.md` behind a short stub —
+  a third branch alongside `writing-great-skills`' by-invocation and by-sequence cuts, and the split
+  `godot-personal-gotchas` and `godot-personal-preferences` both use. Corollary for any
+  index-and-bodies skill: **give the index a written per-row character budget and a script that
+  enforces it** (`godot-personal-gotchas/scripts/lint-index.sh`). Rows grow in length, not just count
+  — that index reached 768 chars in a single table cell before anyone measured.
 - **Chunk vs Template** (full detail in CONTEXT.md): a **Chunk** (`chunks/`) is single-source and
   *referenced* by `@import` — editing it updates every importing project at next launch. A
   **Template** (`init-project/profiles/<type>/templates/`) is *copied* into a project at init and
