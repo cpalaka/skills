@@ -19,12 +19,33 @@ When no entry matches and you later find the cause, add the new gotcha here (see
 
 ## Proactive pre-commit scan
 
-Before committing Godot changes, scan the diff against the **Detect proactively** line of each
-relevant index entry (read the body file for the full pattern) — this skill is the single source
-for those detection patterns. Highest-yield checks: `.tscn` ` = null` overrides (#3); `:=` on
-`clamp`/`min`/`max`/`abs`/`sign` (#2) and on cross-script member access (#6); `window_set_mode`
-from script (#1); non-code files under a docs folder without `.gdignore` (#7); `basis.z` without a
-leading `-` (#17). Report `file:line → entry → fix`; silence is not a pass.
+**Run the script first — it is not optional and not a summary of the hand-scan.**
+
+```bash
+<this-skill>/scripts/precommit-scan.sh              # staged files (default)
+<this-skill>/scripts/precommit-scan.sh --worktree   # unstaged changes
+<this-skill>/scripts/precommit-scan.sh --all        # whole tree (slower; diagnostic)
+```
+
+It runs 21 mechanized checks — the entries whose **Detect proactively** section is expressible as
+a grep / filesystem / git test — and reports `file:line → #entry → fix`, then a `VERDICT:` line and
+a count of how many checks ran versus were skipped for lack of matching files. Read the **VERDICT
+line, not `$?`** (gotcha #27 — exit codes lie; the code is a convenience only). Vendored trees
+(`addons/`, `.godot/`, `build/`) are excluded unless `--include-vendor`.
+
+That count is the point: it separates *checked and clean* from *never checked*, which prose alone
+can never do. **Silence is not a pass — a zero-findings run with 21 checks skipped means nothing
+was scanned.**
+
+Before trusting any clean reading, calibrate the instrument: `precommit-scan.sh --selftest` plants
+a known defect for every check and fails if any one of them doesn't fire, then confirms a clean
+tree still reads CLEAN. An instrument that cannot reproduce the defect cannot certify its absence.
+
+**Then hand-scan the residue.** The script covers 21 of 78 entries. The rest are runtime-only,
+render-only, or MCP-behavioral and have no static signature — read the diff against the index for
+the ones relevant to what changed, guided by the **Symptom families** list under the table. The
+highest-yield unmechanizable checks: MCP struct writes that report success (#15/#24/#52), anything
+touching an open scene while the editor is running (#55), and export-config changes (#66/#76).
 
 ## Tooling: which MCP to use
 
@@ -147,10 +168,48 @@ root cause and get mistaken for each other, so the near-match is often a neighbo
 
 To file a universal gotcha here:
 
-1. Append a row to the **Gotcha index** table with a one-line symptom and a one-line cause.
+1. Append a row to the **Gotcha index** table, within the row budget below.
 2. Create `gotchas/NN-<slug>.md` (NN = the new row number, zero-padded to 2 digits; slug = short
    kebab-case from the title) with **Symptom / Cause / Fix / Detect proactively / Confirmed by**
    subsections (same format as existing body files). A gotcha first hit in a specific project keeps
    its `Confirmed by: <project> <date>` anchor here — provenance lives in the skill.
 3. Keep entries symptom-first — what you'd type into a search box at 11pm.
 4. Do NOT renumber existing entries — the row number is the stable pointer from index to body file.
+5. If the **Detect proactively** section can be expressed as a grep / filesystem / git test, add it
+   to `scripts/precommit-scan.sh` AND plant a matching defect in `scripts/selftest.sh`. A check with
+   no fixture is a check nobody has ever seen fire.
+6. Add it to the right **Symptom families** grouping, or start a new one.
+
+### Row budget (load-bearing — the index is a hot path)
+
+**Symptom ≤ 140 chars, cause ≤ 60 chars.** The index is loaded on every invocation of this skill;
+the bodies are not. A row exists to answer "is my failure in here?" — the full cause sentence, the
+version anchors, and the fix all live in the body, which is read only on a match.
+
+This budget is not cosmetic. The index grew from 8 rows to 78 in two months, and rows grew in
+*length* as well as count until one was 768 characters — a paragraph inside a table cell. Without a
+written budget that recurs.
+
+- Lead with the error text or the exact call that fails. That is what gets searched.
+- Cause is a *fragment*, not a sentence: "Variant-returning math globals", not an explanation.
+- Cut version anchors, sibling refs, and measured figures from the row — the body keeps them, and
+  siblings belong in **Symptom families**.
+
+### When the index outgrows this shape
+
+**At 120 rows, split the two largest tool-conditional clusters** — the godot-ai/godot-mcp bridge
+entries and the headless-harness entries — into `gotchas/mcp-bridge.md` and `gotchas/headless.md`,
+each fronted by a one-line index stub naming when to open it.
+
+Deliberately *not* done at 78 rows: those clusters are ~39 entries, worth ~1k tokens compressed,
+and both are load-bearing in most Godot sessions here — a session driving godot-ai or running the
+headless suite would pay an extra read almost every time to save a fraction of what the compression
+already recovered. The trade flips once the index is large enough that most of it is irrelevant to
+any given session.
+
+### Retiring an entry
+
+An entry whose environment has gone away is dead weight in the hot path, and "never renumber" means
+it stays there forever unless something removes it. See **[`gotchas/RETIRED.md`](gotchas/RETIRED.md)**
+for the `**Status:**` field, the collapse procedure, and the standing rule that bodies and numbers
+are never deleted. Absent Status means live — do not stamp the live entries.
