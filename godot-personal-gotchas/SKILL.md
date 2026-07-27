@@ -138,6 +138,8 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 76 | `--headless --import` in a checkout MISSING an enabled plugin's addon dir silently rewrites `project.godot` | Godot prunes unloadable plugins and writes the list back |
 | 77 | `--check-only --quit` exits CLEAN on `const X := PackedFloat32Array([...])`; it then dies at LOAD in the CONSUMER | check-only skips constant folding; that is a ctor call |
 | 78 | A refactor to mathematically-IDENTICAL vector math shifts ~every result by ~1e-7; `is_equal_approx` tests stay green | vector components are float32; GDScript `float` is f64 |
+| 79 | Identical `godot` launches capture screenshots at different sizes AND aspect ratios; `--windowed`/`--resolution` don't pin it | project fullscreen mode non-deterministically beats the CLI size flags |
+| 80 | Visual verification silently degrades to "ask the user to F5"; `mcp__godot-ai__*` is absent from the tool list, no error anywhere | editor wasn't open at session start; MCP connects once |
 
 On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = the row number zero-padded to 2 digits, e.g. row 13 -> `gotchas/13-classname-cache-reimport.md`) for the full entry — Symptom / Cause / Fix detail, proactive detection, commit hashes — before acting on the fix. The index alone is for routing, not for fixes.
 
@@ -146,10 +148,11 @@ root cause and get mistaken for each other, so the near-match is often a neighbo
 
 - **Type inference / Variant** — 2 (math globals), 6 (missing `class_name`), 12 (no `*f` form), 18 (literal → typed property), 44 (indexing a literal), 53 (typed read of a freed ref), 77 (non-const `const`)
 - **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77
-- **godot-ai / godot-mcp bridge** — 15, 19, 22→40, 23, 24, 25, 29, 32, 34, 38→19, 40, 43, 45, 46, 52
+- **godot-ai / godot-mcp bridge** — 15, 19, 22→40, 23, 24, 25, 29, 32, 34, 38→19, 40, 43, 45, 46, 52, 80 (channel absent, not failing)
 - **Editor vs disk** — 13 (class cache), 15, 34 (reimport races), 55 (clobbered edits), 62 (4.7 re-save), 76 (plugin strip)
 - **2D viewport / Control layout** — 49 (0×0 under Node2D), 50 (shrink zooms), 64 (CanvasLayer order), 75 (always-hovered)
-- **macOS platform** — 31, 37, 47, 54 (F-keys), 59, 63 (cursor), 68 (trackpad)
+- **macOS platform** — 31, 37, 47, 54 (F-keys), 59, 63 (cursor), 68 (trackpad), 79 (fullscreen size)
+- **Screenshots / visual capture** — 41 (held-input timing), 43 (embedded Game tab), 79 (varying size), 1 (`window_set_mode` no-op)
 - **Silent numerics** — 10 (spring blow-up), 57 (nondeterministic ids), 61 (NaN poisoning), 78 (float32 vectors)
 - **UID / staging** — 13, 19, 38→19, 62, 69
 
