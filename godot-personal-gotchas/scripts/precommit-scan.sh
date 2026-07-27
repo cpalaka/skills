@@ -282,6 +282,27 @@ check_76() {
   fi
 }
 
+# #86 — a `--check-only` invocation with no `--script`: parses nothing, just boots the main scene
+check_86() {
+  N_RUN=$((N_RUN+1))
+  local sh; sh="$(files_matching '\.(sh|bash|zsh|yml|yaml)$')"
+  if [ -z "$sh" ]; then N_SKIP=$((N_SKIP+1)); return 0; fi
+  local f n
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    while IFS= read -r n; do
+      [ -z "$n" ] && continue
+      report 86 ERROR "$f:$n" '`--check-only` without `--script` parses NOTHING — it only boots run/main_scene'
+    done <<EOF
+$(grep -nE '\-\-check-only' "$PROJECT/$f" 2>/dev/null \
+   | grep -vE '\-\-script' \
+   | cut -d: -f1)
+EOF
+  done <<EOF
+$sh
+EOF
+}
+
 # #72 — a godot invocation passing custom flags with no -- separator
 check_72() {
   N_RUN=$((N_RUN+1))
@@ -302,6 +323,23 @@ EOF
   done <<EOF
 $sh
 EOF
+}
+
+# #81 — an AnimatableBody2D driven with sync_to_physics that assigns position/
+# global_position. Those setters are silently swallowed (node AND server stay at
+# identity) while `rotation` still applies, so the symptom reads as broken physics.
+check_81() {
+  N_RUN=$((N_RUN+1))
+  local gd; gd="$(files_matching '\.gd$')"
+  if [ -z "$gd" ]; then N_SKIP=$((N_SKIP+1)); return 0; fi
+  local f n
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    grep -qE 'sync_to_physics[[:space:]]*=[[:space:]]*true' "$PROJECT/$f" 2>/dev/null || continue
+    n="$(grep -nE '^[^#]*\b(global_position|position)[[:space:]]*=[^=]' "$PROJECT/$f" 2>/dev/null \
+         | head -1 | cut -d: -f1)"
+    [ -n "$n" ] && report 81 ERROR "$f:$n" 'sync_to_physics body assigns position/global_position — silently swallowed; set global_transform inside _physics_process'
+  done < <(printf '%s\n' "$gd")
 }
 
 # #26/#51 — add_child (or a group/tree call) INSIDE SceneTree._initialize().
@@ -333,7 +371,7 @@ $gd
 EOF
 }
 
-check_69; check_58; check_7; check_76; check_72; check_26
+check_69; check_58; check_7; check_76; check_72; check_86; check_26; check_81
 
 # ---------------------------------------------------------------------------
 # verdict

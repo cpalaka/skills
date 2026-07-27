@@ -14,6 +14,8 @@
 
 This is **absence, not failure** — which is why there is nothing to catch. A `PreToolUse` hook cannot intercept a call that is never attempted, and there is no error object anywhere in the pipeline. The stdio MCPs are unaffected because the CLI spawns them itself on demand.
 
+**Diagnostic trap while probing this:** under a sandboxed session (this machine's default) a Bash `curl http://127.0.0.1:<port>/mcp` returns **000**, while the same curl with the sandbox off returns `406` from a live server. That `000` is the **Bash tool's** network restriction, not evidence about the server — and it is *not* what gates the MCP client, which connects from the CLI process itself. Do not conclude "the server is down" from a sandboxed curl; re-probe with the sandbox off, or use the hook below.
+
 A second, distinct state exists: the `uvx godot-ai` child can **outlive a closed editor**, leaving a listener on the port with no editor behind it. Then the tools may connect, but every editor-backed op (`editor_screenshot`, `project_run`, `game_manage`, `logs_read`, `editor_state`) fails or returns stale state. Probing only the port calls this healthy — check the editor process too.
 
 **Fix**

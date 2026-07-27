@@ -27,21 +27,21 @@ When no entry matches and you later find the cause, file the new gotcha — proc
 <this-skill>/scripts/precommit-scan.sh --all        # whole tree (slower; diagnostic)
 ```
 
-It runs 21 mechanized checks — the entries whose **Detect proactively** section is expressible as
+It runs 23 mechanized checks — the entries whose **Detect proactively** section is expressible as
 a grep / filesystem / git test — and reports `file:line → #entry → fix`, then a `VERDICT:` line and
 a count of how many checks ran versus were skipped for lack of matching files. Read the **VERDICT
 line, not `$?`** (gotcha #27 — exit codes lie; the code is a convenience only). Vendored trees
 (`addons/`, `.godot/`, `build/`) are excluded unless `--include-vendor`.
 
 That count is the point: it separates *checked and clean* from *never checked*, which prose alone
-can never do. **Silence is not a pass — a zero-findings run with 21 checks skipped means nothing
+can never do. **Silence is not a pass — a zero-findings run with 23 checks skipped means nothing
 was scanned.**
 
 Before trusting any clean reading, calibrate the instrument: `precommit-scan.sh --selftest` plants
 a known defect for every check and fails if any one of them doesn't fire, then confirms a clean
 tree still reads CLEAN. An instrument that cannot reproduce the defect cannot certify its absence.
 
-**Then hand-scan the residue.** The script covers 21 of 78 entries. The rest are runtime-only,
+**Then hand-scan the residue.** The script covers 23 of 88 entries. The rest are runtime-only,
 render-only, or MCP-behavioral and have no static signature — read the diff against the index for
 the ones relevant to what changed, guided by the **Symptom families** list under the table. The
 highest-yield unmechanizable checks: MCP struct writes that report success (#15/#24/#52), anything
@@ -138,22 +138,30 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 76 | `--headless --import` in a checkout MISSING an enabled plugin's addon dir silently rewrites `project.godot` | Godot prunes unloadable plugins and writes the list back |
 | 77 | `--check-only --quit` exits CLEAN on `const X := PackedFloat32Array([...])`; it then dies at LOAD in the CONSUMER | check-only skips constant folding; that is a ctor call |
 | 78 | A refactor to mathematically-IDENTICAL vector math shifts ~every result by ~1e-7; `is_equal_approx` tests stay green | vector components are float32; GDScript `float` is f64 |
-| 79 | Identical `godot` launches capture screenshots at different sizes AND aspect ratios; `--windowed`/`--resolution` don't pin it | project fullscreen mode non-deterministically beats the CLI size flags |
+| 79 | Identical `godot` launches capture screenshots at different sizes AND aspect ratios; `--windowed`/`--resolution` don't pin it | project fullscreen mode beats the CLI size flags |
 | 80 | Visual verification silently degrades to "ask the user to F5"; `mcp__godot-ai__*` is absent from the tool list, no error anywhere | editor wasn't open at session start; MCP connects once |
+| 81 | `AnimatableBody2D` + `sync_to_physics` silently ignores `position`/`global_position` writes — stays at origin; `rotation` applies | server-driven sync suppresses the position setter |
+| 82 | A colour committed via `add_surface_from_arrays` never reads back bitwise-equal — 0 of 2178 match; exact-identity tests red on good code | `ARRAY_COLOR` is stored as RGBA8 — 1/255 quantisation |
+| 83 | Headless prints NO GDScript warnings — neither `--script` nor `--check-only`; `grep -i warning` reads 0 for known-bad code too | headless has no warning sink; only the editor prints |
+| 84 | Widening a shared group/registry query to a 2nd node type: every `(x as T).m()` consumer starts calling a method on null, at a distance | `as T` yields null, not a type error; check-only blind |
+| 85 | A composited/mirror `Sprite2D` renders ~×0.4 darker than authored while 2D siblings read fine; `light_mask = 0` doesn't exempt it | `CanvasModulate` tints every CanvasItem; not a light |
+| 86 | `--check-only --quit` WITHOUT `--script` exits clean on a syntax error in any script the main scene doesn't load — a no-op flag | without `--script` it only boots `run/main_scene` |
+| 87 | Believing `const X := preload("other.gd").CONST` is illegal — so a generated table gets duplicated, or every reader repointed | it IS legal; `preload` resolves at parse time |
+| 88 | A throwaway probe project SIGSEGVs after `Could not create directory: 'user://logs'`, and its `class_name` never resolves | sandbox denies `user://`; no import scan ⇒ no class cache |
 
 On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = the row number zero-padded to 2 digits, e.g. row 13 -> `gotchas/13-classname-cache-reimport.md`) for the full entry — Symptom / Cause / Fix detail, proactive detection, commit hashes — before acting on the fix. The index alone is for routing, not for fixes.
 
 **Symptom families.** When a row is *close* but not exact, check its family — these entries share a
 root cause and get mistaken for each other, so the near-match is often a neighbour:
 
-- **Type inference / Variant** — 2 (math globals), 6 (missing `class_name`), 12 (no `*f` form), 18 (literal → typed property), 44 (indexing a literal), 53 (typed read of a freed ref), 77 (non-const `const`)
-- **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77
+- **Type inference / Variant** — 2 (math globals), 6 (missing `class_name`), 12 (no `*f` form), 18 (literal → typed property), 44 (indexing a literal), 53 (typed read of a freed ref), 77 (non-const `const`), 84 (`as T` → null at a distance)
+- **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77, 83 (no warnings printed), 86 (`--check-only` is a no-op without `--script`), 88 (the probe project itself won't boot)
 - **godot-ai / godot-mcp bridge** — 15, 19, 22→40, 23, 24, 25, 29, 32, 34, 38→19, 40, 43, 45, 46, 52, 80 (channel absent, not failing)
 - **Editor vs disk** — 13 (class cache), 15, 34 (reimport races), 55 (clobbered edits), 62 (4.7 re-save), 76 (plugin strip)
-- **2D viewport / Control layout** — 49 (0×0 under Node2D), 50 (shrink zooms), 64 (CanvasLayer order), 75 (always-hovered)
+- **2D viewport / Control layout** — 49 (0×0 under Node2D), 50 (shrink zooms), 64 (CanvasLayer order), 75 (always-hovered), 85 (`CanvasModulate` crushes composites)
 - **macOS platform** — 31, 37, 47, 54 (F-keys), 59, 63 (cursor), 68 (trackpad), 79 (fullscreen size)
 - **Screenshots / visual capture** — 41 (held-input timing), 43 (embedded Game tab), 79 (varying size), 1 (`window_set_mode` no-op)
-- **Silent numerics** — 10 (spring blow-up), 57 (nondeterministic ids), 61 (NaN poisoning), 78 (float32 vectors)
+- **Silent numerics** — 10 (spring blow-up), 57 (nondeterministic ids), 61 (NaN poisoning), 78 (float32 vectors), 82 (RGBA8 vertex colours)
 - **UID / staging** — 13, 19, 38→19, 62, 69
 
 ## Adding new gotchas
