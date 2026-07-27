@@ -108,6 +108,32 @@ Not expressible as a repo grep with an acceptable false-positive rate (it depend
 *invoked*, not on what any file contains), so no `precommit-scan.sh` check is planted for it — the
 detection above is a review-time read, deliberately.
 
+## Corollary — a coordinate read OFF a capture is not a coordinate you can feed BACK
+
+The consumer-side half of the same root cause, and it bites even once you know the size varies.
+
+Godot's screen/viewport coordinates (`get_viewport().get_mouse_position()`,
+`Camera3D.project_ray_origin/normal`, `InputEventMouse.position`) are in **viewport points**. A
+screenshot is in **backing-store pixels**. At 2x retina those differ by exactly the backing scale, so
+a point measured by eye off a capture — "the body centre is at (1608, 1072) in this PNG" — must be
+divided by the scale before it can be handed to a ray projector or an input override.
+
+Measured (space-miner-game task-131, a3d harness): a `--cursor=1607,1071` taken straight off a
+3456x2160 capture picked **nothing** — the ray went far outside the body and the readout said "no
+target", which reads exactly like a broken pick rather than a wrong argument. `--cursor=804,536`
+(the same point halved) hit on the first try.
+
+The trap compounds with the body of this entry: because the capture size is **not stable between
+launches**, a coordinate calibrated against one capture is only valid for launches that happened to
+land at the same size. A `--cursor`-style debug flag calibrated once and reused is a latent
+false-negative generator.
+
+Fix: have the tool print the capture dimensions AND the viewport size (they are different numbers,
+and printing only one hides the ratio), or take the debug flag in world/plane units rather than
+screen units so the scale never enters. Where a screen-denominated flag is genuinely required (a
+snap-margin read, which is screen-denominated by spec), derive the coordinate from
+`get_viewport().get_visible_rect().size`, never from the PNG.
+
 ## Confirmed by
 
 space-miner-game, 2026-07-25 (task-137 A3D-WS2c, stage 7). First surfaced in stage 6 as a wrong
@@ -115,3 +141,6 @@ cause — "the window's retina backing scale varies per launch" — which was re
 before being verified. Re-measured at stage 7: the varying quantity is the window **mode**, not the
 backing scale alone, and `--windowed`/`--resolution` were shown non-deterministic too. Both the
 harness comment and this entry were corrected from the same measurement.
+
+Corollary added 2026-07-26 (task-131 A3D-WS3): a `--cursor=` debug flag calibrated off a retina
+capture silently picked nothing until the coordinate was halved.
