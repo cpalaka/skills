@@ -31,6 +31,22 @@ that there, then squash-merge so the code change and the Done-stamp become a sin
   the moment it tries to merge its own branch. Immediately after the push, `git checkout --detach`
   in the worktree (or remove it) to free `main`. The block is invisible until the other session
   merges, so releasing `main` is part of the ritual, not an afterthought.
+- **`main` already checked out somewhere else? Merge WITHOUT taking it.** Git refuses
+  `git checkout main` outright while another worktree holds that branch, and grabbing it would
+  inflict the very block described above on that session. When your branch is already a linear
+  descendant of `origin/main` (rebase first if not), the squash result is by definition your
+  branch's tree with `origin/main` as its single parent — so build it directly and push the SHA:
+
+  ```sh
+  SQ=$(git commit-tree "$(git rev-parse HEAD^{tree})" -p origin/main -F msg.txt)
+  git push origin ${SQ}:main            # fast-forward; never touches the local `main` ref
+  ```
+
+  Verify before pushing, and derive each verdict rather than assuming it: the parent must equal
+  `origin/main`, and `git diff $SQ HEAD` must be **empty** (the commit's tree is the reviewed
+  branch's tree, so the approval still covers exactly what ships). Pushing the SHA rather than the
+  branch also means a sibling's unpushed commit sitting on your local `main` cannot ride along.
+  The other checkout simply fast-forwards on its next pull.
 - This squash-merge pause doubles as the review surface; a compare-references diff view is
   the alternative. There is no merge commit to inspect after the fact, so review happens here.
 

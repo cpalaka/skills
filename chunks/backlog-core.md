@@ -38,6 +38,14 @@ one file fine to hand-edit; `backlog config set` does not expose `definition_of_
   name-slugs, so nothing flags a textual conflict). Prefer doing board grooming on `main`; if you
   do create on a branch, re-sync it with `main` **first** so the scan sees every existing ID, and
   re-check IDs right before the merge if `main`'s board moved meanwhile.
+  **The same hazard owns EVERY hand-numbered sequence in the repo, not just task ids** — ADRs
+  (`docs/adr/NNNN-slug.md`), migrations, numbered gotchas. All are max+1-by-eye against the current
+  branch, and two same-numbered files with different slugs merge with **no textual conflict at
+  all**, so the duplicate is silent in exactly the same way. Before minting one on a branch, check
+  the number against `main` *and* any sibling worktree; if a concurrent session already took it,
+  renumber **yours** when theirs is committed or already cited anywhere outside its own branch (a
+  note, a doc, a memory referencing the number) — a live reference is far more expensive to chase
+  than a rename.
 - **Populating/seeding the board, and any task decomposition, require an explicit
   go-ahead in chat before the first `backlog task create` runs.** Propose the list
   (titles + one-liners) and wait for a yes. A spec that says "decompose this into tasks"
