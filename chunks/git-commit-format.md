@@ -27,6 +27,20 @@ silently sweeps in untracked strays near your write paths (a concurrent session'
 files, editor droppings), and multi-session repos make strays the expected case.
 Backstop: read the commit's `--stat` output before any push.
 
+**Re-verify the current branch immediately before every commit.** In a shared
+checkout a parallel session can create and switch branches under you, so the
+branch you confirmed at session start does **not** bind at commit time. The
+commit then *succeeds* on the wrong branch, and the only signal is the branch
+name in `git commit`'s own first line — read it. Work stranded on a foreign
+feature branch rides that branch's eventual squash-merge under someone else's
+message: the content survives, the provenance does not, and nothing flags it.
+If a commit landed wrong **and** the branch is the integration branch plus your
+commit only, recover with a pure fast-forward —
+`git merge-base --is-ancestor main <sha> && git branch -f main <sha>` — guarding
+on the ancestor test so the verdict is *derived*, not assumed. Never
+`git checkout main` to fix it while another session holds the checkout; that
+inflicts the same harm in the opposite direction.
+
 **Never amend an already-pushed commit without confirming.** Once a commit is on
 `origin/<branch>`, do not `git commit --amend` (or otherwise rewrite that
 history) without explicit confirmation — it forces a non-fast-forward push that

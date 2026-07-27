@@ -55,6 +55,14 @@ file** — under this variant the policy is: omit it.
   the reviewer should look at closely (the content that used to live in a PR body).
 - The reviewer approves the **diff** before any merge. That approval authorises **exactly
   one** squash-merge to `main` and the accompanying push of `main` — nothing more.
+- **Check what else is riding before that push: `git log origin/main..main` must contain
+  only your squash commit.** In a multi-session repo the local integration branch can
+  already carry another session's unpushed work, and your push publishes it — under your
+  approval, inside your commit's blast radius, with the approver having no way to know. If
+  the list is not just yours, STOP and ask; never reset or rebase another session's commit
+  out of the way. This is what makes "nothing more" above enforceable rather than
+  aspirational. (Commit-time sibling, different failure: `git-commit-format`'s
+  re-verify-the-branch rule.)
 - Never push to `main` without that per-branch approval; never merge a branch that has not
   been reviewed. Force-pushing `main` is never OK (see `git-confirm-destructive`).
 - **Pushing the feature branch to origin is optional** (backup / multi-machine) — it is **not**
