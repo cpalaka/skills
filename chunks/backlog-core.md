@@ -118,6 +118,18 @@ set; `--ac` appends.) The
 dependent task's own AC/description is what a future session reads first; an ADR it might
 never open is not enough.
 
+**The pin target must be a TASK — an AC that pins a finding onto a DRAFT is unsatisfiable by
+construction.** Drafts have no edit verb at all (`backlog draft` is `list|create|archive|
+promote|view`), and `backlog task edit draft-NNN --append-notes …` is refused outright with
+`Task draft-NNN not found` — while this chunk separately forbids hand-editing files under
+`backlog/`, so there is no legal escape hatch. The trap is the *timing*: the criterion reads
+as ordinary board hygiene when written, and is discovered to be impossible only at CLOSE
+time, after all the work it gated is already done. So before writing "pin X onto draft-NNN"
+into an `--ac`, either `draft promote` it first (which mints a fresh task id and makes the
+pin reachable) or name in the AC's own text where the pin will actually land — the owning
+ADR, or the producing task's notes. Same discipline as `--desc`/`--notes` above: know which
+verb actually exists before you commit a future session to using it.
+
 **Plan docs are scratch; the board is truth.** Multi-task slices keep a plan doc under
 PLANS_DIR linked via `--doc`, with a `Tracked by: task-NNN` header — but **board status/AC
 is the single source of progress; plan-doc checkboxes are in-session scratch.** A completed
