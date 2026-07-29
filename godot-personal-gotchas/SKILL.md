@@ -154,6 +154,7 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 92 | `RenderingServer.frame_pre_draw` probe emits ZERO lines headless; `connect()` succeeded, no error | dummy renderer never draws, so the signal never fires |
 | 93 | `get_root().add_child(n)` in a `--script` test, then `global_transform` errors `!is_inside_tree()` and returns identity | the root Window is not in the tree during `_initialize` |
 | 94 | A grep enumerating a group/signal/action name returns a confidently WRONG count — often zero — while the code works fine | `"x"` and `&"x"` are one name to Godot, two strings to grep |
+| 95 | `game_eval` keeps returning pre-change values and a triggered respawn never happens; screenshots say `stale_frame` | a backgrounded / `no_focus` window stalls the main loop |
 
 On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = the row number zero-padded to 2 digits, e.g. row 13 -> `gotchas/13-classname-cache-reimport.md`) for the full entry — Symptom / Cause / Fix detail, proactive detection, commit hashes — before acting on the fix. The index alone is for routing, not for fixes.
 
