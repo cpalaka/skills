@@ -52,7 +52,7 @@ touching an open scene while the editor is running (#55), and export-config chan
 Many entries below are godot-mcp write quirks — the meta-fix is **use the right tool for the job**:
 - **godot-ai = WRITER** — all scene/node/script/property writes, `input_map_manage`, `project_run`, `editor_screenshot`, `logs_read`. Writes every struct type correctly.
 - **godot-mcp = READ/TEST** — `godot_input` (inject timed actions, UNIQUE), `godot_runtime_state` (numerical pos/vel/rot), `godot_docs` (version-correct class docs, EXCLUSIVE), `godot_editor get_log_messages source="editor"` (parse errors — `get_errors`/`get_debug_output` were removed in v3.6.1), `godot_editor get_stack_trace` (crashes). **Never write through godot-mcp** (silently no-ops `Rect2` — see #15).
-- **minimal-godot = local diagnostics** — `get_diagnostics` (line:col; misses cross-script Variant inference — cross-check `get_log_messages source="editor"`).
+- **minimal-godot = local diagnostics** — `get_diagnostics` (line:col; misses cross-script Variant inference — cross-check `get_log_messages source="editor"`). **A clean read is worth nothing until calibrated:** measured 2026-07-27 (space-miner-game, Godot 4.7) returning `[]` for a file containing an unclosed paren, a string-to-int assignment AND a call to an undefined symbol — probed twice, on a newly-created file and on an already-indexed one mutated in place. A dead LSP connection and a clean file return the identical shape, so the tool cannot distinguish "no errors" from "not looking". Before quoting it as evidence: append a deliberate syntax error, re-probe, confirm it reds, revert. If the probe comes back `[]`, it is dead for that session — fall back to a preload-smoke test or `--check-only --script` (#86). (#06 and #13 explain two specific things it misses; this is the third and worst case — it can miss everything.)
 
 One writer per editor instance (both drive the same `EditorInterface`; a second editor instance — e.g. on a worktree — is a second independent writer).
 
@@ -148,6 +148,12 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 86 | `--check-only --quit` WITHOUT `--script` exits clean on a syntax error in any script the main scene doesn't load — a no-op flag | without `--script` it only boots `run/main_scene` |
 | 87 | Believing `const X := preload("other.gd").CONST` is illegal — so a generated table gets duplicated, or every reader repointed | it IS legal; `preload` resolves at parse time |
 | 88 | A throwaway probe project SIGSEGVs after `Could not create directory: 'user://logs'`, and its `class_name` never resolves | sandbox denies `user://`; no import scan ⇒ no class cache |
+| 89 | After `set_script()`, every use of the node errors `Nonexistent function 'x' in base 'Node2D'` — at the CALL SITE, not at the script | assigned script failed to compile; node kept its base class |
+| 90 | `Array.sort()` on `StringName` keys gives neither alphabetical nor insertion order, and two builds disagree | `StringName <` compares the interned POINTER, not the text |
+| 91 | A `call_deferred` transform probe reads the SAME value after a fix as before it, while the game looks right on screen | deferred callables flush BEFORE the last transform flush |
+| 92 | `RenderingServer.frame_pre_draw` probe emits ZERO lines headless; `connect()` succeeded, no error | dummy renderer never draws, so the signal never fires |
+| 93 | `get_root().add_child(n)` in a `--script` test, then `global_transform` errors `!is_inside_tree()` and returns identity | the root Window is not in the tree during `_initialize` |
+| 94 | A grep enumerating a group/signal/action name returns a confidently WRONG count — often zero — while the code works fine | `"x"` and `&"x"` are one name to Godot, two strings to grep |
 
 On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = the row number zero-padded to 2 digits, e.g. row 13 -> `gotchas/13-classname-cache-reimport.md`) for the full entry — Symptom / Cause / Fix detail, proactive detection, commit hashes — before acting on the fix. The index alone is for routing, not for fixes.
 
@@ -155,13 +161,15 @@ On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = t
 root cause and get mistaken for each other, so the near-match is often a neighbour:
 
 - **Type inference / Variant** — 2 (math globals), 6 (missing `class_name`), 12 (no `*f` form), 18 (literal → typed property), 44 (indexing a literal), 53 (typed read of a freed ref), 77 (non-const `const`), 84 (`as T` → null at a distance)
-- **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77, 83 (no warnings printed), 86 (`--check-only` is a no-op without `--script`), 88 (the probe project itself won't boot)
+- **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77, 83 (no warnings printed), 86 (`--check-only` is a no-op without `--script`), 88 (the probe project itself won't boot), 92 (`frame_pre_draw` never fires), 93 (root Window not in tree during `_initialize`)
 - **godot-ai / godot-mcp bridge** — 15, 19, 22→40, 23, 24, 25, 29, 32, 34, 38→19, 40, 43, 45, 46, 52, 80 (channel absent, not failing)
 - **Editor vs disk** — 13 (class cache), 15, 34 (reimport races), 55 (clobbered edits), 62 (4.7 re-save), 76 (plugin strip)
 - **2D viewport / Control layout** — 49 (0×0 under Node2D), 50 (shrink zooms), 64 (CanvasLayer order), 75 (always-hovered), 85 (`CanvasModulate` crushes composites)
 - **macOS platform** — 31, 37, 47, 54 (F-keys), 59, 63 (cursor), 68 (trackpad), 79 (fullscreen size)
 - **Screenshots / visual capture** — 41 (held-input timing), 43 (embedded Game tab), 79 (varying size), 1 (`window_set_mode` no-op)
-- **Silent numerics** — 10 (spring blow-up), 57 (nondeterministic ids), 61 (NaN poisoning), 78 (float32 vectors), 82 (RGBA8 vertex colours)
+- **Probes that measure the wrong MOMENT** — 91 (`call_deferred` lands pre-flush), 92 (the hook never fires), 93 (transforms read identity out of tree), 41 (held-input timing), 26 (`_ready` deferred)
+- **Silent numerics** — 10 (spring blow-up), 57 (nondeterministic ids), 61 (NaN poisoning), 78 (float32 vectors), 82 (RGBA8 vertex colours), 90 (`StringName` sort order)
+- **`StringName` is not a `String`** (invisible until it bites) — 90 (`sort()` compares the interned pointer, not the text), 94 (`"x"` and `&"x"` are one name to the engine, two strings to grep)
 - **UID / staging** — 13, 19, 38→19, 62, 69
 
 ## Adding new gotchas

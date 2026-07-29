@@ -9,7 +9,7 @@
 Autoload singletons are registered as compile-time-resolvable globals only when the full game/SceneTree initializes. `--check-only --script` parses/compiles the one script WITHOUT initializing the SceneTree (so it never registers project autoloads), and any autoload identifier fails to resolve in that mode.
 
 **Fix** — correct verification routes for autoload-referencing scripts:
-- Bounded full headless boot of a scene that loads the script: `godot --headless --path . res://scenes/main.tscn --quit-after 30 2>&1 | grep -E "SCRIPT ERROR|Failed to load"` — empty output = clean.
+- Bounded full headless boot of a scene that loads the script: `godot --headless --path . res://scenes/main.tscn --quit-after 30 2>&1 | grep -E "SCRIPT ERROR|Failed to load"` — empty output = clean, **but only once calibrated**. A healthy boot of this shape prints almost nothing, so "no matches" and "the scene never loaded" are the same reading; and the process exits **0** even with a planted parse error, so never let `$?` into the verdict (#27). Before believing a clean run, plant a syntax error in a script that scene *actually loads*, confirm the grep reds, revert — calibrating in a file the run never mounts proves nothing. Also check the engine flags are to the LEFT of any `--` separator: past it they are handed to the application and silently discarded (#72), so the run is never bounded at all.
 - Or read the open editor's log: `mcp__godot-mcp__godot_editor get_log_messages source="editor"`.
 - Keep `--check-only --script` for autoload-FREE scripts only (pure-logic files) — there it remains a fast, reliable parse check.
 
