@@ -85,3 +85,17 @@ file** — under this variant the policy is: omit it.
   part of the review flow: review happens on the local diff, and the only required push is
   `main` after approval.
 - **Delete the feature branch after merge** (locally, and remotely if it was pushed).
+- **Verify the branch landed by diffing it against the SQUASH COMMIT, not against current
+  `main`.** `git branch -d` refuses a squash-merged branch by design (there is no merge record),
+  so the delete is a `-D` and the safety check is yours to run. Run the right one:
+
+  ```sh
+  git diff --quiet <squash-sha> <branch> && git branch -D <branch>   # RIGHT
+  git diff --quiet main <branch>                                     # WRONG once main moved
+  ```
+
+  `git diff main <branch>` answers *"what would change if `main` became `<branch>`"* — so every
+  commit `main` gained **after** the merge (your own follow-up grooming, a sibling's push) reads
+  as branch-content-missing-from-main. The guard then fires a **false alarm on a correct merge**,
+  and the obvious next move is to re-merge or re-push something that already landed. Diff against
+  the squash SHA instead: it is by definition the reviewed tree.

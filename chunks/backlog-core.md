@@ -67,6 +67,26 @@ one file fine to hand-edit; `backlog config set` does not expose `definition_of_
 - **Done requires explicit user sign-off — never auto-close on AC/DoD pass.** The
   sign-off DoD item is checked only on the user's word. Human-in-the-loop at all four gates:
   task pick → plan approval (before code) → verification → final sign-off.
+- **Retiring one criterion? SUPERSEDE IT IN PLACE — `--remove-ac` renumbers everything below
+  it, silently.** A task's own notes, and sibling tasks' notes, routinely cite criteria by
+  index ("READ BEFORE TESTING AC#6", "only AC#5 is blocked"). Removing #5 shifts #6→#5, #7→#6,
+  and every one of those references now points at the wrong criterion, with no error anywhere
+  and nothing that validates the link. So when a criterion becomes unreachable, rewrite it as a
+  superseded marker (`SUPERSEDED by task-NNN — was: '<original text>'. <why it can no longer be
+  observed>.`) rather than deleting it. If you must genuinely renumber, remove indices in
+  **DESCENDING** order (each removal renumbers what follows) and then re-add in order:
+
+  ```sh
+  backlog task edit NNN --remove-ac 8 --remove-ac 7 --remove-ac 6 --remove-ac 5   # descending
+  backlog task edit NNN --ac "<new #5>" --ac "<old #6>" --ac "<old #7>" --ac "<old #8>"
+  ```
+
+  Do **not** reach for `--acceptance-criteria` to rewrite the list wholesale: despite reading
+  as a setter ("set acceptance criteria"), it **APPENDS** and silently swallows near-duplicates
+  — measured on 1.45.2, feeding back 8 criteria with one reworded yielded **9**. Task files are
+  git-tracked, so check `git status --porcelain` on the file first and recover any misfire with
+  `git checkout -- "backlog/tasks/task-NNN - ….md"`. (Same replace-vs-append trap family as
+  `--desc`/`--notes` below.)
 
 **Mark Done ON THE BRANCH, before the merge.** After the user signs off on the diff, on the
 feature branch run `backlog task edit <id> --check-ac N … --check-dod 1 … -s Done` and
