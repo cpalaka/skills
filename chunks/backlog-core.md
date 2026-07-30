@@ -118,6 +118,19 @@ set; `--ac` appends.) The
 dependent task's own AC/description is what a future session reads first; an ADR it might
 never open is not enough.
 
+**`dependencies:` is INERT DOCUMENTATION, not an enforced gate — never design a control on
+it.** Backlog defines exactly three statuses (`To Do` / `In Progress` / `Done`), has no
+`Blocked` state, computes no blocked set, and prints no blocked marker in `task list --plain`;
+the field is echoed by `task view` and otherwise unread. So a dep edge records *intended
+sequencing* only — a task whose blockers are all open is fully claimable, and closing a blocker
+sets it `Done`, which **satisfies** dependents rather than severing them (measured on
+space-miner 2026-07-30: 96 edges already pointed at `Done` rows, 0 dangling). Two consequences.
+(a) Any "frontier = unblocked" or "this un-gates that" reasoning is a **convention the humans
+and agents must honour**, not something the tracker enforces — write the sequencing intent into
+the AC text where a session will read it. (b) A row that is **archived** rather than closed
+leaves its dependents pointing at an id that no longer resolves *and* frees that id for silent
+reuse, so prefer close-in-place over archive whenever anything depends on the row.
+
 **The pin target must be a TASK — an AC that pins a finding onto a DRAFT is unsatisfiable by
 construction.** Drafts have no edit verb at all (`backlog draft` is `list|create|archive|
 promote|view`), and `backlog task edit draft-NNN --append-notes …` is refused outright with
