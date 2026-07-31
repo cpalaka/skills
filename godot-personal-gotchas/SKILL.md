@@ -14,7 +14,8 @@ When something in Godot behaves unexpectedly, scan the index table by symptom **
 When no entry matches and you later find the cause, file the new gotcha — procedure in [`ADDING.md`](ADDING.md).
 
 > **Migration note:** a project's `docs/godot-gotchas.md` that still mirrors this index predates
-> the single-source rule (see [`ADDING.md`](ADDING.md)) — offer to run `/audit-godot-parity`, which
+> the single-source rule (see [`ADDING.md`](ADDING.md)) — offer the `audit-godot-parity` skill
+> (`$audit-godot-parity` in Codex, `/audit-godot-parity` in Claude Code), which
 > shrinks the project doc (removing verified duplicates) under parity-table approval.
 
 ## Proactive pre-commit scan

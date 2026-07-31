@@ -83,10 +83,10 @@ Applied naively, the APoSD lens generates **category errors** in Godot. Forbid t
 
 | Phase | What | Mode |
 |---|---|---|
-| 0 | Domain language → `CONTEXT.md` | **Workflow** (exploration) |
-| 1 | Whole-game survey → `system-map.md` + friction report → ranked candidates | **Workflow** (exploration) |
+| 0 | Domain language → `CONTEXT.md` | **Parallel subagent workflow** (exploration) |
+| 1 | Whole-game survey → `system-map.md` + friction report → ranked candidates | **Parallel subagent workflow** (exploration) |
 | 2…M | Deep-dives, one candidate per session | **Solo** — grilling + TDD, surgical |
-| re-run | Verbatim Phase-1 re-run; convergence verdict computed **post-hoc** | **Workflow** + solo verdict |
+| re-run | Verbatim Phase-1 re-run; convergence verdict computed **post-hoc** | **Parallel subagent workflow** + solo verdict |
 
 The Mode column's split exists because exploration is read-only and parallel-friendly, while
 deep-dives are write-heavy and coupling-sensitive (parallel edits conflict on shared seams).

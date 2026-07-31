@@ -1,6 +1,6 @@
 ---
 name: audit-godot-parity
-description: Audit parity between a Godot project's docs/memory and the source skills that seeded them (the init-project godot templates, godot-personal-gotchas, godot-personal-preferences, godot-architecture-review), propagating generalizable learnings UP — project → skill, never the reverse. Use to run a parity check, propagate a new gotcha / preference / template or process learning into its skill, run the gotcha leak-audit + gated doc-shrink, or when the user says "audit godot parity" / "audit godot skills" or invokes /audit-godot-parity.
+description: Audit parity between a Godot project's docs/memory and the source skills that seeded them (the init-project godot templates, godot-personal-gotchas, godot-personal-preferences, godot-architecture-review), propagating generalizable learnings UP — project → skill, never the reverse. Use to run a parity check, propagate a new gotcha / preference / template or process learning into its skill, run the gotcha leak-audit + gated doc-shrink, or when the user says "audit godot parity" / "audit godot skills" or invokes $audit-godot-parity in Codex or /audit-godot-parity in Claude Code.
 ---
 
 # Audit Godot Parity
@@ -15,11 +15,12 @@ Verify cwd is a Godot project root — `ls project.godot` should succeed. If not
 
 - Project root: cwd.
 - Project docs: `docs/` under cwd.
-- Project memory: `~/.claude/projects/<slug>/memory/` where `<slug>` = the cwd with slashes replaced by hyphens (leading hyphen). Verify by listing `~/.claude/projects/` and matching the directory whose name encodes the cwd.
-- Skill 1 (init template): `~/.claude/skills/init-project/profiles/godot/templates/`.
-- Skill 2 (personal gotchas): `~/.claude/skills/godot-personal-gotchas/` — split layout: `SKILL.md` = symptom index; `gotchas/NN-<slug>.md` = full entry bodies. Check both.
-- Skill 3 (personal preferences): `~/.claude/skills/godot-personal-preferences/` — split layout: `SKILL.md` = preference index; `preferences/N-<slug>.md` = full entry bodies. Check both.
-- Skill 4 (architecture review): `~/.claude/skills/godot-architecture-review/` (SKILL.md, ARTIFACTS.md, PHASES.md).
+- Project memory: Claude Code's `~/.claude/projects/<slug>/memory/`, if present, where `<slug>` = the cwd with slashes replaced by hyphens (leading hyphen). Verify by listing `~/.claude/projects/` and matching the directory whose name encodes the cwd. On Codex this is an optional Claude-side input, not a Codex memory convention; absence means skip memory-only pairs and report the reduced scope.
+- Skill roots: resolve each canonical skill as a sibling of this skill's real directory first. If that is unavailable, try Codex's `~/.agents/skills/`, then Claude Code's `~/.claude/skills/`. Resolve symlinks before comparing so both hosts edit the same canonical files.
+- Skill 1 (init template): `init-project/profiles/godot/templates/`.
+- Skill 2 (personal gotchas): `godot-personal-gotchas/` — split layout: `SKILL.md` = symptom index; `gotchas/NN-<slug>.md` = full entry bodies. Check both.
+- Skill 3 (personal preferences): `godot-personal-preferences/` — split layout: `SKILL.md` = preference index; `preferences/N-<slug>.md` = full entry bodies. Check both.
+- Skill 4 (architecture review): `godot-architecture-review/` (SKILL.md, ARTIFACTS.md, PHASES.md).
 
 ## File pairs to diff
 
@@ -65,7 +66,7 @@ For unclear cases, INCLUDE the entry in your report and ASK before propagating.
 
 ## Constraints
 
-- The hand-authored skill dirs live in the `cpalaka-claude-skills` git repo (symlinked into `~/.claude/skills/`) — apply file writes only; committing there is the user's decision after reviewing the sync, never part of this skill's run.
+- The hand-authored skill dirs live in the `cpalaka-claude-skills` git repo (symlinked into `~/.agents/skills/` for Codex and/or `~/.claude/skills/` for Claude Code) — apply file writes only; committing there is the user's decision after reviewing the sync, never part of this skill's run.
 - Do NOT modify any project file **except the one gated operation defined in [`DOC-SHRINK.md`](DOC-SHRINK.md)**: that step may DELETE verified-duplicate universal entries from a project's `docs/godot-gotchas.md`, and only after parity-table approval. Everything else in a project stays read-only — find typos/improvements? mention them in the report; the user decides.
 - Use `diff` via Bash, not Read + manual comparison.
 - Don't delete content from skills unless newer project content clearly supersedes it (and even then, surface the deletion in your report).

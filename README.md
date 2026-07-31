@@ -1,18 +1,23 @@
 # cpalaka-claude-skills
 
-Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) skills authored by [@cpalaka](https://github.com/cpalaka), plus a tracker of the 3rd-party skills I use.
+Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) and Codex skills authored by [@cpalaka](https://github.com/cpalaka), plus a tracker of the 3rd-party skills I use.
 
 ## Install
 
-Clone the repo, then symlink any skill into your user skills directory:
+Clone the repo, then symlink a compatible skill into either host's user skills directory:
 
 ```bash
 git clone https://github.com/cpalaka/cpalaka-claude-skills.git
 ln -s "$PWD/cpalaka-claude-skills/godot-personal-gotchas" \
   ~/.claude/skills/godot-personal-gotchas
+ln -s "$PWD/cpalaka-claude-skills/godot-personal-gotchas" \
+  ~/.agents/skills/godot-personal-gotchas
 ```
 
-Replace `godot-personal-gotchas` with whichever skill you want.
+Replace `godot-personal-gotchas` with whichever cross-host skill you want. Claude Code invokes a
+skill as `/skill-name`; Codex invokes one as `$skill-name`. Host-specific adapters live under
+`codex-skills/` when sharing the canonical directory would make one host's metadata or procedure
+invalid.
 
 ## Skills I've authored
 

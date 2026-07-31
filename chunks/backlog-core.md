@@ -1,5 +1,6 @@
 <!-- chunk:backlog-core | kind: value-variant | single-source: cpalaka-claude-skills/chunks/backlog-core.md -->
-<!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
+<!-- Delivered by Claude @import or a Codex AGENTS.md explicit read through the host's chunk symlink.
+     Edit here only — no per-project copies, no parity. -->
 
 ## Task tracking (backlog.md)
 
