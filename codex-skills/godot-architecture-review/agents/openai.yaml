@@ -1,0 +1,4 @@
+interface:
+  display_name: "Godot Architecture Review"
+  short_description: "Run a convergent Godot architecture campaign"
+  default_prompt: "Use $godot-architecture-review to audit and deepen this Godot project's architecture."

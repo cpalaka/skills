@@ -4,9 +4,10 @@ Run **one phase per fresh session**. Every kickoff starts by reading the project
 `docs/architecture/campaign.md` (parameters) and invoking this skill (recipe). Engine quirks:
 obey the project's gotchas catalog and the `godot-personal-*` skills throughout.
 
-The exploration kickoffs explicitly request parallel subagent work. Claude Code may prepend its
-host-specific `ultracode.` router; Codex dispatches subagents through its native collaboration
-surface. The deep-dive kickoff deliberately requests no fan-out (solo, write-heavy).
+The exploration kickoffs retain Claude Code's required `ultracode.` Workflow router. Codex loads
+the thin `codex-skills/godot-architecture-review` adapter, which ignores that host token and
+dispatches through Codex's native collaboration surface. The deep-dive kickoff deliberately has
+no router (solo, write-heavy).
 
 ## Phase 0 — Domain language → `CONTEXT.md` · WORKFLOW · exploration
 
@@ -17,7 +18,7 @@ builds on — and it seeds all future development with a pinned vocabulary. Phas
 *vocabulary only*; the whole-game map is Phase 1.
 
 ```
-Invoke the godot-architecture-review skill and read docs/architecture/campaign.md,
+ultracode. Invoke the godot-architecture-review skill and read docs/architecture/campaign.md,
 then execute Phase 0 (domain language → CONTEXT.md). Fan out parallel readers over the
 subsystems listed in campaign.md plus docs/ and project memory; produce an opinionated, deduped
 glossary (term → what-it-IS + _Avoid_); write CONTEXT.md at repo root per
@@ -44,7 +45,7 @@ anchor-task blast radius), and **offering to record the run's load-bearing refut
 dives). Read `CONTEXT.md` and any `docs/adr/` first; suppress settled items.
 
 ```
-Invoke the godot-architecture-review skill and read docs/architecture/campaign.md and
+ultracode. Invoke the godot-architecture-review skill and read docs/architecture/campaign.md and
 CONTEXT.md, then execute Phase 1 (whole-game survey). Use the codebase-design skill for vocabulary
 and this skill's HTML-REPORT.md for the report format, but apply the Godot guardrails and the pre-labeled populations from
 campaign.md, scrutinize scene-node-name coupling, and adversarially verify every shallow-module

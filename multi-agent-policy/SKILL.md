@@ -7,7 +7,7 @@ description: Cross-host model/effort policy and orchestration procedure for mult
 
 Hard pins (mirrored in the active host's global instructions — they hold even when this skill isn't loaded): **workhorse tier for all agent work; never the budget tier for correctness-bearing work; scarce tier opt-in only; >20 projected agents → announce the count in chat before launching.**
 
-Rationale archive for everything below: `~/Codex/improvements.md` (2026-06-26 → 2026-07-14 entries).
+Rationale archive for everything below: `~/Claude/improvements.md` (2026-06-26 → 2026-07-14 entries).
 
 ## Host routing
 

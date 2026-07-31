@@ -96,6 +96,8 @@ Authors and runs a generate → judge → verify → synthesize **tournament** w
 ## 3rd-party skills I use
 
 Skills I have installed locally and use as part of my workflow. Grouped by upstream source.
+Updater-managed bodies may retain Claude Code `/skill-name` references; Codex should load the
+corresponding `$skill-name` dependency at runtime rather than fork or patch the upstream body.
 
 ### From [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills)
 

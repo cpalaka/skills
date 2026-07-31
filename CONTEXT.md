@@ -1,20 +1,20 @@
 # cpalaka-claude-skills — domain language
 
-The shared vocabulary for this personal library of hand-authored Claude Code
-skills and the machinery (updaters, sync, scaffolding) that keeps them in step
-with the projects that use them. Grows lazily during grilling sessions — only
-terms that have actually come up belong here.
+The shared vocabulary for this personal library of hand-authored Claude Code and
+Codex skills and the machinery (adapters, updaters, sync, scaffolding) that keeps
+them in step with the projects that use them. Grows lazily during grilling
+sessions — only terms that have actually come up belong here.
 
 ## Language
 
 ### Skills
 
 **Skill**:
-A capability defined by a `SKILL.md` (plus any supporting files) that Claude
-loads and follows — auto-triggered by matching context, or invoked as a
-`/command`. How it was installed is orthogonal to what it is: hand-authored in
-this repo, bundled in a Claude Code plugin, or installed via npx-skills — all
-are Skills.
+A capability defined by a `SKILL.md` (plus any supporting files) that an agent
+host loads and follows — implicitly selected from matching context or explicitly
+invoked as `/skill-name` in Claude Code and `$skill-name` in Codex. How it was
+installed is orthogonal to what it is: hand-authored in this repo, bundled in a
+host plugin, or installed via npx-skills — all are Skills.
 _Avoid_: plugin (a distribution *bundle* that delivers skills, hooks, and MCP
 servers — the container, not a synonym for the skill inside it), agent-skill (a
 Skill delivered through the npx-skills / `~/.agents` channel — same concept,
@@ -23,7 +23,8 @@ Skill, not the Skill itself).
 
 **Personal skill**:
 A Skill authored and owned by you. This repo is its source of truth;
-`~/.claude/skills/*` symlink into it. Protected — `skill-updater` never rewrites
+selected `~/.claude/skills/*` and `~/.agents/skills/*` entries symlink into it
+or into a thin **Host adapter** here. Protected — `skill-updater` never rewrites
 it.
 _Avoid_: hand-authored (fine as an adjective, but the noun is "Personal skill"),
 my skill.
@@ -36,10 +37,17 @@ _Avoid_: third-party skill, installed skill, external skill.
 **Ecosystem**:
 One of the two parallel channels a Skill is installed and updated through —
 **Claude Code plugins** (the `claude plugin` CLI) and **agent-skills** (`npx
-skills`, living under `~/.agents`). `skill-updater` reconciles both; a Personal
-skill belongs to neither (it is hand-authored, not installed).
+skills`, living under `~/.agents` and discoverable by Codex). `skill-updater`
+reconciles both; a Personal skill belongs to neither (it is hand-authored, not
+installed).
 _Avoid_: marketplace, registry; source (a *source* is a specific origin —
 Anthropic, mattpocock — within an ecosystem, not the channel itself).
+
+**Host adapter**:
+A thin host-specific Skill directory that reads one canonical Skill body and
+states only the substitutions needed by its host — invocation spelling, tool
+surface, or workflow router. It must not copy the canonical procedure.
+_Avoid_: fork, port, duplicate skill, compatibility copy.
 
 ### Catalog content
 
@@ -114,30 +122,33 @@ _Avoid_: scaffold, boilerplate; Chunk (the referenced, single-source mechanism �
 
 ### Chunks & composition
 
-The vocabulary for the `@import`-from-home Chunk layer: reusable, single-source
-dev-process instruction files that projects reference rather than copy.
+The vocabulary for the shared Chunk layer: reusable, single-source dev-process
+instruction files that projects reference rather than copy.
 
 **Chunk**:
 A single-source, invariant dev-process instruction file committed in
-`cpalaka-claude-skills/chunks/`, delivered to a project by `@import` (reference,
+`cpalaka-claude-skills/chunks/`, delivered to Claude Code by `@import` and to
+Codex by an explicit `AGENTS.md` read through the host's chunk symlink (reference,
 not copy). Because exactly one copy exists, a Chunk has **no parity/propagate
-lifecycle** — editing it updates every importing project at next launch. Holds
-invariant content only; per-project variation is handled by knobs, fork
-selection, or inline-leaf, never by editing the Chunk. Discriminator vs
-**Template**: does the project edit the bytes after delivery? No → Chunk
-(referenced); yes → Template (copied + parity).
+lifecycle** — editing it updates every consumer at next launch. Holds invariant
+content only; per-project variation is handled by knobs, fork selection, or
+inline-leaf, never by editing the Chunk. Discriminator vs **Template**: does the
+project edit the bytes after delivery? No → Chunk (referenced); yes → Template
+(copied + parity).
 _Avoid_: Template (the copied, parity-aligned mechanism — they coexist),
 snippet, include, partial, fragment.
 
 **dev-base**:
 The bundle Chunk every dev Profile imports: a single `chunks/dev-base.md` that
-recursively `@import`s the nine universal base Chunks (git-sync-branch-start,
+recursively includes the eight universal base Chunks (git-sync-branch-start,
 git-commit-format, git-confirm-destructive, sandbox-auto, parallel-work,
-verify-gate, dev-practice, codegraph, code-hygiene). The git-flow fork and
+verify-gate, dev-practice, code-hygiene). Claude Code expands its `@import`
+lines; Codex follows the bundle's explicit read directive. The git-flow fork and
 backlog-core are deliberately NOT in it — they vary by Profile, and `@import` cannot
-be undone. (Two earlier-listed members are not separate chunks: the settings-merge
-contract folded into `sandbox-auto`, and `init-scaffold-core` lives in the
-`init-project` skill — so neither rides dev-base.)
+be undone. `codegraph` also stays explicit and self-gates on `.codegraph/`. (Two
+earlier-listed members are not separate chunks: the settings-merge contract folded
+into `sandbox-auto`, and `init-scaffold-core` lives in the `init-project` skill — so
+neither rides dev-base.)
 _Avoid_: base chunk (it is a *bundle* of Chunks), boilerplate.
 
 **Profile**:
