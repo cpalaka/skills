@@ -156,6 +156,7 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 93 | `get_root().add_child(n)` in a `--script` test, then `global_transform` errors `!is_inside_tree()` and returns identity | the root Window is not in the tree during `_initialize` |
 | 94 | A grep enumerating a group/signal/action name returns a confidently WRONG count — often zero — while the code works fine | `"x"` and `&"x"` are one name to Godot, two strings to grep |
 | 95 | `game_eval` keeps returning pre-change values and a triggered respawn never happens; screenshots say `stale_frame` | a backgrounded / `no_focus` window stalls the main loop |
+| 96 | A test preloading a script/scene chain runs GREEN with a syntax error one hop down — `preload` is not a parse gate; errors only on stderr | broken script still loads as a resource; no cascade |
 
 On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = the row number zero-padded to 2 digits, e.g. row 13 -> `gotchas/13-classname-cache-reimport.md`) for the full entry — Symptom / Cause / Fix detail, proactive detection, commit hashes — before acting on the fix. The index alone is for routing, not for fixes.
 
@@ -163,7 +164,7 @@ On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = t
 root cause and get mistaken for each other, so the near-match is often a neighbour:
 
 - **Type inference / Variant** — 2 (math globals), 6 (missing `class_name`), 12 (no `*f` form), 18 (literal → typed property), 44 (indexing a literal), 53 (typed read of a freed ref), 77 (non-const `const`), 84 (`as T` → null at a distance)
-- **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77, 83 (no warnings printed), 86 (`--check-only` is a no-op without `--script`), 88 (the probe project itself won't boot), 92 (`frame_pre_draw` never fires), 93 (root Window not in tree during `_initialize`)
+- **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77, 83 (no warnings printed), 86 (`--check-only` is a no-op without `--script`), 88 (the probe project itself won't boot), 92 (`frame_pre_draw` never fires), 93 (root Window not in tree during `_initialize`), 96 (`preload` is not a parse gate)
 - **godot-ai / godot-mcp bridge** — 15, 19, 22→40, 23, 24, 25, 29, 32, 34, 38→19, 40, 43, 45, 46, 52, 80 (channel absent, not failing)
 - **Editor vs disk** — 13 (class cache), 15, 34 (reimport races), 55 (clobbered edits), 62 (4.7 re-save), 76 (plugin strip)
 - **2D viewport / Control layout** — 49 (0×0 under Node2D), 50 (shrink zooms), 64 (CanvasLayer order), 75 (always-hovered), 85 (`CanvasModulate` crushes composites)
