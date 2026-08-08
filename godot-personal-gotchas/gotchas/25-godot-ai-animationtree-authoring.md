@@ -1,5 +1,13 @@
 ### 25. godot-ai has no AnimationTree-graph verbs — hand-write `tree_root` + bone-track clips into the `.tscn`
 
+> **Re-verified on godot-ai 3.1.3 (2026-08-07) — STILL TRUE, cite re-anchored.**
+> `command grep -rn "AnimationTree\|AnimationNodeStateMachine\|BlendTree\|BlendSpace"` across the
+> whole vendored addon returns **0 hits**; the 16 `animation_*` commands (`plugin.gd:421-436`,
+> `tool_catalog.gd:44`) are all AnimationPlayer.
+> **The dated cites below point at `src/godot_ai/tools/animation.py`, which does NOT exist in the
+> vendored GDScript tree** — that path lives only in the uvx-fetched Python server / an upstream
+> git clone, so it cannot be checked from a project checkout. Anchor to `plugin.gd:421-436` instead.
+
 **Symptom**
 You need an AnimationTree (`tree_root` = `AnimationNodeBlendTree` / nested `AnimationNodeStateMachine` / `BlendSpace1D` / `AnimationNodeAnimation`) and bone-animation clips. godot-ai's `animation_manage` rollup only does **AnimationPlayer** ops (`player_create`, `add_property_track`, presets…) — no BlendTree/StateMachine/BlendSpace verbs — and `add_property_track` is value-track-only (bone clips need `rotation_3d`/`position_3d` transform tracks).
 

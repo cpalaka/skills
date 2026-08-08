@@ -1,5 +1,20 @@
 ### 52. godot-ai `node_set_property` on a typed `Array[T]` export serializes an UNTYPED literal that fails to load — `node_get_properties` lies (shows it populated)
 
+> **FIXED upstream — godot-ai ≥ 3.1.3. Do NOT follow the Fix section below on a current
+> install: it tells you to hand-edit a `.tscn` to work around a bug that no longer exists.**
+> `handlers/node_handler.gd:260` now routes typed-Array slots into `_coerce_typed_array`
+> (`:929`), which coerces element-by-element into a staging array, bulk-moves it with
+> `out.assign(staging)`, and **hard-errors naming the failing element index** if the
+> post-assign size differs — the documented backstop against a partial write. Object elements
+> are handled too (`_coerce_object_element`), with a twin path for resources at
+> `handlers/resource_handler.gd:375-395`. godot-ai now emits the typed form itself.
+> **Why the old fix is worse than useless now:** hand-editing a `.tscn` is this project's
+> explicitly-calibrated highest-risk operation (preference #1), and gotcha #102 measured an
+> open editor silently re-clobbering exactly such an edit — inside a fully-gated, signed-off
+> branch. So the instruction below directs an agent to perform the riskiest available
+> operation, on an open scene, in exchange for zero benefit.
+> Everything below is pre-fix history, kept for projects pinned to godot-ai ≤ 2.8.x.
+
 **Symptom**
 - You set a script's typed-array export — e.g. `@export var beam_paths: Array[NodePath] = []` — via godot-ai `node_set_property` with a JSON list (`["../Foo/Bar"]`). The call "succeeds" (`old_value:[]`, `value:["../Foo/Bar"]`), and `node_get_properties` reads it back as a size-1 `Array` with the right contents. Looks correct.
 - But the SAVED `.tscn` serializes it as a **plain untyped array literal**: `beam_paths = ["../Foo/Bar"]` — raw string elements, NOT the typed `Array[NodePath]([NodePath("../Foo/Bar")])` form.

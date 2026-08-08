@@ -1,5 +1,12 @@
 ### 43. godot-ai game capture times out (`game_capture_ready` stuck false) when the game runs embedded in the editor Game tab
 
+> **Re-verified on godot-ai 3.1.3 (2026-08-07) — mechanism INTACT, but the literal "20s" is GONE.**
+> `debugger/mcp_debugger_plugin.gd:432 is_game_capture_ready()` and its deadline waits (`:785`,
+> `:1006`, `:1326`) still exist, and `editor_state` still surfaces `game_capture_ready`
+> (`handlers/editor_handler.gd:47`). The wait is now `EVAL_READY_WAIT_SEC`
+> (`utils/error_codes.gd:45`) plus a per-call `timeout_sec`, so quote the *symptom* (capture never
+> becomes ready), not the number — the error string below will not match verbatim.
+
 **Symptom**
 - godot-ai `editor_screenshot source="game"`, `logs_read source="game"`, and every `game_manage` runtime op (`get_scene_tree`, `input_key`, `get_node_info`, …) fail with `INTERNAL_ERROR: Game-side autoload never registered its debugger capture within 20s. … Check Project Settings → Autoload for _mcp_game_helper.`
 - This happens **even though** all of these hold: the game IS running (`editor_state.is_playing:true`); the `_mcp_game_helper` autoload IS registered (the `project.godot` `[autoload]` line resolves, `addons/godot_ai/runtime/game_helper.gd` exists); and godot-ai authoring + editor-side reads (`scene_*`/`node_*`/`material_*`/`logs_read source="editor"`) all work perfectly.

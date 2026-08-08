@@ -22,6 +22,16 @@ When no entry matches and you later find the cause, file the new gotcha — proc
 
 **Run the script first — it is not optional and not a summary of the hand-scan.**
 
+**And run it EARLY — `--worktree`, as soon as you have written GDScript, not only at commit.** The
+name says pre-commit and every project DoD cites it as a commit gate, so it habitually runs after
+the work is done. That is too late for the checks that matter most: several fire at **ERROR**
+severity on defects the TEST SUITE CANNOT SEE — a `%e`/`%g` format spec (#60) throws at runtime and
+leaves the assertion passing, a `:=` Variant inference (#2/#44) is invisible to `--check-only`. A
+scan run at commit time still catches them, but only after you have paid to find them another way.
+Measured 2026-08-02 (space-miner-game task-167): a `%.2e` printed a broken message through several
+GREEN runs and cost a debugging cycle; `--worktree` flags it as ERROR the moment the line is
+written, and the entry was later confirmed to fire on that exact line.
+
 ```bash
 <this-skill>/scripts/precommit-scan.sh              # staged files (default)
 <this-skill>/scripts/precommit-scan.sh --worktree   # unstaged changes
@@ -42,7 +52,14 @@ Before trusting any clean reading, calibrate the instrument: `precommit-scan.sh 
 a known defect for every check and fails if any one of them doesn't fire, then confirms a clean
 tree still reads CLEAN. An instrument that cannot reproduce the defect cannot certify its absence.
 
-**Then hand-scan the residue.** The script covers 23 of 88 entries. The rest are runtime-only,
+**Then hand-scan the residue.** The index now holds **107 entries** (re-derived 2026-08-07 after the
+104-107 batch: 107 table rows, 107 numbered files in `gotchas/` numbered 1..107 with no gaps, plus
+`RETIRED.md`); the old "of 88" and "of 103" denominators were stale. **Re-derive this count rather
+than incrementing it** — several sessions author entries concurrently, and on 2026-08-07 two
+different entries were both filed as #105 with no git conflict and two index rows sharing the
+number. The
+script implements 26 checks, only 12 of which cite a numbered entry, so **the covered-entry
+numerator needs re-deriving — do not quote the old "23"**. Either way most entries are runtime-only,
 render-only, or MCP-behavioral and have no static signature — read the diff against the index for
 the ones relevant to what changed, guided by the **Symptom families** list under the table. The
 highest-yield unmechanizable checks: MCP struct writes that report success (#15/#24/#52), anything
@@ -52,7 +69,10 @@ touching an open scene while the editor is running (#55), and export-config chan
 
 Many entries below are godot-mcp write quirks — the meta-fix is **use the right tool for the job**:
 - **godot-ai = WRITER** — all scene/node/script/property writes, `input_map_manage`, `project_run`, `editor_screenshot`, `logs_read`. Writes every struct type correctly.
-- **godot-mcp = READ/TEST** — `godot_input` (inject timed actions, UNIQUE), `godot_runtime_state` (numerical pos/vel/rot), `godot_docs` (version-correct class docs, EXCLUSIVE), `godot_editor get_log_messages source="editor"` (parse errors — `get_errors`/`get_debug_output` were removed in v3.6.1), `godot_editor get_stack_trace` (crashes). **Never write through godot-mcp** (silently no-ops `Rect2` — see #15).
+- **godot-mcp = READ/TEST** — `godot_runtime_state` (hz-sampled pos/vel/rot **time-series**, the one thing nothing else has), `godot_docs` (class-reference **prose**), `godot_input` (ms-timed action injection), `godot_editor get_stack_trace` (crashes). **Never write through godot-mcp** (silently no-ops `Rect2` — see #15).
+  - **`godot_input` is NOT unique** (corrected 2026-08-07). godot-ai `game_manage op="input_sequence"` injects **frame-timed NAMED-action** timelines — and frames are the *better* basis: upstream says explicitly they are "what reproduces identically across runs", where `godot_input`'s `start_ms`/`duration_ms` are wall-clock and drift under load. Prefer godot-ai for anything whose timing must reproduce. godot-mcp keeps the edge on *raw keys, joypad/axis, and relative mouse-look*, which action-state injection structurally cannot reach.
+  - **`godot_docs` is only PARTLY exclusive.** godot-ai `api_manage(op="get_class")` returns version-correct ClassDB **metadata** (properties/methods/signals/enums/constants/inheritors) from the live editor. `godot_docs` still wins for the **prose descriptions** ClassDB does not carry. Note the caller-facing op is `get_class`; the GDScript handler is named `get_class_info` — writing the latter into a call gets it rejected.
+  - **`source="editor"` on `godot_editor get_log_messages` IS A PHANTOM ARGUMENT — it has never existed.** Measured 2026-08-07 against the installed v3.6.1 `dist/tools/editor.js`: the schema is `{action, clear?, limit?}` and the only `source`-like string in the entire file is `sourceMappingURL`. The schema is a non-strict `z.object`, so the key is **silently stripped** on every call — the call succeeds and returns *unfiltered* messages, which is why it has read as working for months. For parse errors use godot-ai `logs_read source="editor"`, where the parameter is real (`handlers/editor_handler.gd:72` — valid sources `plugin|game|editor|all`).
 - **minimal-godot = local diagnostics** — `get_diagnostics` (line:col; misses cross-script Variant inference — cross-check `get_log_messages source="editor"`). **A clean read is worth nothing until calibrated:** measured 2026-07-27 (space-miner-game, Godot 4.7) returning `[]` for a file containing an unclosed paren, a string-to-int assignment AND a call to an undefined symbol — probed twice, on a newly-created file and on an already-indexed one mutated in place. A dead LSP connection and a clean file return the identical shape, so the tool cannot distinguish "no errors" from "not looking". Before quoting it as evidence: append a deliberate syntax error, re-probe, confirm it reds, revert. If the probe comes back `[]`, it is dead for that session — fall back to a preload-smoke test or `--check-only --script` (#86). (#06 and #13 explain two specific things it misses; this is the third and worst case — it can miss everything.)
 
 One writer per editor instance (both drive the same `EditorInterface`; a second editor instance — e.g. on a worktree — is a second independent writer).
@@ -132,7 +152,7 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 69 | A script committed by explicit path boots locally, but a fresh clone mints a DIFFERENT `uid://` and breaks refs | its `.uid` sidecar twin was never staged |
 | 70 | A "swallow hotkeys while a text field has focus" gate kills EVERY hotkey permanently once the user Escs out | Esc exits edit mode but keeps focus; use `is_editing()` |
 | 71 | Web build: `AudioEffectCapture` captures pure SILENCE and playback position freezes after one mix block | web defaults to sample playback, bypassing the bus graph |
-| 72 | Custom CLI flags are SILENTLY invisible to the game — `OS.get_cmdline_user_args()` returns `[]`, no warning | user args only begin after a `--` separator |
+| 72 | Custom CLI flags invisible to the game (`get_cmdline_user_args()` `[]`), or `--quit-after`/`--headless` ignored so a run is never bounded | `--` splits engine from user args; wrong side is dropped |
 | 73 | Reassigning an already-RENDERED canvas-light `texture` spams `Parameter "t" is null` once per replacement | decal-atlas removal trips a null check; keep the RID stable |
 | 74 | Headless: `ImageTexture.get_image()` returns CREATION-time pixels forever — a later `update(img)` changes nothing | the dummy RenderingServer never uploads the new data |
 | 75 | An "is the mouse over UI?" gate via `gui_get_hovered_control() != null` reads TRUE everywhere, so the UI branch always wins | the full-screen `SubViewportContainer` is always hovered |
@@ -157,6 +177,17 @@ One writer per editor instance (both drive the same `EditorInterface`; a second 
 | 94 | A grep enumerating a group/signal/action name returns a confidently WRONG count — often zero — while the code works fine | `"x"` and `&"x"` are one name to Godot, two strings to grep |
 | 95 | `game_eval` keeps returning pre-change values and a triggered respawn never happens; screenshots say `stale_frame` | a backgrounded / `no_focus` window stalls the main loop |
 | 96 | A test preloading a script/scene chain runs GREEN with a syntax error one hop down — `preload` is not a parse gate; errors only on stderr | broken script still loads as a resource; no cascade |
+| 97 | A `Transform3D` copied digit-for-digit from a `.tscn` into a constructor comes out TRANSPOSED — a light shines the wrong way | `.tscn` writes basis ROWS; the constructor takes COLUMNS |
+| 98 | `ERROR: String formatting error: unsupported format character` and the string prints its own `%.2e`/`%g` literally | String `%` has no `%e`/`%g`; fails at runtime, not parse |
+| 99 | Moving a script property-write into the editor leaves NO line in the `.tscn` and the invariant is silently gone | Godot omits properties equal to their class default on save |
+| 100 | `add_property_track` with an `{x,y,z,w}` value drives NOTHING, yet the scene saves and `validate` reports every track valid | JSON has no Quaternion; the value lands as a `Dictionary` |
+| 101 | A shader grid replacing a `PRIMITIVE_LINES` mesh differs on EVERY line pixel; fixing the width leaves half of each tilted line off by one | 8-bit vertex colour, minor-axis width, boundary tie |
+| 102 | At merge time the `.tscn` is modified and you didn't touch it: transforms appear, `visible = false` vanishes | editor re-saved animation-preview state as authored data |
+| 103 | Injected key TAPS work but a HELD key does nothing: the burn never fires, and the decay matches the drag law exactly | unfocused window clears held key state |
+| 104 | An MCP argument that never existed is silently STRIPPED, not rejected — the recipe "works" for months and spreads into more docs | non-strict Zod/pydantic schema drops unknown keys; a dropped *filter* returns a superset, which still looks right |
+| 105 | An injected action edge fires most times but vanishes ~1 in 5, only where read in `_process`; `_physics_process` never misses | `just_pressed` compares frame stamps; idle one goes stale |
+| 106 | Re-vendoring an addon (or switching a branch across its version) → `Identifier "X" not declared` for symbols you can grep, and the addon's AUTOLOAD fails to instantiate | `class_name`s live in the gitignored `.godot/` global class cache; copying files does not rescan. `--import` fixes it |
+| 107 | A file you never committed is inside the shipped pack; `git status` showed it only as an easily-skimmed `??` and the pre-ship "tree clean" check passed | the exporter walks the filesystem; git state is never an input |
 
 On an index-row match, read the entry's body file `gotchas/NN-<slug>.md` (NN = the row number zero-padded to 2 digits, e.g. row 13 -> `gotchas/13-classname-cache-reimport.md`) for the full entry — Symptom / Cause / Fix detail, proactive detection, commit hashes — before acting on the fix. The index alone is for routing, not for fixes.
 
@@ -165,13 +196,14 @@ root cause and get mistaken for each other, so the near-match is often a neighbo
 
 - **Type inference / Variant** — 2 (math globals), 6 (missing `class_name`), 12 (no `*f` form), 18 (literal → typed property), 44 (indexing a literal), 53 (typed read of a freed ref), 77 (non-const `const`), 84 (`as T` → null at a distance)
 - **Headless harness lies** — 21 (shader), 26 (`_ready` deferred), 27 (exit codes), 28 (`can_instantiate`), 31 (modal hang), 35 (autoloads), 39 (struct compare), 51 (null `get_tree()`), 59 (Metal timers), 65 (`Range` signals), 74 (texture readback), 77, 83 (no warnings printed), 86 (`--check-only` is a no-op without `--script`), 88 (the probe project itself won't boot), 92 (`frame_pre_draw` never fires), 93 (root Window not in tree during `_initialize`), 96 (`preload` is not a parse gate)
-- **godot-ai / godot-mcp bridge** — 15, 19, 22→40, 23, 24, 25, 29, 32, 34, 38→19, 40, 43, 45, 46, 52, 80 (channel absent, not failing)
-- **Editor vs disk** — 13 (class cache), 15, 34 (reimport races), 55 (clobbered edits), 62 (4.7 re-save), 76 (plugin strip)
+- **godot-ai / godot-mcp bridge** — 15, 19, 22→40, 23, 24, 25, 29, 32, 34, 38→19, 40, 43, 45, 46, 52, 80 (channel absent, not failing), 100 (typed keys land as Dictionaries; `validate` is a path check)
+- **Editor vs disk** — 13 (class cache), 15, 34 (reimport races), 55 (clobbered edits), 62 (4.7 re-save), 76 (plugin strip), 102 (preview pose re-saved as authored data, after your last verified commit)
 - **2D viewport / Control layout** — 49 (0×0 under Node2D), 50 (shrink zooms), 64 (CanvasLayer order), 75 (always-hovered), 85 (`CanvasModulate` crushes composites)
 - **macOS platform** — 31, 37, 47, 54 (F-keys), 59, 63 (cursor), 68 (trackpad), 79 (fullscreen size)
-- **Screenshots / visual capture** — 41 (held-input timing), 43 (embedded Game tab), 79 (varying size), 1 (`window_set_mode` no-op)
+- **Screenshots / visual capture** — 41 (held-input timing), 43 (embedded Game tab), 79 (varying size), 1 (`window_set_mode` no-op), 101 (quote a grid diff as a fraction of LINE pixels, not of the frame)
 - **Probes that measure the wrong MOMENT** — 91 (`call_deferred` lands pre-flush), 92 (the hook never fires), 93 (transforms read identity out of tree), 41 (held-input timing), 26 (`_ready` deferred)
-- **Silent numerics** — 10 (spring blow-up), 57 (nondeterministic ids), 61 (NaN poisoning), 78 (float32 vectors), 82 (RGBA8 vertex colours), 90 (`StringName` sort order)
+- **Silent numerics** — 10 (spring blow-up), 57 (nondeterministic ids), 61 (NaN poisoning), 78 (float32 vectors), 82 (RGBA8 vertex colours), 90 (`StringName` sort order), 97 (`.tscn` basis copied transposed), 101 (8-bit vertex colour makes a shader's exact float differ on every line pixel)
+- **A value copied out of another file, wrongly** — 97 (`.tscn` basis rows vs constructor columns), 87 (`preload().CONST` is legal, so copying was never needed), 94 (the grep that found the value was blind to `&"x"`)
 - **`StringName` is not a `String`** (invisible until it bites) — 90 (`sort()` compares the interned pointer, not the text), 94 (`"x"` and `&"x"` are one name to the engine, two strings to grep)
 - **UID / staging** — 13, 19, 38→19, 62, 69
 

@@ -1,5 +1,10 @@
 ### 24. godot-ai `node_set_property` can't write a `Vector2i` — v2.5.x sets the container's LENGTH; v2.7.2+ silently no-ops
 
+> **Re-verified on godot-ai 3.1.3 (2026-08-07) — the FIX HOLDS, but every line cite below has DRIFTED.**
+> Current anchors: `_check_coerced` strict-checks `TYPE_VECTOR2I`/`3I`/`4I` at `node_handler.gd:592-595`;
+> the coercion branches sit at `:654-658` and `:841-864`. The cites in this entry (`:697`, `:813`/`:816`,
+> `:568-569`, `:274`) no longer resolve — do not re-derive the claim from them.
+
 **FIXED upstream in godot-ai 2.8.0 (PR #582, merged 2026-06-23).** The merged `_coerce_value` (`node_handler.gd:697`) now has explicit `Vector2i`/`Vector3i`/`Vector4i` branches (`:813`/`:816`) and `_check_coerced` strict-checks them (`:568`–`569`); the response echo is at `:274`. On **2.8.0+** a dict/array writes the integer-vector property correctly. Everything below is the **PRE-2.8.0 behavior (v2.5.x–2.7.6)**, kept for anyone on an older godot-ai. (Cites verified against the merged 2.8.1 source.)
 
 **Symptom**

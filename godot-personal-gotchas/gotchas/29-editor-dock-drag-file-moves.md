@@ -1,7 +1,7 @@
 ### 29. Directory reorgs: godot-ai has no file-move op — USER dock-drag rewrites `ext_resource` paths but NOT bare `preload()` strings
 
 **Symptom**
-A scripts/scenes reorganization needs files moved into new directories. godot-ai `filesystem_manage` exposes no move/rename op (only `read`/`write`/`reimport`/`search`), and moving files outside the editor (`mv`, Finder, Write-to-new-path + delete) leaves every `ext_resource` path, `.uid` sidecar, and `preload()` string pointing at the old location.
+A scripts/scenes reorganization needs files moved into new directories. godot-ai `filesystem_manage` exposes no move/rename op (on 3.1.3 its four ops are `read_file`/`write_file`/`reimport`/`scan_filesystem` — `search_filesystem` lives under the *project* handler, not this one; either way there is still no move), and moving files outside the editor (`mv`, Finder, Write-to-new-path + delete) leaves every `ext_resource` path, `.uid` sidecar, and `preload()` string pointing at the old location.
 
 **Cause**
 Dependency-safe moves are an editor FileSystem-dock operation — the dock's drag is what triggers the engine's dependency-rewrite pass. godot-ai simply has no verb for it, and out-of-editor moves bypass the rewrite entirely.
