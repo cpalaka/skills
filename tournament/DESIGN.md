@@ -99,7 +99,7 @@ Before handoff, the skill self-lints the emitted script:
 - literal `meta`; `meta.phases` match the `phase()` calls;
 - **no `Date.now()`/`Math.random()`/argless `new Date()`** (vary by index);
 - no `import`/`require`/fs; `pipeline()` by default, `parallel()` only as a genuine barrier; every fan-out result `.filter(Boolean)`;
-- **every `agent()` pins an explicit `model:`** (ERROR if missing) — no silent session-model inheritance; a tournament fans out 89–111 agents, so a Fable-session default would blow the weekly budget (model policy 2026-07-01). All stages Opus; the single synthesis agent may opt into `model: SYNTH_MODEL = 'fable'` (sole sanctioned Fable site);
+- **every `agent()` pins an explicit, CONCRETE `model:`** (ERROR if missing) — no silent session-model inheritance and no short aliases (an alias can lag a release); a tournament fans out 89–111 agents, so a scarce-tier session default would blow the weekly budget (model policy 2026-07-01, alias rule 2026-07-24). All stages workhorse; the single synthesis agent may opt into `SYNTH_MODEL` on the scarce tier — the one stage whose count is fixed at exactly 1 regardless of bracket size, which is the cost argument (see `multi-agent-policy`, posture ladder);
 - **vote-tallying stages reconcile SENT vs RETURNED** (WARN if a `winner`/`consensus`/`fatalCount` stage filters agent results without `dropped`/`votesSent`/`needsAdjudication`) — a dropped vote otherwise silently flips a bracket winner, claim consensus, or skeptic fatalCount (improvements 2026-06-28);
 - `node --check` for syntax.
 

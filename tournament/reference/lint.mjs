@@ -39,8 +39,17 @@ for (let i = 0; i < agentStarts.length; i++) {
   const span = src.slice(agentStarts[i], agentStarts[i + 1] ?? src.length)
   if (!/\bmodel\s*:/.test(span)) {
     const line = src.slice(0, agentStarts[i]).split('\n').length
-    errors.push(`agent() call at line ${line} has no explicit model: — pin it (model: 'opus', or SYNTH_MODEL for the single synthesis agent)`)
+    errors.push(`agent() call at line ${line} has no explicit model: — pin it to a concrete ID (model: WORKHORSE, or SYNTH_MODEL for the single synthesis agent)`)
   }
+}
+
+// Model IDs must be CONCRETE, never short tier aliases (alias rule 2026-07-24): a CLI alias can lag
+// a release and keep serving the prior generation while every rule still reads correct. Catches the
+// literal at any model: site — agent() opts, meta.phases display annotations, and const decls alike.
+const ALIASES = /\b(?:model|SYNTH_MODEL|WORKHORSE|SCARCE)\s*(?::|=)\s*['"`](opus|fable|sonnet|haiku|mythos)['"`]/g
+for (const m of src.matchAll(ALIASES)) {
+  const line = src.slice(0, m.index).split('\n').length
+  errors.push(`line ${line}: model pinned to the short alias '${m[1]}' — resolve the concrete ID by probe (\`claude -p --output-format json\` reports canonicalModel) and write it out, e.g. 'claude-opus-5'`)
 }
 
 // Vote-tallying stages must reconcile SENT vs RETURNED (improvements 2026-06-28): a dropped vote can silently flip a winner/consensus/fatalCount.

@@ -7,7 +7,9 @@ description: Cross-host model/effort policy and orchestration procedure for mult
 
 Hard pins (mirrored in the active host's global instructions — they hold even when this skill isn't loaded): **workhorse tier for all agent work; never the budget tier for correctness-bearing work; scarce tier opt-in only; >20 projected agents → announce the count in chat before launching.**
 
-Rationale archive for everything below: `~/Claude/improvements.md` (2026-06-26 → 2026-07-14 entries).
+**Two agent-count ceilings exist and the smaller binds.** The >20 pin is *mine* (announce spending); Claude Code separately enforces **dynamic workflow size** (`/config`), defaulting to *medium* = under 15 — stricter, so on a default session it governs and my pin never fires alone. A design exceeding 15 (full adversarial review, any tournament) needs the setting **raised** before launch, not just a count announced. Announce on crossing either threshold, naming which, and re-derive the projection from current args rather than quoting a count a workflow's docs recorded at authoring time.
+
+Rationale archive for everything below: `~/Claude/improvements.md` (2026-06-26 → 2026-08-08 entries).
 
 ## Host routing
 
@@ -32,7 +34,7 @@ This skill names **tiers, not models** — model names churn faster than the rul
 
 This does **not** relax the per-stage pinning rule below. The split: durable rules name *roles*; a given run's script names a *concrete model ID*, resolved at authoring time and pinned explicitly per stage. Resolve that ID by probe rather than from memory or from an alias — the CLI's short tier aliases can lag a release and keep serving the prior generation while every rule reads correct (2026-07-24: the workhorse alias still resolved to the prior generation a day after the new one shipped).
 
-Literal identifiers below (`opus-implementer`, the `fable` arg) are filenames and script parameters, not tier claims — renaming them breaks live pointers, so they stay verbatim.
+Literal identifiers below (`opus-implementer`, the legacy `fable` arg) are filenames and script parameters, not tier claims — renaming them breaks live pointers, so they stay verbatim.
 
 ## Model & effort pins
 
@@ -44,13 +46,26 @@ Literal identifiers below (`opus-implementer`, the `fable` arg) are filenames an
 
 ## Scarce-tier usage
 
-- Opt-in per launch, never a default for subagents/workflows. It is usage-limited on a weekly window: confirm current headroom before committing it to a stage. If the window is about to expire with budget unspent, the scarcity guard inverts — spend it rather than let it lapse.
-- Spend it mainly on the **completeness critic**, not spread across finders — its highest-leverage insight slot. A scarce-tier main loop via `/model` for high-ambiguity judgment sessions is sanctioned, not something to self-police.
-- Home for the opt-in mechanics: the `fable` arg in saved adversarial-review workflows.
+Opt-in per launch, never a default for subagents/workflows. Still usage-limited on a weekly window: confirm current headroom before committing it to a stage. If the window is about to expire with budget unspent, the scarcity guard inverts — spend it rather than let it lapse. A scarce-tier main loop via `/model` for high-ambiguity judgment sessions is sanctioned, not something to self-police.
+
+**Placement is a cost ladder, not a permission list.** "Scarce goes to the completeness critic" was a *rationing* rule — one slot was all the window afforded. Rationing rules expire when the ration changes, and a looser window doesn't license spreading the tier around; it means re-deriving placement from **cost per slot vs. value at that slot**, per stage. Choose a *posture*, not a boolean; rungs are cumulative.
+
+| Posture | Adds | Buys | Cost shape |
+|---|---|---|---|
+| `none` | — | — | 0 agents. The default. |
+| `critic` | completeness critic + counter-critic | the absence/method-error slots, where insight beats diligence most sharply | 1–2 agents, **fixed** regardless of diff size |
+| `insight` | finders | lens-level discovery depth | scales with **lens count** (8–12) — first rung whose cost isn't fixed |
+| `full` | synthesis | cross-finding narrative | +1 agent |
+
+**Verify is never auto-scarce at any rung.** A *value* argument, not a rationing one, so a looser window doesn't touch it: verification is scoped diligence against named files, and the scarce tier's edge is in unscoped judgment. It is also the only stage whose count is **unbounded at launch** (it scales with findings *found*), so a scarce pin there can't be projected — an override may force it, but the script must warn that the projection excludes it.
+
+**Announce the projected scarce-agent count, pre-selecting a recommendation rather than posing a cold choice.** "Recommend `critic` — 2 scarce agents" is disagreeable; "fable or not?" makes the user do the arithmetic. Anything the projection excludes gets logged by name (no silent caps).
+
+Arg surface (`scarce`, the `fable` alias, the `stages` escape hatch), the reference implementation, and every other spawn-time knob: **`MECHANICS.md`** (sibling file).
 
 ## Budget-tier exception — usage-constrained cheap fan-outs
 
-When the user flags low weekly usage (or asks to conserve): non-correctness-bearing fan-outs — cataloging, extraction, doc-reading sweeps — may run on the budget tier with a SMALL agent count, de-risked by reading the dense sources yourself in the main loop and validating the cheap output. Correctness-bearing work (code review, load-bearing verification) stays on the workhorse tier, always. Announce the cheaper composition + the de-risk, and offer the cost trade-off before spending workhorse capacity on a big fan-out.
+When the user flags low weekly usage (or asks to conserve): non-correctness-bearing fan-outs — cataloging, extraction, doc-reading sweeps — may run on the budget tier with a SMALL agent count, de-risked by reading the dense sources yourself in the main loop and validating the cheap output. Correctness-bearing work (code review, load-bearing verification) stays on the workhorse tier, always. Announce the cheaper composition + the de-risk, and offer the cost trade-off before spending workhorse capacity on a big fan-out. When the user set a token target, "SMALL" has a mechanism instead of an eyeball — the `budget` global, in `MECHANICS.md`.
 
 ## Verification structure
 
@@ -63,7 +78,7 @@ When the user flags low weekly usage (or asks to conserve): non-correctness-bear
 ## Fan-out → verify discipline
 
 - **Assert a fan-out's INPUT layer arrived before trusting any stage output.** On Claude Code, the Workflow `args` channel can deliver a correctly-passed object as a JSON *string* — parse defensively (`typeof args === 'string' ? JSON.parse(args) : args`), hard-throw when a required field is absent, and give every smoke-run a pre-derived expected input count (seeds, incumbents, vendor rows) so a missing layer reads as a number mismatch, not a green run. On any host, agents reverse-engineer missing context from the repo, so an input-starved run completes "successfully" — the more capable the agent, the better it hides the hole (space-miner 2026-07-30: brief arrived as `"undefined"`, generator produced on-theme output via 15 exploratory tool calls; caught only by pool-size arithmetic).
-- **Reconcile items SENT vs verdicts RETURNED — not `survived` vs `refuted`.** A verifier error swallowed by `.catch(()=>null)`/`.filter(Boolean)` drops its item silently while survived+refuted still reconcile with each other. Have the script emit a `dropped`/`errored` bucket; if sent ≠ verdicts, recover each drop from the run's `agent-<id>.jsonl` and verify it yourself in the main loop.
+- **Reconcile items SENT vs verdicts RETURNED — not `survived` vs `refuted`.** A verifier error swallowed by `.catch(()=>null)`/`.filter(Boolean)` drops its item silently while survived+refuted still reconcile with each other. Have the script emit a `dropped`/`errored` bucket; if sent ≠ verdicts, recover each drop from the run's `journal.jsonl` — which records each call's actual *return value*, the thing you are reconciling — and verify it yourself in the main loop. Never assume a cached or replayed result was non-empty; check the journal before diagnosing a thin run. (`agent-*.jsonl` is the other file and a different question — `MECHANICS.md`.)
 - **This recurses to the vote level**: with N-skeptic panels, also reconcile `votesReturned` vs `votesSent` per finding — finding-level reconciliation can read clean while one dropped vote flips a refute-majority into a tie that "survives". Adjudicate in the main loop any survivor that passed on a tie or a missing vote.
 - **Merge SEMANTICALLY between find and verify, and adjudicate defect-by-defect — never finding-by-finding.** The reconciliation rules above catch items a fan-out *dropped*; they are structurally blind to items it *duplicated*. In a multi-lane fan-out (one finder per surface or lens) two finders describe one defect in words sharing neither route target nor opening phrase, so a dedup key like `route + target + claim-prefix` merges **nothing** across lanes. The expensive part is not the duplication — **a refuter kill binds only the COPY it ran against**, so one copy can be correctly killed while its twin survives unrefuted at HIGH: the review simultaneously asserts and denies the same claim, and the surviving copy carries a false correction into a durable artifact under the authority of the very review that refuted it. Cluster by title+claim similarity (threshold tuned against the real corpus, never chosen — see the space-miner `adversarial-review-dedup-destroys-spec-claims` memory for the opposite failure, over-merging), give each defect ONE severity and ONE route owner before verification, and where a merge stage is impractical task the **counter-critic** with hunting duplicate clusters explicitly — it is the only slot positioned to see them. (space-miner 2026-07-30: 51 findings hid 8 duplicate clusters while sent-vs-returned read a perfect 7/7 readers and 6/6 verdicts throughout.)
 - **A refuted finding about a protected invariant deserves a second look** (a11y/reduced-motion, security, data-loss, irreversibility). A refutation resting on one narrow structural premise can hold for the scenario the finder raised and fail for one they didn't — re-check the premise against other layouts/routes/settings/inputs before trusting the kill. The kill feeling authoritative is exactly when a wrong refutation ships.
@@ -82,14 +97,10 @@ When the main loop is on the scarce tier and the task is an implementation task 
   - *Claude Code:* a Monitor heartbeat — a `sleep 600` loop emitting one status line per tick (implementers: elapsed + `git log -1 --oneline` + `git status --porcelain | wc -l`; workflows: elapsed + `agent-*.jsonl` count in the transcript dir). Relay each tick as a one-line status. TaskStop the monitor the moment the delegate reports; re-arm per delegate; monitor timeout 3600s.
   - *Codex:* bounded task/agent wait snapshots carrying the same per-tick payload (elapsed + last commit + dirty-file count for implementers; elapsed + agent-transcript count for fan-outs), relayed as commentary at a comparable ~10-minute cadence. Do not emulate the Monitor loop with a blocking sleep — it stalls communication rather than reporting it.
 
-## Hands-off ticket design (autonomous execution grants)
+## Sibling files
 
-When the user wants a ticket (or a chain of tickets) executed by an orchestrator with zero involvement — merges, pushes, cleanup, Done included — convert the ticket's gates rather than skipping them (established 2026-08-03, youtube-manager task-022..024):
-
-- **Record the grant in the artifact the executing session will read** — the task's own notes, never only chat. State what is waived (sign-off/review DoD items, merge + push + branch/worktree cleanup confirmations), what is NOT (force-push, PR/`gh` writes, `--no-verify`, the verify gate itself), and the case that still escalates (e.g. a foreign commit riding the push publishes someone else's work under the grant — stop and ask).
-- **Convert every human-eye AC into a machine probe**: "audio audibly stops" → adapter-receives-destroy + element-leaves-DOM; "feels right after clicking" → dispatched events asserted on observable effects. An AC only a human can check makes the ticket structurally hands-on no matter what the grant says.
-- **Demote look-checks to non-gating committed artifacts** (screenshots + paths appended to the task's notes) for async review. This is legitimate only when an upstream approved design-reference task carries the frozen feel verdict — it narrows, not displaces, the "visual/feel work runs solo, never as a background wave" rule: the feel verdict moves upstream, and only the implementation tickets become wave-able.
-- **Make the close-out an explicit AC** (gate green → merge → push → cleanup → Done) so the autonomous finish is checkable rather than improvised.
+- **`PROCEDURES.md`** — read before **granting an orchestrator hands-off execution of a ticket** (convert the ticket's gates, don't skip them) or **starting a planning session over a multi-session doc corpus** (sweep it for rot first). Both fire only for those session types, never on a normal fan-out.
+- **`MECHANICS.md`** — read when *writing or editing a workflow script*: the `scarce`/`stages` arg surface, the `budget` global, `agentType`, per-agent `effort`, `workflow()` nesting, ultracode, resume, and which transcript file answers which question.
 
 ## Stale-registry and cache gotchas
 
@@ -97,6 +108,3 @@ When the user wants a ticket (or a chain of tickets) executed by an orchestrator
 - **Edited `.claude/agents/*.md` defs are NOT hot-loaded** — the Agent registry caches at session start. To validate a def changed this session, execute its documented procedure directly; defer literal agent dispatch to a fresh session.
 - **Codex agent definitions and installed skill metadata are session inputs.** After changing `~/.codex/agents/*.toml`, `~/.agents/skills/`, or a skill's `agents/openai.yaml`, validate discovery in a newly started Codex task; current-task visibility is not evidence that the new registry state loaded.
 
-## Doc-corpus consistency sweep
-
-Before a planning/decision session that consumes a multi-session doc corpus, run a cheap workhorse-tier consistency sweep first: per-doc auditors + a cross-doc reconciler + a surviving-open-inventory agent; verify, then apply only provenance-derivable fixes — never resolve an `[open]`. The planning session should never be the thing that discovers doc rot; the inventory output doubles as the planning session's wall of items it must not silently resolve.
