@@ -81,6 +81,32 @@ Keep values that need float64 out of vector types on that path.
    is precisely the size of error that `is_equal_approx` exists to forgive. And pick a fixture value
    float32 **cannot** represent (`130.7`, not `130.0`), or the test can pass by accident.
 
+### The OPPOSITE symptom, same cause: a tolerance too TIGHT (added 2026-08-03, task-166)
+
+Items 1–4 are about a bound loose enough to hide the drift. The mirror case reds **correct** code,
+and it is easy to misread as a real defect because the assertion looks like an exact identity:
+
+```gdscript
+var back := atan2(dir.z, dir.x)                   # dir = Vector3(cos(h), 0, sin(h))
+absf(wrapf(back - h, -PI, PI)) < 1e-12            # reds at 16 of 24 headings
+```
+
+Both endpoints are `float` (float64) and the algebra is an exact inverse — but the *intermediate* is
+a `Vector3`, so the angle was rounded to float32 on the way in. Measured floor for that round trip:
+**7.77e-09 rad**; the same direction pulled through a four-node `Basis` chain instead, **3.45e-04 rad**.
+
+- **Measure the floor on known-good code first, then set the bound just above it**, and state the
+  ratio in the assertion message so the margin is a fact rather than a feeling (5e-8 was chosen
+  above — ~6.4x the measured floor).
+- **Size it against the error you are hunting, not against zero.** A mis-mapped axis misses by
+  ~1.57 rad, so a 2e-3 bound is still five orders clear of the float32 floor *and* three orders
+  tighter than the defect. The correct band is wide; the mistake is picking from its wrong end.
+- Where you have the choice, keep the **angle** as the stored truth and derive the vector on demand —
+  a heading integrated as a `float` keeps full precision, one stored as a direction bleeds every frame.
+- The two directions want opposite fixes, so decide which contract you are in before picking a
+  number: *bitwise agreement between two code paths* (items 1–4 — tighten, use `==`) or *an inverse
+  round trip through a vector type* (this section — measure the floor, then clear it).
+
 ## Detect proactively
 
 - A diff that replaces scalar float math with `Vector3`/`Basis`/`Transform` math on a path feeding a

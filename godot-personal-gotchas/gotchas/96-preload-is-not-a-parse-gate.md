@@ -49,7 +49,46 @@ calibration — plant a syntax error in the guarded file, confirm the suite REDS
 Both wrong forms above were green on first calibration; that is the only way this was
 caught.
 
+## Extension — the same rubber stamp inside a *null-checking* sweep (2026-08-02)
+
+The rows above cover `preload` used as a gate. The identical failure reaches any sweep that
+walks a tree and null-checks `load()`, which is the shape a project-wide "everything parses"
+test naturally takes:
+
+```gdscript
+for path in scripts:
+    if load(path) == null:          # NEVER fires on a parse error
+        script_failures += 1
+```
+
+MEASURED (space-miner-game 2026-08-02, task-165): with `func broken( -> void:` planted in a
+file under `res://src`, `tests/test_preload_smoke.gd` — the project's *designated* project-wide
+parse coverage, named as such in its `CLAUDE.md` typecheck knob — reported **"all 78 src
+scripts load/compile clean", 4/4 checks passed, 0 failures**, while the engine printed `Failed
+to load script … Parse error` to stderr. The file redded only because `run_tests.sh` scans
+output for `SCRIPT ERROR`. Run that test through any other harness and a broken tree certifies
+clean.
+
+Fix is the same predicate, applied per file:
+
+```gdscript
+var script: Script = load(path) as Script
+if script == null or not script.can_instantiate():   # can_instantiate == COMPILED (#28)
+    script_failures += 1
+```
+
+Calibrated both directions after the change: planted defect → the assert fails and names the
+file; clean tree → green.
+
+**The general lesson, wider than parse gates:** when a verdict is produced by BOTH an assert
+and a harness-level output scan, the output scan can be carrying the whole thing while the
+assert reads as the instrument. Calibrate the assert *in isolation from the harness* before
+citing it as coverage.
+
 ## Confirmed by
+
+space-miner-game 2026-08-02 (task-165, branch feat/task-165): the null-checking sweep extension
+above — planted parse error, whole suite's parse gate green, fixed and re-calibrated.
 
 space-miner-game 2026-07-31, task-161.03 P1 verification (branch
 feat/task-161.03-voxel-playground, tests/test_voxel_grid.gd `_parse_gate()`): scene-form

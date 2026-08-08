@@ -49,6 +49,39 @@ Express the law under test in a frame that does not require tree membership:
   subscription separately (`is_transform_notification_enabled()`), or removing
   `set_notify_transform(true)` leaves the suite green.
 
+### Driving a whole authored SCENE (added 2026-08-03, space-miner-game task-166)
+
+When the thing under test is an instantiated `.tscn` rather than a bare node, its scripts' `@onready`
+members are null for the same reason, and `_ready()` never fires — so the scene is inert and every
+method that touches a child handle dies on `base object of type 'Nil'`. Send the notification
+depth-first, **parents last**, which is the engine's own order:
+
+```gdscript
+func _ready_subtree(n: Node) -> void:
+    for c in n.get_children():
+        _ready_subtree(c)
+    n.notification(Node.NOTIFICATION_READY)
+```
+
+**Use `notification(NOTIFICATION_READY)`, NOT a `_ready()` call.** Both work on a script that defines
+`_ready` explicitly (GDScript compiles `@onready` initialisers into it, so the call resolves them).
+But a script that only *declares* `@onready` members and writes no `_ready` body has no `_ready` for
+`has_method("_ready")` to find — so a `if n.has_method("_ready"): n._ready()` walk silently SKIPS
+exactly those nodes, leaving their handles null and surfacing one frame later as a nil assignment
+somewhere unrelated. The notification is what the engine sends, and it runs the implicit and explicit
+forms alike.
+
+**Then compose globals by hand.** With no tree there is still no `global_transform`, so a chain like
+`ship.transform * hull.transform * pivot.transform * model.transform` is the honest expression — and
+naming the four nodes is more informative than the one-word global read it replaces.
+
+**The reason this is worth the trouble rather than skipping the test:** the failure mode of *not*
+doing it is not a crash, it is a PASS. Every `global_transform` returns the same identity, so any
+assertion of the form "A equals B" or "X did not change" goes green — from an instrument that cannot
+see anything move at all. Measured: a check reading "a 35° hull bank leaves the Gaze basis untouched"
+passed while comparing two `Transform3D()` defaults. Prove the instrument inside the check — require
+the *perturbation* to be visible (assert the hull basis DID change) before believing the negative.
+
 ## Detect proactively
 
 - `get_root().add_child(...)` in any `tests/test_*.gd` followed by a `global_*` read.

@@ -82,6 +82,15 @@ When the main loop is on the scarce tier and the task is an implementation task 
   - *Claude Code:* a Monitor heartbeat — a `sleep 600` loop emitting one status line per tick (implementers: elapsed + `git log -1 --oneline` + `git status --porcelain | wc -l`; workflows: elapsed + `agent-*.jsonl` count in the transcript dir). Relay each tick as a one-line status. TaskStop the monitor the moment the delegate reports; re-arm per delegate; monitor timeout 3600s.
   - *Codex:* bounded task/agent wait snapshots carrying the same per-tick payload (elapsed + last commit + dirty-file count for implementers; elapsed + agent-transcript count for fan-outs), relayed as commentary at a comparable ~10-minute cadence. Do not emulate the Monitor loop with a blocking sleep — it stalls communication rather than reporting it.
 
+## Hands-off ticket design (autonomous execution grants)
+
+When the user wants a ticket (or a chain of tickets) executed by an orchestrator with zero involvement — merges, pushes, cleanup, Done included — convert the ticket's gates rather than skipping them (established 2026-08-03, youtube-manager task-022..024):
+
+- **Record the grant in the artifact the executing session will read** — the task's own notes, never only chat. State what is waived (sign-off/review DoD items, merge + push + branch/worktree cleanup confirmations), what is NOT (force-push, PR/`gh` writes, `--no-verify`, the verify gate itself), and the case that still escalates (e.g. a foreign commit riding the push publishes someone else's work under the grant — stop and ask).
+- **Convert every human-eye AC into a machine probe**: "audio audibly stops" → adapter-receives-destroy + element-leaves-DOM; "feels right after clicking" → dispatched events asserted on observable effects. An AC only a human can check makes the ticket structurally hands-on no matter what the grant says.
+- **Demote look-checks to non-gating committed artifacts** (screenshots + paths appended to the task's notes) for async review. This is legitimate only when an upstream approved design-reference task carries the frozen feel verdict — it narrows, not displaces, the "visual/feel work runs solo, never as a background wave" rule: the feel verdict moves upstream, and only the implementation tickets become wave-able.
+- **Make the close-out an explicit AC** (gate green → merge → push → cleanup → Done) so the autonomous finish is checkable rather than improvised.
+
 ## Stale-registry and cache gotchas
 
 - **After editing a `.claude/workflows/` script, launch via `scriptPath` — never by `name`.** By-name resolution can serve a session-start-cached copy, and the failure is silent (the run "succeeds" under the wrong config). Verify a run's configuration by grepping its `agent-*.jsonl` transcripts for `"model"` — per-agent spawn evidence beats a canary line the script prints itself.

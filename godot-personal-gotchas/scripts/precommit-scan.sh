@@ -193,6 +193,15 @@ check 32 WARN  '\.gd$' \
   'get_global_mouse_position' \
   'reads the OS cursor, not the injected event position — misbehaves under MCP-injected clicks'
 
+# A Transform3D/Basis spelled as a flat run of numeric literals is a hand-transcribed matrix, and
+# the usual source is a .tscn — whose twelve floats are the basis ROWS while the constructor takes
+# COLUMNS, so the copy is transposed. The vector forms Basis(x, y, z) / Basis(axis, angle) and
+# Transform3D(basis, origin) are the correct spellings and carry no bare numeric run, so they do
+# not match. Requires 6+ literals to clear Vector3(1, 0, 0)-style neighbours.
+check 97 WARN  '\.gd$' \
+  '(Transform3D|Basis)\([[:space:]]*-?[0-9.]+[[:space:]]*,([[:space:]]*-?[0-9.]+[[:space:]]*,){4}' \
+  'a basis transcribed as flat literals — .tscn writes basis ROWS, the constructor takes COLUMNS (transposed)'
+
 
 check 9  HEUR  '\.gd$' \
   'func[[:space:]]*\([^)]*\)[[:space:]]*:.*[^=!<>]=[^=]' \
@@ -212,6 +221,14 @@ check 8  WARN  '\.tscn$' \
 check 15 WARN  '\.tscn$' \
   'region_rect' \
   'never write Rect2 through godot-mcp (silent no-op) — confirm the on-disk value, not get_properties'
+
+# #100 — an animation keyframe committed as a Dictionary instead of a typed Variant. godot-ai's
+# add_property_track stores values as received and JSON has no Quaternion/Vector/Color, so an
+# {x,y,z,w} payload serialises as `"values": [{` and drives the property not at all. The scene saves
+# and animation_manage validate reports the track VALID (it only checks that paths resolve).
+check 100 WARN '\.tscn$' \
+  '"values": \[[{]' \
+  'animation keys are Dictionaries, not typed Variants — the track drives nothing; re-derive them with a @tool pass'
 
 # ---------------------------------------------------------------------------
 # non-grep checks

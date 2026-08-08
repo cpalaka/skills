@@ -13,6 +13,23 @@ Autoload singletons are registered as compile-time-resolvable globals only when 
 - Or read the open editor's log: `mcp__godot-mcp__godot_editor get_log_messages source="editor"`.
 - Keep `--check-only --script` for autoload-FREE scripts only (pure-logic files) — there it remains a fast, reliable parse check.
 
+**THE COMPLEMENT — do not skip it; this entry is routinely over-read into a false conclusion.** Everything above is about the **compile-time global**. It does NOT mean "headless runs have no autoloads". A `--script` run whose script **extends `SceneTree`** — the normal shape for a headless test harness — builds a real SceneTree, and Godot **registers every `[autoload]` singleton as a live node at `/root/<Name>`**. Measured 2026-08-02, space-miner-game, Godot 4.7-stable, a plain `--headless --path . --script res://probe.gd`:
+
+```
+PROBE root-node Game:      Game:<Node#32128370135>
+PROBE root-node BalanceDB: BalanceDB:<Node#29427238355>
+PROBE /root children:      ["GameEvents", "BalanceDB", "AudioDirector", "Game", "SaveService", ...]
+```
+
+So the split is: **bare identifier — absent at parse time. Node at `/root/<Name>` — present at run time.** Reach them by path and they work:
+
+```gdscript
+var game := get_root().get_node_or_null("Game")   # works under --script
+# Game.something                                   # does NOT compile under --check-only --script
+```
+
+Reading only the first half of this entry makes tests re-derive state or skip coverage that was available all along — measured in space-miner-game, where one test's header asserted the limitation while a sibling test had been using the real autoload by path for weeks. `preload("res://…/game.gd").new()` is NOT the workaround (it fails "Nonexistent function 'new' in base 'GDScript'"); node-path access is the working route. The "a bare `--script` run ALSO fails" note under *Confirmed by* is about the **identifier**, and is not a claim about `/root`.
+
 **Detect proactively**
 Before reaching for `--check-only --script` on a file, check it for references to any name in `project.godot`'s `[autoload]` section — any hit means check-only will false-fail; route through the bounded-boot check instead. Don't confuse with #34 (`op=reimport` stale-log): same `Identifier not found: <AutoloadName>` text, but #34 is transient append-only editor-log noise after a reimport, while this is structural to check-only mode and fires on every run.
 

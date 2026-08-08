@@ -35,8 +35,9 @@ that there, then squash-merge so the code change and the Done-stamp become a sin
 - **`main` already checked out somewhere else? Merge WITHOUT taking it.** Git refuses
   `git checkout main` outright while another worktree holds that branch, and grabbing it would
   inflict the very block described above on that session. When your branch is already a linear
-  descendant of `origin/main` (rebase first if not), the squash result is by definition your
-  branch's tree with `origin/main` as its single parent — so build it directly and push the SHA:
+  descendant of `origin/main` (**rebase first if not — and if you rebased, RE-RUN THE VERIFY GATE
+  before merging**, per below), the squash result is by definition your branch's tree with
+  `origin/main` as its single parent — so build it directly and push the SHA:
 
   ```sh
   SQ=$(git commit-tree "$(git rev-parse HEAD^{tree})" -p origin/main -F msg.txt)
@@ -48,6 +49,16 @@ that there, then squash-merge so the code change and the Done-stamp become a sin
   branch's tree, so the approval still covers exactly what ships). Pushing the SHA rather than the
   branch also means a sibling's unpushed commit sitting on your local `main` cannot ride along.
   The other checkout simply fast-forwards on its next pull.
+- **A sign-off approves a TREE, not a branch name. If the base moved between approval and merge,
+  RE-RUN THE VERIFY GATE on the rebased result first.** In a multi-session repo `main` routinely
+  gains a sibling's merge while your branch sits in review, and the rebase that follows is usually
+  conflict-free — which is exactly what makes it dangerous: the branch now holds code that has
+  never been compiled or tested against the base it is joining, while the pre-rebase green gate
+  sits there ready to be offered as evidence for a combination it never measured. Two sessions
+  editing the same shared test fake merge silently. `git merge-base --is-ancestor` answers "can
+  this merge cleanly", never "is this still the thing that was reviewed" — and neither does the
+  empty `git diff $SQ HEAD` check below, which compares the squash to the *rebased* branch. The
+  gate is the only thing that closes the gap. (Measured 2026-08-02, youtube-manager task-014.)
 - This squash-merge pause doubles as the review surface; a compare-references diff view is
   the alternative. There is no merge commit to inspect after the fact, so review happens here.
 
@@ -80,6 +91,21 @@ file** — under this variant the policy is: omit it.
   out of the way. This is what makes "nothing more" above enforceable rather than
   aspirational. (Commit-time sibling, different failure: `git-commit-format`'s
   re-verify-the-branch rule.)
+- **And re-run `git status` immediately before the merge — a GUI editor open on the project is a
+  SECOND WRITER to your source tree, and it does not announce its writes.** The rule above audits
+  the *commit list*; this one audits the *working tree*, and the two catch different things. A
+  sign-off is granted against the tree as it stood at review time, but an open editor (Godot,
+  Unity, a design tool) keeps its own in-memory copy of every asset you touched and flushes it on
+  its own schedule — persisting **runtime/preview state as authored data**, and silently
+  re-clobbering a file you already restored with `git checkout --`, because the restore changed
+  disk while the editor's copy lived on. So the diff that ships is not necessarily the diff that
+  was approved, and nothing in git flags the difference: the spilled content is syntactically
+  legal, the project still loads, the tests still pass. `git status --porcelain` must list **only**
+  the files you intended; treat any unexpected asset modification as editor spill, read it, revert
+  it, and force the editor to reload from disk before it saves again. (Measured 2026-08-02,
+  space-miner task-168: three nodes carried mid-animation poses baked in by an editor preview, and
+  a UI node had lost `visible = false` — all of it inside a fully-gated, signed-off branch, one
+  command from riding the squash-merge.)
 - Never push to `main` without that per-branch approval; never merge a branch that has not
   been reviewed. Force-pushing `main` is never OK (see `git-confirm-destructive`).
 - **Pushing the feature branch to origin is optional** (backup / multi-machine) — it is **not**
