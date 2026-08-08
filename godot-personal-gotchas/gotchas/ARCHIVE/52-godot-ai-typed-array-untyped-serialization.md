@@ -1,5 +1,11 @@
 ### 52. godot-ai `node_set_property` on a typed `Array[T]` export serializes an UNTYPED literal that fails to load — `node_get_properties` lies (shows it populated)
 
+**Status:** retired 2026-08-08 — fixed upstream in godot-ai 3.1.3 (`_coerce_typed_array`, with a
+hard error naming the failing element index). Body kept for a pre-3.1.3 pin, but **the Fix section
+below is now actively harmful**: it prescribes a `.tscn` hand-edit — this fleet's
+highest-risk operation (preference #1, gotcha #102) — to dodge a bug that no longer exists.
+**Un-retire if** a project pins godot-ai < 3.1.3.
+
 > **FIXED upstream — godot-ai ≥ 3.1.3. Do NOT follow the Fix section below on a current
 > install: it tells you to hand-edit a `.tscn` to work around a bug that no longer exists.**
 > `handlers/node_handler.gd:260` now routes typed-Array slots into `_coerce_typed_array`

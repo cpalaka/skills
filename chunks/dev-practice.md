@@ -11,15 +11,12 @@ how to work. When a skill's own description names your situation, that is the si
 weigh the read against what you'd otherwise get wrong, and skip it when you already
 know the answer.
 
-**Diagnose before you fix.** For any non-obvious bug, test failure, or unexpected
-behaviour, run the `diagnosing-bugs` loop — reproduce → minimise → hypothesise →
-confirm — **before** proposing or writing a fix. Do not skip straight to a patch on a
-symptom you have not reproduced.
-
-**TDD when there is runtime behaviour to drive.** For modules, pure functions, adapters,
-API endpoints, physics/math — write the failing test first (`tdd` skill), then the
-implementation. Skip it for pure scaffolding. The roster of required-coverage modules is
-the project's own — see the **test-roster knob**.
+**Named loops for two situations** — not because the practice is unfamiliar, but so the
+project's own skill gets used rather than an ad-hoc version: a non-obvious bug or
+unexplained test failure runs the `diagnosing-bugs` loop before any patch, and runtime
+behaviour (modules, pure functions, adapters, endpoints, physics/math) is driven test-first
+via `tdd`. Skip TDD for pure scaffolding. The roster of required-coverage modules is the
+project's own — see the **test-roster knob**.
 
 **Plan-approval is a gate.** The chain is **pick → plan approval → implement → verify →
 sign-off**. For non-trivial scope, plan briefly in chat (1–5 bullets) and get the plan

@@ -5,7 +5,7 @@
 # 768-char rows it had before. A budget nobody measures is a suggestion, so this makes
 # it checkable in one command. Run it after editing the table.
 #
-#   scripts/lint-index.sh            # gotchas index (140/60)
+#   scripts/lint-index.sh            # gotchas index (140/60) + body budget + retirement integrity
 #   scripts/lint-index.sh --prefs    # preferences index (110/320)
 
 set -uo pipefail
@@ -45,6 +45,37 @@ if [ "${1:-}" != "--prefs" ]; then
     echo "  TRIPWIRE: $rows rows — ADDING.md says split the mcp-bridge and headless clusters now"
     FAIL=1
   fi
+
+  # 5. body budget (ADDING.md: 4 KB) — a RATCHET, not a flat gate.
+  #    26 live bodies predate the budget and are grandfathered; failing on all of them would make the
+  #    check unrunnable and therefore ignored. Instead the count may only ever go DOWN: a new
+  #    over-budget body fails, and every one you trim lowers the baseline below.
+  BODY_MAX=4096
+  BODY_BASELINE=26          # measured 2026-08-08 post-prune; lower this whenever you trim one, never raise it
+  over=$(find "$HERE/../gotchas" -maxdepth 1 -name '*.md' ! -name 'RETIRED.md' -size +${BODY_MAX}c | wc -l | tr -d ' ')
+  if [ "$over" -gt "$BODY_BASELINE" ]; then
+    echo "  BODY BUDGET: $over bodies over ${BODY_MAX}B (baseline $BODY_BASELINE) — a new one breached it:"
+    find "$HERE/../gotchas" -maxdepth 1 -name '*.md' ! -name 'RETIRED.md' -size +${BODY_MAX}c -exec ls -S {} + \
+      | head -3 | while read -r f; do echo "    $(wc -c < "$f" | tr -d ' ')B  $(basename "$f")"; done
+    FAIL=1
+  elif [ "$over" -lt "$BODY_BASELINE" ]; then
+    echo "  BODY BUDGET: $over over ${BODY_MAX}B — below baseline $BODY_BASELINE, lower BODY_BASELINE to $over"
+  fi
+
+  # 6. retirement integrity — the check that #45/#52 needed and did not have.
+  #    A body that announces itself as retired/superseded/fixed-upstream MUST have a collapsed
+  #    index row, or the hot path keeps routing to a Fix section that is stale (and for #52 was
+  #    actively harmful: it prescribed a .tscn hand-edit to dodge a bug that no longer existed).
+  for f in "$HERE"/../gotchas/*.md; do   # maxdepth 1 by glob — ARCHIVE/ is deliberately not scanned
+    case "$(basename "$f")" in RETIRED.md) continue ;; esac
+    grep -qiE '^\*\*Status:\*\*|FIXED upstream' "$f" || continue
+    n=$(basename "$f" | cut -d- -f1 | sed 's/^0*//')
+    row=$(grep -E "^\| $n \|" "$SK")
+    printf '%s' "$row" | grep -qiE '_\((retired|superseded|fixed)' || {
+      echo "  UNRETIRED  #$n body says retired/superseded/fixed, index row does not — collapse the row + add a RETIRED.md line"
+      FAIL=1
+    }
+  done
 fi
 
 tok=$(( $(wc -c < "$SK") / 4 ))

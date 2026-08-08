@@ -30,3 +30,16 @@ Any new headless scene-tree test that (a) needs `get_tree()`, `get_nodes_in_grou
 
 **Confirmed by**
 2026-07-01, `space-miner-prototype` (Godot 4.7-stable). `tests/test_vacuum_claims.gd` (task-005, two-vacuum reel-claim regression) — `vacuum.gd._physics_process` calls `get_tree().get_nodes_in_group("vacuumable")`; the spec/plan-pinned `_initialize` harness aborted `Cannot call method 'get_nodes_in_group' on a null value`. A probe confirmed `get_root().is_inside_tree()==false` in `_initialize` and `==true` in the first `_process`. Moving the body to `_process` yielded 9/9. Sibling to #26/#27.
+
+## Third consequence, same cause (absorbed from #93, 2026-08-08)
+
+`get_root().add_child(n)` inside a `--script` test, then reading `n.global_transform`: the read
+errors `!is_inside_tree()` and **returns the identity transform** rather than failing. A test that
+asserts on a transform therefore compares against identity and can pass or fail for reasons that
+have nothing to do with the code under test.
+
+Same root cause as the two above — during `_initialize` the root `Window` is not itself in the tree,
+so adding a child to it does not put that child in the tree either. Await one frame
+(`await get_tree().process_frame`) before any tree-dependent read, or drive the test from a scene.
+
+*Confirmed by* 2026-07-28, `space-miner-game` task-097, Godot 4.7-stable.

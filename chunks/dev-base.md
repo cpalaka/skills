@@ -6,6 +6,13 @@
 <!-- codegraph left the bundle 2026-07-25: it self-gates on `.codegraph/` and was inert in every
      project but chaipalaka.com, so every other session paid ~380 words to be told "ignore this
      chunk entirely". Import it explicitly in a project once that project has an index. -->
+<!-- code-hygiene left the bundle 2026-08-08 (always-on audit). Its four rules — no hardcoded
+     secrets, no debug logging in shipped code, declare top-level deps, ask when unsure and prefer
+     reversible steps — are standard practice a current model already follows, and it was the one
+     chunk in this bundle that told the model how to work rather than telling it something about
+     THIS environment. The only enforcement that mattered (the repo-root secret scan) is a step in
+     `verify-gate` and is unaffected. The file stays for explicit import by any project that wants
+     the rules stated. -->
 
 @~/.claude/chunks/git-sync-branch-start.md
 @~/.claude/chunks/git-commit-format.md
@@ -14,4 +21,3 @@
 @~/.claude/chunks/parallel-work.md
 @~/.claude/chunks/verify-gate.md
 @~/.claude/chunks/dev-practice.md
-@~/.claude/chunks/code-hygiene.md

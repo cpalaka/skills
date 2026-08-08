@@ -59,3 +59,22 @@ window permanently backgrounded. `editor_screenshot source="game"` reported `sta
 `frames_drawn: 2303`; a following `game_eval` returned `frames: 2303` again after `force_draw()`, and a
 `LOOK_MEGA_SCALE` override whose respawn needs frames left the scene tree unchanged — a tree walk for the
 respawned body returned empty, which reads exactly like "the body does not exist".
+
+---
+
+## Second symptom, same precondition (absorbed from #103, 2026-08-08)
+
+**Injected key TAPS work and HELDs do not**, in the same session. Synthesise a press with
+`Input.parse_input_event`, await ~90 frames, and the burn never fires — speed decays at exactly the
+drag rate, as if nothing were pressed. That exactness is the tell: the input was not weak, it was
+absent.
+
+An unfocused window **clears held key state** (the OS focus-loss path flushes it) while discrete
+press/release events still land. So a tap — press and release inside one delivery — survives, and
+anything whose effect depends on the key remaining down does not.
+
+Both this and the stall above are the same precondition: *the game window does not have focus.*
+Before trusting any injected-input measurement, confirm focus — or drive named actions through
+godot-ai `game_manage op="input_sequence"`, which does not depend on OS key state.
+
+*Confirmed by* 2026-08-03, `space-miner-game` task-166 (onecam tracer momentum), Godot 4.7-stable.

@@ -186,9 +186,10 @@ upstream package restructured the addon layout) — do not proceed to step 6.
 (scene/node/script/property creation, `input_map_manage`, `script_patch`, `project_run`,
 `editor_screenshot`, `logs_read`). It writes most struct types correctly (why it is the writer)
 but is **not** universal — the current quirk set lives in the `godot-personal-gotchas` skill:
-#40 (`@tool` gate on creating custom `class_name` Resources), #52 (typed-`Array[T]` exports
-serialized untyped → load empty), #19/#38 (first-save `uid=` omission); #24's
-`Vector2i`/`Vector3i` no-op is fixed in 2.8.0+. godot-mcp stays as the read/test
+#19 (first-save `uid=` omission, still live on godot-ai 3.1.3), #23/#25 (no Skeleton3D-bone or
+AnimationTree authoring verbs — both re-probed 2026-08-08 and still true). Several once-live bridge
+quirks are now FIXED upstream and retired — #24 `Vector2i` (2.8.0+), #40 `@tool` create gate,
+#45 `input_map` list, #52 typed-`Array[T]` — see `gotchas/RETIRED.md` before citing any of them. godot-mcp stays as the read/test
 complement. Skip this only if the project writes through godot-mcp (not recommended — godot-mcp
 silently no-ops `Rect2`, gotcha #15).
 

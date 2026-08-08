@@ -18,8 +18,10 @@ claim it passes. The gate is invariant; the exact commands are a knob.
 4. **smoke** — bring the app up and confirm the affected surface actually renders /
    responds, then bring it back down. A green build is not a working app.
 5. **secret-scan** — grep the working tree for leaked credentials; expect **zero**
-   matches before the change leaves your machine (the `code-hygiene` no-secrets rule
-   is what this scan enforces).
+   matches before the change leaves your machine. Secrets are read from the environment
+   or a secret manager at runtime, never written into source or committed config — and
+   the same goes for environment-specific server paths, hosts and IPs, which resolve
+   from config/DNS/SSH rather than literals.
 
 The exact commands, the directory they run in, the build's output check, the
 secret-scan grep pattern, and any env are project-specific — read them from the

@@ -14,3 +14,19 @@ Pinned/jointed body "won't follow" a node moved by `move_and_slide`/`move_and_co
 
 **Confirmed by**
 2026-05-30 — `arm-control` prototype, build step 5 (shoulder rig for the physics sword-arm). Live via godot-mcp input-injection + `runtime_state watch`: with `sync_to_physics = true`, player x went 0→320 while the anchor x stayed 12 (slope 0); with `false`, the anchor x tracked 12→332 and the pinned arm followed at ~0.03px drift.
+
+---
+
+## Second symptom, same cause (absorbed from #81, 2026-08-08)
+
+Script-driving an `AnimatableBody2D` with `sync_to_physics = true` — a moving platform, kinematic
+rock or carrier — by writing `position`/`global_position` every frame: **the node stays at the
+origin.** No error, no warning, no push. The tell is that `rotation` *does* apply, so the object
+reports a correct orientation from the wrong place, which reads as "physics is broken" rather than
+"the setter no-oped".
+
+Same root cause: with `sync_to_physics` on, the server drives the transform from the physics frame
+and suppresses the position setter. Move it with `move_and_collide`/velocity, or turn
+`sync_to_physics` off and accept the one-frame lag for riders.
+
+*Confirmed by* 2026-07-26, `space-miner-game` task-130 (plane-slice colliders), Godot 4.7 macOS.

@@ -6,12 +6,23 @@ Before instructing on Godot 4.x class API specifics (property names, method sign
 
 **Preferred behavior**
 
-Run `mcp__godot-mcp__godot_docs fetch_class <ClassName>` (with `--section properties` / `--section description` as needed) to ground the response on the current engine version's docs rather than memory. Especially relevant for:
+Two sources, and **the split matters** (corrected 2026-08-07 — the older form of this preference
+claimed godot-ai was docs-blind, which was wrong):
 
-- AnimationTree dock UI (reworked in 4.6.x — see personal-gotchas #4)
-- Skeleton2D modifications (Inspector behavior shifted — see personal-gotchas #11)
+- **godot-ai `api_manage(op="get_class")`** → version-correct ClassDB **metadata** read live from the
+  connected editor: property, method, signal, enum and constant names plus signatures, and the
+  inheritor list. This is what "sub-resource property names" actually needs, so reach for it first.
+  The caller-facing op is `get_class`; the GDScript handler is named `get_class_info` and writing
+  *that* into a call gets it rejected.
+- **`mcp__godot-mcp__godot_docs fetch_class <ClassName>`** (`section: "description"`) → the
+  class-reference **prose** ClassDB does not carry. This is the only remaining reason to keep
+  godot-mcp connected for docs work, alongside `godot_runtime_state`'s hz-sampled watch.
+
+Especially relevant for:
+
 - Tween API, EditorPlugin hooks, FileSystem dock affordances
 - Anywhere a walkthrough mentions specific button positions, right-click menu entries, or property names by hand
+- Any editor-affordance claim: dock layouts and Inspector behaviour shifted through 4.6.x and again in 4.7
 
 **Why**
 

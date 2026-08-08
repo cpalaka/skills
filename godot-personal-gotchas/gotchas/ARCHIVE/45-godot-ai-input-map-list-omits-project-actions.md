@@ -1,5 +1,9 @@
 ### 45. godot-ai `input_map_manage op=list` omits the project's `project.godot` `[input]` actions — it reads the editor's live InputMap, not ProjectSettings
 
+**Status:** retired 2026-08-08 — fixed upstream in godot-ai 3.1.3 (upstream #213); measured
+`count: 11` where the pre-fix behaviour was `count: 0`. Body kept for a pre-3.1.3 pin.
+**Un-retire if** a project pins godot-ai < 3.1.3.
+
 > **FIXED upstream — godot-ai ≥ 3.1.3. `list` is now the correct project inventory; do NOT
 > follow the Fix section below on a current install.**
 > `handlers/input_handler.gd:10-52` (`_read_user_authored_actions`, citing upstream #213) reads

@@ -1,5 +1,9 @@
 ### 24. godot-ai `node_set_property` can't write a `Vector2i` — v2.5.x sets the container's LENGTH; v2.7.2+ silently no-ops
 
+**Status:** retired 2026-08-08 — fixed upstream in godot-ai 2.8.0 (PR #582); fix re-verified holding
+on 3.1.3. Every install in this fleet is ≥3.1.3, so the failure is unreachable here. Body kept for a
+pre-2.8.0 pin. **Un-retire if** a project pins godot-ai < 2.8.0.
+
 > **Re-verified on godot-ai 3.1.3 (2026-08-07) — the FIX HOLDS, but every line cite below has DRIFTED.**
 > Current anchors: `_check_coerced` strict-checks `TYPE_VECTOR2I`/`3I`/`4I` at `node_handler.gd:592-595`;
 > the coercion branches sit at `:654-658` and `:841-864`. The cites in this entry (`:697`, `:813`/`:816`,

@@ -6,6 +6,29 @@ index/body split the catalog itself uses.
 
 ## Filing a new gotcha
 
+### Admission test — run this before classifying
+
+Universality is a *scope* test, not a *value* test, and the catalog was filled by candidates that
+passed scope and nothing else. Answer all three on the record; any No means it does not go in the
+index. (Same three tests the `wrap-session` skill applies at the closeout gate — this is the second
+line of defence, for entries filed mid-session.)
+
+1. **Will it recur?** A different day, ideally a different project. "Anyone doing X would hit this"
+   is not recurrence if X happens once. A correct, hard-won write-up of a one-time problem belongs
+   in that project's `docs/`, and it is *more* findable there.
+2. **Is it non-inferable?** Silent failure, or a signal that actively lies (a green run that should
+   be red), or version-specific tool behaviour post-dating training → **yes, file it, this is the
+   catalog's whole reason to exist**. A plain error message that names its own fix → no. Route the
+   near-misses honestly: "the parse error says exactly what is wrong" is a No even when the fix took
+   you an hour to find, because the next reader gets the same error text you did.
+3. **What does it displace?** Grep the index for the nearest existing row and name it, or write
+   `Supersedes: none (net-new surface)`. Duplicate pairs (#60/#98 — same fact, same error string,
+   same mechanized check, filed 4 weeks apart, second copy 4× longer) are what skipping this
+   produces.
+
+**At the 120-row tripwire, admission requires a retirement.** Below it, note the current row count
+in the filing so the trend stays visible.
+
 **This skill is the SINGLE SOURCE for universal gotchas** — do not copy them into any project's
 `docs/godot-gotchas.md`. Classify first:
 
@@ -49,6 +72,22 @@ written budget that recurs.
 - Cause is a *fragment*, not a sentence: "Variant-returning math globals", not an explanation.
 - Cut version anchors, sibling refs, and measured figures from the row — the body keeps them, and
   siblings belong in **Symptom families**.
+
+### Body budget — 4 KB
+
+Bodies are not on the hot path, which is exactly why they inflate unwatched. Measured 2026-08-08:
+June bodies averaged 2.9 KB, the 2026-08-07 batch averaged 5.2 KB for the same *class* of fact.
+Nothing had changed except the absence of a number.
+
+**Symptom / Cause / Fix / Detect proactively / Confirmed by, ≤ 4 KB total** (`lint-index.sh --bodies`
+checks it). Over budget means you are writing a post-mortem, not a lookup entry — and a body read at
+11pm mid-failure is worth less the longer it is. Split the investigation narrative into the
+project's `docs/` and keep the entry to what a reader needs to *recognise and fix* the failure.
+
+The cap is set against the catalog's own history, not intuition: the median body is 3.2 KB and 35 of
+107 exceed 4 KB, so this bites the inflated tail without indicting the norm. Those 35 are
+grandfathered — the number governs new entries and any body you are already editing for another
+reason.
 
 ### When the index outgrows this shape
 
