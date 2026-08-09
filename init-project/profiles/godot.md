@@ -163,13 +163,13 @@ from scratch (ask them to run Godot first).
 ### 3. Install the in-engine addon (version-pinned to the server)
 
 ```
-npx -y @satelliteoflove/godot-mcp@3.6.1 --install-addon .
+npx -y @satelliteoflove/godot-mcp@4.1.0 --install-addon .
 ```
 
-Copies `addons/godot_mcp/` (the WebSocket bridge the servers connect to). **WHY @3.6.1:**
-the addon version must match the server pin in `tools/mcp/package.json` — a 2.x-addon ↔
-3.x-server split risks a bridge-protocol mismatch (connection fails / tools misbehave after
-`/mcp`). Bump one → bump both. Then **verify both paths step 6 depends on** exist, or the
+Copies `addons/godot_mcp/` (the WebSocket bridge the servers connect to). **WHY @4.1.0:**
+the addon version must match the server pin in `tools/mcp/package.json` — an addon ↔
+server major-version split risks a bridge-protocol mismatch (connection fails / tools misbehave
+after `/mcp`). Bump one → bump both (the `--install-addon` flag verified present on 4.1.0's CLI). Then **verify both paths step 6 depends on** exist, or the
 autoload registration silently references a missing file:
 
 ```
@@ -187,9 +187,11 @@ upstream package restructured the addon layout) — do not proceed to step 6.
 `editor_screenshot`, `logs_read`). It writes most struct types correctly (why it is the writer)
 but is **not** universal — the current quirk set lives in the `godot-personal-gotchas` skill:
 #19 (first-save `uid=` omission, still live on godot-ai 3.1.3), #23/#25 (no Skeleton3D-bone or
-AnimationTree authoring verbs — both re-probed 2026-08-08 and still true). Several once-live bridge
-quirks are now FIXED upstream and retired — #24 `Vector2i` (2.8.0+), #40 `@tool` create gate,
-#45 `input_map` list, #52 typed-`Array[T]` — see `gotchas/RETIRED.md` before citing any of them. godot-mcp stays as the read/test
+AnimationTree authoring verbs — both re-probed 2026-08-08 and still true). Three once-live bridge
+quirks are now FIXED upstream and retired — #24 `Vector2i` (2.8.0+), #45 `input_map` list,
+#52 typed-`Array[T]`; #40 (`@tool` create gate) is retired too, but as *inferable* — the gate is
+current upstream behaviour and its error names its own fix. See `gotchas/RETIRED.md` before citing
+any of them. godot-mcp stays as the read/test
 complement. Skip this only if the project writes through godot-mcp (not recommended — godot-mcp
 silently no-ops `Rect2`, gotcha #15).
 
@@ -222,7 +224,7 @@ auto-starts a uv-managed Python server on `:8000` + `:9500`.)
 The engine's step-6 mechanic (install once → commit the lock, not the modules → gitignore the
 tree → record the rehydrate command) runs against THIS payload:
 
-1. `tools/mcp/package.json` is already stamped (pins `@satelliteoflove/godot-mcp@3.6.1` and
+1. `tools/mcp/package.json` is already stamped (pins `@satelliteoflove/godot-mcp@4.1.0` and
    `@ryanmazzolini/minimal-godot-mcp@0.1.6` exactly — no `^`/`~`).
 2. `npm install --prefix tools/mcp --no-audit --no-fund` → writes `tools/mcp/package-lock.json`
    (lockfileVersion 3, sha512 per package) and materializes `tools/mcp/node_modules/`.

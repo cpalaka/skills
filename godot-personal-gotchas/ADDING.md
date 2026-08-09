@@ -84,10 +84,11 @@ checks it). Over budget means you are writing a post-mortem, not a lookup entry 
 11pm mid-failure is worth less the longer it is. Split the investigation narrative into the
 project's `docs/` and keep the entry to what a reader needs to *recognise and fix* the failure.
 
-The cap is set against the catalog's own history, not intuition: the median body is 3.2 KB and 35 of
-107 exceed 4 KB, so this bites the inflated tail without indicting the norm. Those 35 are
-grandfathered — the number governs new entries and any body you are already editing for another
-reason.
+The cap is set against the catalog's own history, not intuition: measured pre-prune, the median body
+was 3.2 KB and 35 of 107 exceeded 4 KB, so this bites the inflated tail without indicting the norm.
+The over-budget bodies are grandfathered — after the prune, 26 live ones remain, which is
+`lint-index.sh`'s `BODY_BASELINE` (a downward-only ratchet). The number governs new entries and any
+body you are already editing for another reason.
 
 ### When the index outgrows this shape
 

@@ -53,7 +53,7 @@ PROPAGATE (= portable Godot/Blender knowledge or generalizable workflow):
 - New sections in the MCP guides documenting tool surfaces or workflow rules.
 - New CLAUDE.md guidance about which skills/docs to consult and when.
 - New workflow preferences that generalize across Godot projects: how to handle a class of edits, when to invoke a skill, plan-execution discipline, conditional rules tied to project-state (public/private, has-a-deploy-workflow, etc.).
-- **MCP tool-surface changes** — when an MCP server renames or removes a tool action (e.g. godot-mcp's `get_errors`/`get_debug_output` → `get_log_messages source="editor"` in v3.6.1, or the unprefixed → `godot_*` prefix migration), or version-scopes a behavior (e.g. the struct-write no-op narrowing to `Rect2`-only). These are CROSS-CUTTING — before classifying such a hunk, read [`MCP-SWEEP.md`](MCP-SWEEP.md) and handle it as the sweep it specifies, never as a single-pair diff.
+- **MCP tool-surface changes** — when an MCP server renames or removes a tool action (e.g. godot-mcp's `get_errors`/`get_debug_output` → `get_log_messages` in v3.6.1, or the unprefixed → `godot_*` prefix migration), or version-scopes a behavior (e.g. the struct-write no-op narrowing to `Rect2`-only). These are CROSS-CUTTING — before classifying such a hunk, read [`MCP-SWEEP.md`](MCP-SWEEP.md) and handle it as the sweep it specifies, never as a single-pair diff.
 
 DO NOT propagate (= project-specific):
 - Convention decisions made by this project (axis-flip choices, naming choices, game-design rules).

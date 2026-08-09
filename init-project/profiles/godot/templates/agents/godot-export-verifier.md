@@ -149,6 +149,7 @@ downstream broke.
 - You do **not** launch shipped builds beyond the artifact checks above; hand the user the
   commands instead.
 - If an export fails in a way that smells like an engine quirk, surface it but don't
-  speculate on the fix — check the `godot-personal-gotchas` skill, or
-  `godot_editor get_log_messages source="editor"` (see `docs/godot-mcp-guide.md`) for
+  speculate on the fix — check the `godot-personal-gotchas` skill, or godot-ai
+  `logs_read source="editor"` (see `docs/godot-mcp-guide.md`; godot-mcp's
+  `get_log_messages` has no `source` arg — phantom, silently stripped) for
   engine-side diagnosis.

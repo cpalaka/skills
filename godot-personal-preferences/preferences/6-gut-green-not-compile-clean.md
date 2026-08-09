@@ -12,7 +12,7 @@ The strongest verification chain pre-F5:
 
 1. **GUT** — unit-tested logic
 2. **`godot --headless --path . --check-only --quit`** — broad parse coverage; works when the editor is closed. **Not exhaustive, though** — it misses *runtime-compile* errors that fire only when a script is actually loaded (e.g. indexing an array literal: `var x := ["a","b"][i]` → `Variant` → `:=` can't infer; personal-gotchas #44). The LSP (`get_diagnostics`/`scan_workspace_diagnostics`) is blind to these too.
-3. **F5 with `mcp__godot-mcp__godot_editor get_log_messages source="editor"`** (or godot-ai `logs_read` after `project_run`) — runtime errors AND parse errors when scenes load scripts
+3. **F5 with godot-ai `logs_read source="editor"`** (or after `project_run`), or godot-mcp `godot_editor get_log_messages` (**no `source` arg — phantom, silently stripped**; unfiltered, so prefer godot-ai) — runtime errors AND parse errors when scenes load scripts
 
 Because both static layers have blind spots, the real backstop is making the **suite itself compile every script**: a behavioral test for logic modules, or a **preload-smoke test** (`const X := preload("res://…")` + `X.new()`/`free()`, or `load(scene).instantiate()`) for scene controllers / support scripts with no other coverage — a real `preload`/`load` forces a real compile and FAILS on a runtime-compile error. Layers (1)/(2) overlap with (3) but catch failures earlier and cheaper. Skipping (2) on the basis of (1) is the trap; treating (2) as sufficient for "compiles clean" is the deeper trap.
 
@@ -22,7 +22,7 @@ This is a strict superset of the warnings-as-errors gates that GUT covers. The f
 
 **How to apply**
 
-When the editor is open, prefer `mcp__godot-mcp__godot_editor get_log_messages source="editor"` over `--check-only --quit` — the headless command tries to bind the godot-mcp WebSocket port (6550) and hangs if the editor's already on it, leaving orphan Godot processes. Always `ps aux | grep godot` before re-running headless when the editor is open.
+When the editor is open, prefer godot-ai `logs_read source="editor"` (not godot-mcp's `get_log_messages source="editor"` — the `source` arg is a phantom, silently stripped) over `--check-only --quit` — the headless command tries to bind the godot-mcp WebSocket port (6550) and hangs if the editor's already on it, leaving orphan Godot processes. Always `ps aux | grep godot` before re-running headless when the editor is open.
 
 When the editor is closed, `--check-only --quit` is the right tool. When in doubt or under time pressure, spot-read any `.gd` script that's about to be loaded by a scene the user is about to F5 — fastest manual verification.
 

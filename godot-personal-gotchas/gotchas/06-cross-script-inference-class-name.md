@@ -18,10 +18,10 @@ Two options, in order of preference:
 
 For the **untyped-base** variant (`var s := p.speed` on an untyped param): use plain `=` (`var s = p.speed`, `s` becomes Variant — legal) or annotate the receiver (`var s: float = p.speed`). Never `:=` on a member access of an untyped/Variant base.
 
-**`mcp__godot__get_diagnostics` does NOT catch this.** The per-file LSP has no cross-script context — it reports the file clean. The failure surfaces only when Godot's engine parser tries to load the script at scene-load time. **Always cross-check `mcp__godot-mcp__godot_editor get_log_messages source="editor"` after writing GDScript that touches another script's exports / methods / signals.** Don't treat `get_diagnostics` clean as "all good" — necessary but not sufficient.
+**`mcp__godot__get_diagnostics` does NOT catch this.** The per-file LSP has no cross-script context — it reports the file clean. The failure surfaces only when Godot's engine parser tries to load the script at scene-load time. **Always cross-check godot-ai `logs_read source="editor"` (not godot-mcp `get_log_messages source="editor"` — the `source` arg is a phantom, #104) after writing GDScript that touches another script's exports / methods / signals.** Don't treat `get_diagnostics` clean as "all good" — necessary but not sufficient.
 
 **Detect proactively**
-When writing GDScript that touches `other_node.some_member` where `some_member` is declared on `other_node`'s attached script, prefer typed annotations on the consumer side or add `class_name` to the source. After writing such code, run `mcp__godot-mcp__godot_editor get_log_messages source="editor"` proactively — don't wait to be asked.
+When writing GDScript that touches `other_node.some_member` where `some_member` is declared on `other_node`'s attached script, prefer typed annotations on the consumer side or add `class_name` to the source. After writing such code, run godot-ai `logs_read source="editor"` proactively — don't wait to be asked.
 
 **Confirmed by**
 Hit during the `3d-prototype-1` animation Step 6 on 2026-05-26 — `scripts/player_anim.gd` had `var steering := _player.is_steering()` and `var slow := speed < _player.idle_threshold` where `player.gd` had no `class_name`. The parse failure was invisible to `mcp__godot__get_diagnostics` (reported clean) and only surfaced via `mcp__godot-mcp__godot_editor get_log_messages source="editor"` after the user F5'd and reported "scene doesn't load". Fixed by annotating the two locals (`var steering: bool = ...`, `var slow: bool = ...`).

@@ -15,9 +15,9 @@ The Godot **editor keeps in-memory copies of every open resource** (open scenes 
 externally. On its next save — F5 autosave, Ctrl+S, or a godot-ai `scene_save` — it writes its
 stale in-memory copy back, overwriting the external edit. This is the **editor's own behavior, not
 any MCP server's**; it is the root mechanism behind the "if the scene is open, close+reopen before
-saving so you don't clobber the hand-edit" fix notes in **#15** (godot-mcp `Rect2`), **#24**
-(godot-ai `Vector2i`), and **#52** (godot-ai typed `Array[T]`). Those MCP coercion gaps just make
-it *common* by forcing hand-edits.
+saving so you don't clobber the hand-edit" fix notes in **#15** (godot-mcp `Rect2`, still live) and
+the now-retired **#24** (godot-ai `Vector2i`) / **#52** (godot-ai typed `Array[T]`) — both resolved
+by godot-ai ≥3.1.3 and archived; of the three, only #15 still forces a hand-edit today.
 
 **Fix**
 

@@ -20,7 +20,7 @@ A ≡ C is the whole finding: adding `--check-only` changed nothing. Note also t
 
 **Fix**
 - With `--script <file>`: `--check-only` **is** a real parse check, per file (D/E). That is its documented use — but it false-fails on any script referencing an `[autoload]` (#35), so it is only safe on autoload-free files.
-- For project-wide parse coverage, the working gates are: a **preload-smoke test** that `preload()`s every script in the shipped surface (the real backstop — see personal-preferences #6), a **bounded real boot** of each entry scene (`godot --headless --path . res://path/scene.tscn`, killed after a few seconds, asserting zero `SCRIPT ERROR` lines), or the editor's own log (`get_log_messages source="editor"`).
+- For project-wide parse coverage, the working gates are: a **preload-smoke test** that `preload()`s every script in the shipped surface (the real backstop — see personal-preferences #6), a **bounded real boot** of each entry scene (`godot --headless --path . res://path/scene.tscn`, killed after a few seconds, asserting zero `SCRIPT ERROR` lines), or the editor's own log (godot-ai `logs_read source="editor"` — godot-mcp's `get_log_messages` `source` arg is a phantom, #104).
 - If a project's CLAUDE.md / CI describes bare `--check-only --quit` as an "exhaustive GDScript parse", that wording is wrong — fix the wording, not just the command.
 
 **Detect proactively**

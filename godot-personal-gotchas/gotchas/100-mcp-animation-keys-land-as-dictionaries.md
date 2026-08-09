@@ -81,7 +81,7 @@ grep -A6 'tracks/[0-9]*/keys' *.tscn | grep -n '"values": \[{'
 
 A `values` array that opens with `{` is a Dictionary key. Expect zero hits on any track addressing a typed property (`:quaternion`, `:position`, `:scale`, `:modulate`, …). **Never accept `validate`'s `valid: true` as evidence that keys are typed** — it is a path check, nothing more. `precommit-scan.sh` check #100 runs this.
 
-The general form: any MCP write whose value is a *structured* Variant is a candidate for silent Dictionary-ification. Read the saved file, not the tool's acknowledgement. Sibling to #99 (the `.tscn` is the authority on what authoring actually did) and #45/#24 (bridge writes that report success and no-op).
+The general form: any MCP write whose value is a *structured* Variant is a candidate for silent Dictionary-ification. Read the saved file, not the tool's acknowledgement. Sibling to #99 (the `.tscn` is the authority on what authoring actually did); #45/#24 were the same report-success-and-no-op class before godot-ai ≥3.1.3 resolved them (retired — see RETIRED.md).
 
 **Confirmed by**
 2026-08-02, `space-miner-game` task-168 (onecam Tumble AnimationPlayer), Godot 4.7, godot-ai 2.8.4 — three quaternion tracks, twelve keys, all committed as Dictionaries. Caught only because the task's new test interpolated the track and tried to assign the result to a typed `Quaternion` (`Trying to assign value of type 'Dictionary' to a variable of type 'Quaternion'`); the scene had already saved and validated clean.

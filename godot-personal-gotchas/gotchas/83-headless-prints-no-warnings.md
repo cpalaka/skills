@@ -10,7 +10,7 @@ The headless runtime has no warning sink — GDScript's `gdscript/warnings/*` di
 
 **Fix**
 - Do not cite a headless grep as warning-cleanliness evidence — it is an empty-scope check, which is worse than no check because it reads as a pass.
-- Get warnings from the editor: `mcp__godot-mcp__godot_editor get_log_messages source="editor"` with the project open, or `minimal-godot get_diagnostics`.
+- Get warnings from the editor: godot-ai `logs_read source="editor"` with the project open (or godot-mcp `get_log_messages severity="warning"` on 4.1.0 — its `source` arg is a phantom, #104), or `minimal-godot get_diagnostics`.
 - Or satisfy the intent **structurally** instead of by grep: adopt an annotation convention (e.g. `@warning_ignore("integer_division")` on every intentional integer division) and check the convention. When unsure whether a construct warns, just add the annotation — cheaper than the verification.
 
 **Detect proactively**
