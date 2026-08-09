@@ -53,9 +53,11 @@ Opt-in per launch, never a default for subagents/workflows. Still usage-limited 
 | Posture | Adds | Buys | Cost shape |
 |---|---|---|---|
 | `none` | — | — | 0 agents. The default. |
-| `critic` | completeness critic + counter-critic | the absence/method-error slots, where insight beats diligence most sharply | 1–2 agents, **fixed** regardless of diff size |
-| `insight` | finders | lens-level discovery depth | scales with **lens count** (8–12) — first rung whose cost isn't fixed |
+| `critic` | completeness critic + counter-critic | the absence/method-error slots, where insight beats diligence most sharply | 1–2 agents, **fixed** regardless of diff size. **Recommend here.** |
+| `insight` | finders | **measured 2026-08-08: no gain.** See below | scales with **lens count** (8–12) — first rung whose cost isn't fixed |
 | `full` | synthesis | cross-finding narrative | +1 agent |
+
+**`insight` is measured and unsupported — don't reach past `critic` without a reason this run is different.** A/B on one lens and one diff, N=3 per tier: scarce found *fewer* findings (5.67 vs 6.67) and zero HIGHs against workhorse's one, and across-tier disagreement (Jaccard 0.51) never cleared the within-tier noise floor (0.61) — two runs of the same tier differ as much as the tiers do. The only clean asymmetry favoured workhorse 3/3 vs 0/3. Caveat honestly: one lens, one diff — and the tier-unique findings split by *kind* (scarce caught a shader and a doc, workhorse caught shell control flow), so a shader- or spec-heavy subject may invert it. Full method and scope limits: ADR 0006 in `cpalaka-claude-skills`. Where the two tiers genuinely differ is *what* they look at, and vendor lenses buy that diversity more cheaply than 2× token price.
 
 **Verify is never auto-scarce at any rung.** A *value* argument, not a rationing one, so a looser window doesn't touch it: verification is scoped diligence against named files, and the scarce tier's edge is in unscoped judgment. It is also the only stage whose count is **unbounded at launch** (it scales with findings *found*), so a scarce pin there can't be projected — an override may force it, but the script must warn that the projection excludes it.
 
