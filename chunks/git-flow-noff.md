@@ -1,4 +1,4 @@
-<!-- chunk:git-flow-noff | kind: fork | single-source: cpalaka-claude-skills/chunks/git-flow-noff.md -->
+<!-- chunk:git-flow-noff | kind: fork | single-source: skills/chunks/git-flow-noff.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## git-flow: `--no-ff` merge variant (opt-in)

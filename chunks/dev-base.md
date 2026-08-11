@@ -1,4 +1,4 @@
-<!-- chunk:dev-base | kind: bundle | single-source: cpalaka-claude-skills/chunks/dev-base.md -->
+<!-- chunk:dev-base | kind: bundle | single-source: skills/chunks/dev-base.md -->
 <!-- The dev-process base every dev Profile imports. Recursively @imports the universal base chunks. -->
 <!-- Codex does not expand the @ lines below: when a Codex AGENTS.md directs you here, read every
      listed child completely and resolve ~/.claude/chunks/<name> as ~/.codex/chunks/<name>. -->

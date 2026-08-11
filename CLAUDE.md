@@ -1,4 +1,4 @@
-# CLAUDE.md — cpalaka-claude-skills
+# CLAUDE.md — skills
 
 Operating notes for working **in this repo**. For *what each skill is* and how to install, see
 [`README.md`](./README.md). For the domain vocabulary (Skill, Chunk, Template, Profile, Gotcha,

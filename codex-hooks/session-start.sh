@@ -7,7 +7,7 @@ export PATH
 
 payload=$(cat)
 session_cwd=$(printf '%s' "$payload" | /usr/bin/jq -r '.cwd // empty' 2>/dev/null)
-domain_adapter=/Users/chaipalaka/Code/github/cpalaka-claude-skills/codex-hooks/claude-session-start-adapter.sh
+domain_adapter=/Users/chaipalaka/Code/github/skills/codex-hooks/claude-session-start-adapter.sh
 domain_source=/Users/chaipalaka/.claude/hooks/context-md-adr-inject.sh
 godot_source=/Users/chaipalaka/.claude/hooks/godot-ai-channel-check.sh
 

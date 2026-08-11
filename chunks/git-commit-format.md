@@ -1,4 +1,4 @@
-<!-- chunk:git-commit-format | kind: invariant | single-source: cpalaka-claude-skills/chunks/git-commit-format.md -->
+<!-- chunk:git-commit-format | kind: invariant | single-source: skills/chunks/git-commit-format.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## Commit format & hygiene

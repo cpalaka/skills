@@ -1,4 +1,4 @@
-<!-- chunk:parallel-work | kind: value-variant | single-source: cpalaka-claude-skills/chunks/parallel-work.md -->
+<!-- chunk:parallel-work | kind: value-variant | single-source: skills/chunks/parallel-work.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## Parallel work — waves & solo worktrees

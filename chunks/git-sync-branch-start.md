@@ -1,4 +1,4 @@
-<!-- chunk:git-sync-branch-start | kind: invariant | single-source: cpalaka-claude-skills/chunks/git-sync-branch-start.md -->
+<!-- chunk:git-sync-branch-start | kind: invariant | single-source: skills/chunks/git-sync-branch-start.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## Sync main, then branch off it (task start)

@@ -1,4 +1,4 @@
-# cpalaka-claude-skills — domain language
+# skills — domain language
 
 The shared vocabulary for this personal library of hand-authored Claude Code and
 Codex skills and the machinery (adapters, updaters, sync, scaffolding) that keeps
@@ -127,7 +127,7 @@ instruction files that projects reference rather than copy.
 
 **Chunk**:
 A single-source, invariant dev-process instruction file committed in
-`cpalaka-claude-skills/chunks/`, delivered to Claude Code by `@import` and to
+`skills/chunks/`, delivered to Claude Code by `@import` and to
 Codex by an explicit `AGENTS.md` read through the host's chunk symlink (reference,
 not copy). Because exactly one copy exists, a Chunk has **no parity/propagate
 lifecycle** — editing it updates every consumer at next launch. Holds invariant

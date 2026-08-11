@@ -1,4 +1,4 @@
-<!-- chunk:git-flow-squash | kind: fork | single-source: cpalaka-claude-skills/chunks/git-flow-squash.md -->
+<!-- chunk:git-flow-squash | kind: fork | single-source: skills/chunks/git-flow-squash.md -->
 <!-- Delivered by Claude @import or a Codex AGENTS.md explicit read through the host's chunk symlink.
      Edit here only — no per-project copies, no parity. -->
 

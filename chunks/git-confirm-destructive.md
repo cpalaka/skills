@@ -1,4 +1,4 @@
-<!-- chunk:git-confirm-destructive | kind: invariant | single-source: cpalaka-claude-skills/chunks/git-confirm-destructive.md -->
+<!-- chunk:git-confirm-destructive | kind: invariant | single-source: skills/chunks/git-confirm-destructive.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## Confirm with a human before any hard-to-reverse or outward-facing git/gh action

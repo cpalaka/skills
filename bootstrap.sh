@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bootstrap the Chunk library on a new macOS/Linux machine.
-# Prereq: this repo (cpalaka-claude-skills) is already cloned. Run this script from the clone:
+# Prereq: this repo (skills) is already cloned. Run this script from the clone:
 #   ./bootstrap.sh
 # It symlinks ~/.claude/chunks -> <clone>/chunks so every project's @~/.claude/chunks/<name>.md
 # imports resolve. Idempotent.
@@ -10,7 +10,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHUNKS="$REPO_DIR/chunks"
 LINK="$HOME/.claude/chunks"
 
-[ -d "$CHUNKS" ] || { echo "error: $CHUNKS not found — run this from the cpalaka-claude-skills clone." >&2; exit 1; }
+[ -d "$CHUNKS" ] || { echo "error: $CHUNKS not found — run this from the skills clone." >&2; exit 1; }
 mkdir -p "$HOME/.claude"
 
 if [ -L "$LINK" ]; then

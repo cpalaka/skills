@@ -1,4 +1,4 @@
-<!-- chunk:sandbox-auto | kind: invariant | single-source: cpalaka-claude-skills/chunks/sandbox-auto.md -->
+<!-- chunk:sandbox-auto | kind: invariant | single-source: skills/chunks/sandbox-auto.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 <!-- Trimmed 2026-07-25: the allowlist-hygiene rules, the settings.local.json merge contract, and
      the half-switched-tree recovery moved to the `sandbox-and-permissions` skill. They fire only

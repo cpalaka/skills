@@ -29,7 +29,7 @@ A Workflow script **must** be a self-contained literal: it begins with a literal
 ## 4. Form: a script-authoring skill
 
 - **Name / slash:** `tournament` / `/tournament`.
-- **Location:** `cpalaka-claude-skills/tournament/`, symlinked into `~/.claude/skills/` like the other personal skills.
+- **Location:** `skills/tournament/`, symlinked into `~/.claude/skills/` like the other personal skills.
 - **Files (progressive disclosure):**
   - `SKILL.md` — the interview, the assembly process, the Workflow-constraint safety rules, the run flow. Kept lean.
   - `reference/stages.md` — the **stage catalog**: one canonical, slot-marked, copy-paste-exact snippet per stage. Loaded only when assembling. Source of truth for all boilerplate.

@@ -1,4 +1,4 @@
-<!-- chunk:dev-practice | kind: value-variant | single-source: cpalaka-claude-skills/chunks/dev-practice.md -->
+<!-- chunk:dev-practice | kind: value-variant | single-source: skills/chunks/dev-practice.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 <!-- Renamed from superpowers-default 2026-07-25: the superpowers plugin was uninstalled and the
      name pointed at nothing. Knob marker renamed with it — `<!-- knobs:dev-practice -->`. -->

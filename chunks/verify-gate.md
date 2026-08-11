@@ -1,4 +1,4 @@
-<!-- chunk:verify-gate | kind: value-variant | single-source: cpalaka-claude-skills/chunks/verify-gate.md -->
+<!-- chunk:verify-gate | kind: value-variant | single-source: skills/chunks/verify-gate.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## Verify gate (run before any commit or handoff)

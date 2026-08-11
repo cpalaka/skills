@@ -1,5 +1,5 @@
 # Bootstrap the Chunk library on a new Windows machine.
-# Prereq: this repo (cpalaka-claude-skills) is already cloned. Run this script from the clone:
+# Prereq: this repo (skills) is already cloned. Run this script from the clone:
 #   powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
 # It creates a directory junction %USERPROFILE%\.claude\chunks -> <clone>\chunks so every project's
 # @~/.claude/chunks/<name>.md imports resolve. A junction needs no admin rights. Idempotent.
@@ -9,7 +9,7 @@ $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Chunks  = Join-Path $RepoDir 'chunks'
 $Link    = Join-Path $env:USERPROFILE '.claude\chunks'
 
-if (-not (Test-Path $Chunks)) { Write-Error "chunks\ not found at $Chunks - run this from the cpalaka-claude-skills clone."; exit 1 }
+if (-not (Test-Path $Chunks)) { Write-Error "chunks\ not found at $Chunks - run this from the skills clone."; exit 1 }
 New-Item -ItemType Directory -Force -Path (Split-Path $Link) | Out-Null
 
 if (Test-Path $Link) {

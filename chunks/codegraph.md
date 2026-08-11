@@ -1,4 +1,4 @@
-<!-- chunk:codegraph | kind: invariant | single-source: cpalaka-claude-skills/chunks/codegraph.md -->
+<!-- chunk:codegraph | kind: invariant | single-source: skills/chunks/codegraph.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## Code intelligence — CodeGraph (opt-in, self-gating, per-machine)

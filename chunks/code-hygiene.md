@@ -1,4 +1,4 @@
-<!-- chunk:code-hygiene | kind: invariant | single-source: cpalaka-claude-skills/chunks/code-hygiene.md -->
+<!-- chunk:code-hygiene | kind: invariant | single-source: skills/chunks/code-hygiene.md -->
 <!-- Delivered by @import via ~/.claude/chunks/. Edit here only — no per-project copies, no parity. -->
 
 ## Code hygiene — off-limits in code, and ask when unsure
