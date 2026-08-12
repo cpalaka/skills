@@ -8,7 +8,7 @@ keeps my projects' instruction files in step, and a tracker of the 3rd-party ski
 
 | Path | What it is |
 |---|---|
-| `<skill-name>/SKILL.md` | A hand-authored skill (12 of them, listed below). Cross-host unless noted. |
+| `<skill-name>/SKILL.md` | A hand-authored skill (13 of them, listed below). Cross-host unless noted. |
 | `chunks/` | The **Chunk library** — single-source instruction fragments that projects `@import` rather than copy. |
 | `init-project/profiles/` | Declarative project-type **Profiles** (`backlog`, `web`, `godot`) driving the one generic init engine. |
 | `codex-skills/` | Codex **host adapters** — used only where sharing the canonical directory would make one host's metadata or procedure invalid. |
@@ -140,6 +140,14 @@ End-of-session closeout checklist — loose ends, working tree, task state, memo
 **When to use:** Invoke `/wrap-session` at the end of a working session.
 
 [`SKILL.md`](./wrap-session/SKILL.md)
+
+### stem-split
+
+Splits a song into four production-ready stems (vocals, drums, bass, other) as 24-bit WAV, by chaining **Mel-Band Roformer** for the vocal with **htdemucs_ft** for everything else — neither tool gives both on its own. Verifies the source decodes before spending GPU on it, checks the stems are full-length and non-empty, and writes detected BPM and key alongside them. Needs demucs, audio-separator and ffmpeg; see [`TROUBLESHOOTING.md`](./stem-split/TROUBLESHOOTING.md) for setup.
+
+**When to use:** The user asks to separate or extract stems, isolate or remove vocals, or produce an acapella or instrumental from a track.
+
+[`SKILL.md`](./stem-split/SKILL.md)
 
 ## Chunk library
 
